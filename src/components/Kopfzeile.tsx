@@ -13,7 +13,7 @@ export async function Kopfzeile() {
   } = await supabase.auth.getUser();
 
   return (
-    <header className="border-b-2 border-linie bg-white">
+    <header className="shrink-0 border-b-2 border-linie bg-white">
       <div className="mx-auto flex max-w-[1400px] flex-wrap items-center justify-between gap-3 px-4 py-2">
         <Link href="/schritt/bild" className="text-[1.05rem] font-bold">
           Stickmuster

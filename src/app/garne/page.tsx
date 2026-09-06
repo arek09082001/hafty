@@ -8,7 +8,7 @@ export default function GarneSeite() {
   return (
     <>
       <Kopfzeile />
-      <main className="flex flex-1 flex-col">
+      <main className="flex min-h-0 flex-1 flex-col overflow-auto">
         <Seite
           titel="Meine Garne"
           erklaerung="Tragen Sie hier ein, welche Garne Sie zu Hause haben."

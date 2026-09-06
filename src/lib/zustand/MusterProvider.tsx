@@ -1,0 +1,589 @@
+"use client";
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  MAX_FELDER,
+  STANDARD_EINSTELLUNGEN,
+  GLAETTUNGSSTUFEN,
+  type Einstellungen,
+  type Garn,
+  type Kennzahlen,
+  type PalettenEintrag,
+} from "@/lib/muster/typen";
+import { bearbeitungUmschreiben, zusammenfuehren } from "@/lib/muster/raster";
+import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
+import { arbeitsstandLaden, arbeitsstandSichern } from "@/lib/speicher/browserspeicher";
+import type { AnWorker, AntwortVomWorker, VomWorker } from "@/lib/worker/nachrichten";
+
+/**
+ * Ein Rückgängig-Schritt hält nur die geänderten Felder fest, nicht das ganze
+ * Raster: je Feld der Index, der alte und der neue Wert. Ein Muster mit
+ * 30.000 Feldern kostet damit pro Schritt ein paar Byte statt 30 Kilobyte,
+ * und es passen mühelos über hundert Schritte in den Arbeitsspeicher.
+ */
+export type Schritt = {
+  titel: string;
+  indizes: Int32Array;
+  alt: Int16Array;
+  neu: Int16Array;
+};
+
+/** Gefordert sind mindestens 50 Schritte; wir halten deutlich mehr vor. */
+const MAX_SCHRITTE = 120;
+
+export type Muster = {
+  breite: number;
+  hoehe: number;
+  /** Untere Ebene: das erzeugte Muster. */
+  basis: Uint8Array;
+  /** Obere Ebene: die Handbearbeitungen (-1 = unberührt). */
+  bearbeitung: Int16Array;
+  palette: PalettenEintrag[];
+  kennzahlen: Kennzahlen;
+  farbenVorher: number;
+  farbenNachher: number;
+  garneZusammengelegt: number;
+};
+
+export type Bildquelle = {
+  name: string;
+  art: "datei" | "beispiel";
+  blob: Blob;
+  vorschauUrl: string;
+  /** Maße des Quellbildes in Bildpunkten – daraus folgt die Musterhöhe. */
+  masse: { breite: number; hoehe: number };
+};
+
+// ---------------------------------------------------------------------------
+// Zustand und Übergänge
+// ---------------------------------------------------------------------------
+
+type Zustand = {
+  muster: Muster | null;
+  rueckgaengigStapel: Schritt[];
+  wiederholenStapel: Schritt[];
+};
+
+type Aktion =
+  /** Ergebnis eines vollen Durchlaufs: untere Ebene neu, Bearbeitungen bleiben. */
+  | { art: "erzeugt"; muster: Muster }
+  /** Einen kompletten Stand einsetzen (gespeicherter Stand, Wiederherstellung). */
+  | { art: "ersetzen"; muster: Muster }
+  | { art: "felderAendern"; titel: string; indizes: number[]; werte: number[] }
+  | { art: "bearbeitungErsetzen"; titel: string; neue: Int16Array }
+  | { art: "paletteErsetzen"; palette: PalettenEintrag[] }
+  | { art: "rueckgaengig" }
+  | { art: "wiederholen" };
+
+/** Einen Schritt auf die Bearbeitungsebene anwenden und das Muster neu bauen. */
+function schrittAnwenden(muster: Muster, indizes: Int32Array, werte: Int16Array): Muster {
+  const bearbeitung = Int16Array.from(muster.bearbeitung);
+  for (let i = 0; i < indizes.length; i++) bearbeitung[indizes[i]] = werte[i];
+  return {
+    ...muster,
+    bearbeitung,
+    kennzahlen: kennzahlenBerechnen(zusammenfuehren(muster.basis, bearbeitung), muster.breite),
+  };
+}
+
+function aufStapel(stapel: Schritt[], schritt: Schritt): Schritt[] {
+  const neu = [...stapel, schritt];
+  return neu.length > MAX_SCHRITTE ? neu.slice(neu.length - MAX_SCHRITTE) : neu;
+}
+
+function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
+  switch (aktion.art) {
+    case "erzeugt":
+      // Die Indizes der Palette sind andere als vorher, deshalb wäre ein alter
+      // Rückgängig-Schritt nach dem Neuerzeugen sinnlos oder sogar falsch.
+      return { muster: aktion.muster, rueckgaengigStapel: [], wiederholenStapel: [] };
+
+    case "ersetzen":
+      return { muster: aktion.muster, rueckgaengigStapel: [], wiederholenStapel: [] };
+
+    case "paletteErsetzen": {
+      if (!zustand.muster) return zustand;
+      return { ...zustand, muster: { ...zustand.muster, palette: aktion.palette } };
+    }
+
+    case "felderAendern": {
+      const muster = zustand.muster;
+      if (!muster) return zustand;
+
+      // Nur die Felder aufnehmen, die sich wirklich ändern.
+      const indizes: number[] = [];
+      const alt: number[] = [];
+      const neu: number[] = [];
+      for (let i = 0; i < aktion.indizes.length; i++) {
+        const feld = aktion.indizes[i];
+        const wert = aktion.werte[i];
+        if (muster.bearbeitung[feld] === wert) continue;
+        indizes.push(feld);
+        alt.push(muster.bearbeitung[feld]);
+        neu.push(wert);
+      }
+      if (indizes.length === 0) return zustand;
+
+      const schritt: Schritt = {
+        titel: aktion.titel,
+        indizes: Int32Array.from(indizes),
+        alt: Int16Array.from(alt),
+        neu: Int16Array.from(neu),
+      };
+
+      return {
+        muster: schrittAnwenden(muster, schritt.indizes, schritt.neu),
+        rueckgaengigStapel: aufStapel(zustand.rueckgaengigStapel, schritt),
+        wiederholenStapel: [],
+      };
+    }
+
+    case "bearbeitungErsetzen": {
+      const muster = zustand.muster;
+      if (!muster) return zustand;
+
+      const indizes: number[] = [];
+      const alt: number[] = [];
+      const neu: number[] = [];
+      for (let i = 0; i < aktion.neue.length; i++) {
+        if (muster.bearbeitung[i] === aktion.neue[i]) continue;
+        indizes.push(i);
+        alt.push(muster.bearbeitung[i]);
+        neu.push(aktion.neue[i]);
+      }
+      if (indizes.length === 0) return zustand;
+
+      const schritt: Schritt = {
+        titel: aktion.titel,
+        indizes: Int32Array.from(indizes),
+        alt: Int16Array.from(alt),
+        neu: Int16Array.from(neu),
+      };
+
+      return {
+        muster: schrittAnwenden(muster, schritt.indizes, schritt.neu),
+        rueckgaengigStapel: aufStapel(zustand.rueckgaengigStapel, schritt),
+        wiederholenStapel: [],
+      };
+    }
+
+    case "rueckgaengig": {
+      const muster = zustand.muster;
+      const schritt = zustand.rueckgaengigStapel[zustand.rueckgaengigStapel.length - 1];
+      if (!muster || !schritt) return zustand;
+      return {
+        muster: schrittAnwenden(muster, schritt.indizes, schritt.alt),
+        rueckgaengigStapel: zustand.rueckgaengigStapel.slice(0, -1),
+        wiederholenStapel: aufStapel(zustand.wiederholenStapel, schritt),
+      };
+    }
+
+    case "wiederholen": {
+      const muster = zustand.muster;
+      const schritt = zustand.wiederholenStapel[zustand.wiederholenStapel.length - 1];
+      if (!muster || !schritt) return zustand;
+      return {
+        muster: schrittAnwenden(muster, schritt.indizes, schritt.neu),
+        rueckgaengigStapel: aufStapel(zustand.rueckgaengigStapel, schritt),
+        wiederholenStapel: zustand.wiederholenStapel.slice(0, -1),
+      };
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+type MusterKontext = {
+  bild: Bildquelle | null;
+  /** Wählt ein Bild aus und misst dabei gleich seine Maße. */
+  bildWaehlen: (quelle: { name: string; art: "datei" | "beispiel"; blob: Blob }) => Promise<void>;
+  bildEntfernen: () => void;
+
+  einstellungen: Einstellungen;
+  einstellungenSetzen: (e: Partial<Einstellungen>) => void;
+
+  garne: Garn[];
+  garneSetzen: (g: Garn[]) => void;
+
+  muster: Muster | null;
+  /** Beide Ebenen zusammengeführt – das, was gezeigt und gedruckt wird. */
+  raster: Uint8Array | null;
+
+  laeuft: boolean;
+  fortschritt: { text: string; anteil: number } | null;
+  fehler: string | null;
+  fehlerSetzen: (text: string | null) => void;
+
+  /** Der volle Durchlauf: Bild -> Muster. */
+  erzeugen: () => Promise<boolean>;
+  /** Nur die Glättung neu rechnen – für den Schieberegler. */
+  glaettungSetzen: (stufe: number) => void;
+
+  felderAendern: (titel: string, indizes: number[], werte: number[]) => void;
+  bearbeitungErsetzen: (titel: string, neue: Int16Array) => void;
+  paletteErsetzen: (palette: PalettenEintrag[]) => void;
+  musterErsetzen: (m: Muster) => void;
+
+  rueckgaengig: () => void;
+  wiederholen: () => void;
+  kannRueckgaengig: boolean;
+  kannWiederholen: boolean;
+  letzterSchrittTitel: string | null;
+  naechsterSchrittTitel: string | null;
+};
+
+const Kontext = createContext<MusterKontext | null>(null);
+
+export function useMuster(): MusterKontext {
+  const k = useContext(Kontext);
+  if (!k) throw new Error("useMuster braucht den MusterProvider.");
+  return k;
+}
+
+export function MusterProvider({ children }: { children: ReactNode }) {
+  const [zustand, ausloesen] = useReducer(reduzieren, {
+    muster: null,
+    rueckgaengigStapel: [],
+    wiederholenStapel: [],
+  });
+  const [bild, setBild] = useState<Bildquelle | null>(null);
+  const [einstellungen, setEinstellungen] = useState<Einstellungen>(STANDARD_EINSTELLUNGEN);
+  const [garne, setGarne] = useState<Garn[]>([]);
+  const [laeuft, setLaeuft] = useState(false);
+  const [fortschritt, setFortschritt] = useState<{ text: string; anteil: number } | null>(null);
+  const [fehler, setFehler] = useState<string | null>(null);
+  const [wiederhergestellt, setWiederhergestellt] = useState(false);
+
+  const worker = useRef<Worker | null>(null);
+  const wartend = useRef<((w: AntwortVomWorker) => void) | null>(null);
+
+  const { muster } = zustand;
+
+  // --- Worker ---------------------------------------------------------------
+  const workerHolen = useCallback(() => {
+    if (!worker.current) {
+      worker.current = new Worker(new URL("../worker/muster.worker.ts", import.meta.url), {
+        type: "module",
+      });
+      worker.current.addEventListener("message", (e: MessageEvent<VomWorker>) => {
+        const nachricht = e.data;
+        if (nachricht.art === "fortschritt") {
+          setFortschritt({ text: nachricht.text, anteil: nachricht.anteil });
+          return;
+        }
+        wartend.current?.(nachricht);
+      });
+    }
+    return worker.current;
+  }, []);
+
+  useEffect(() => {
+    const eigen = worker;
+    return () => {
+      eigen.current?.terminate();
+      eigen.current = null;
+    };
+  }, []);
+
+  // --- Nach einem Absturz den letzten Arbeitsstand zurückholen --------------
+  useEffect(() => {
+    let abgebrochen = false;
+    (async () => {
+      const stand = await arbeitsstandLaden();
+      if (abgebrochen) return;
+      if (stand) {
+        ausloesen({
+          art: "ersetzen",
+          muster: {
+            breite: stand.breite,
+            hoehe: stand.hoehe,
+            basis: stand.basis,
+            bearbeitung: stand.bearbeitung,
+            palette: stand.palette,
+            kennzahlen: kennzahlenBerechnen(
+              zusammenfuehren(stand.basis, stand.bearbeitung),
+              stand.breite,
+            ),
+            farbenVorher: stand.palette.length,
+            farbenNachher: stand.palette.length,
+            garneZusammengelegt: 0,
+          },
+        });
+        setEinstellungen(stand.einstellungen);
+        if (stand.bild && stand.bildMasse) {
+          setBild({
+            name: stand.bildName,
+            art: "datei",
+            blob: stand.bild,
+            vorschauUrl: URL.createObjectURL(stand.bild),
+            masse: stand.bildMasse,
+          });
+        }
+      }
+      setWiederhergestellt(true);
+    })();
+    return () => {
+      abgebrochen = true;
+    };
+  }, []);
+
+  // --- Arbeitsstand laufend mitschreiben ------------------------------------
+  // Nicht bei jedem Pinselstrich, sondern gebündelt: 800 ms nach der letzten
+  // Änderung. Das reicht gegen einen Absturz und belastet nichts.
+  useEffect(() => {
+    if (!wiederhergestellt || !muster) return;
+    const zeitgeber = window.setTimeout(() => {
+      void arbeitsstandSichern({
+        musterId: null,
+        name: bild?.name ?? "Muster",
+        breite: muster.breite,
+        hoehe: muster.hoehe,
+        basis: muster.basis,
+        bearbeitung: muster.bearbeitung,
+        palette: muster.palette,
+        einstellungen,
+        bild: bild?.blob ?? null,
+        bildName: bild?.name ?? "",
+        bildMasse: bild?.masse ?? null,
+        gespeichertAm: Date.now(),
+      });
+    }, 800);
+    return () => window.clearTimeout(zeitgeber);
+  }, [muster, einstellungen, bild, wiederhergestellt]);
+
+  // --- Bild auswählen -------------------------------------------------------
+  const bildWaehlen = useCallback(
+    async (quelle: { name: string; art: "datei" | "beispiel"; blob: Blob }) => {
+      const bitmap = await createImageBitmap(quelle.blob);
+      const masse = { breite: bitmap.width, hoehe: bitmap.height };
+      bitmap.close();
+      setBild((vorher) => {
+        if (vorher) URL.revokeObjectURL(vorher.vorschauUrl);
+        return { ...quelle, vorschauUrl: URL.createObjectURL(quelle.blob), masse };
+      });
+    },
+    [],
+  );
+
+  const bildEntfernen = useCallback(() => {
+    setBild((vorher) => {
+      if (vorher) URL.revokeObjectURL(vorher.vorschauUrl);
+      return null;
+    });
+  }, []);
+
+  // --- Der volle Durchlauf --------------------------------------------------
+  const erzeugen = useCallback(async () => {
+    if (!bild) {
+      setFehler(
+        "Es ist noch kein Bild ausgesucht. Gehen Sie einen Schritt zurück und wählen Sie ein Bild aus.",
+      );
+      return false;
+    }
+
+    setFehler(null);
+    setLaeuft(true);
+    setFortschritt({ text: "Das Bild wird gelesen.", anteil: 0.02 });
+
+    try {
+      const bitmap = await createImageBitmap(bild.blob);
+
+      const breiteStiche = Math.round(einstellungen.breiteStiche);
+      let hoeheStiche = Math.max(1, Math.round((breiteStiche * bitmap.height) / bitmap.width));
+
+      // Sicherheitsnetz gegen Muster, die den Speicher sprengen würden.
+      if (breiteStiche * hoeheStiche > MAX_FELDER) {
+        hoeheStiche = Math.max(1, Math.floor(MAX_FELDER / breiteStiche));
+      }
+
+      const stufe = GLAETTUNGSSTUFEN[begrenzen(einstellungen.glaettung)];
+
+      const antwort = await anWorkerSenden(
+        workerHolen(),
+        wartend,
+        {
+          art: "erzeugen",
+          bild: bitmap,
+          breiteStiche,
+          hoeheStiche,
+          farbanzahl: einstellungen.farbanzahl,
+          lambda: stufe.lambda,
+          mindestFlaeche: stufe.mindestFlaeche,
+          garne,
+          dithering: einstellungen.dithering,
+        },
+        [bitmap],
+      );
+
+      if (antwort.art === "fehler") {
+        setFehler(antwort.text);
+        return false;
+      }
+
+      // Handbearbeitungen aus einem früheren Durchlauf übernehmen, indem
+      // ihre Farben auf die neue Palette umgeschrieben werden.
+      const passt = muster && muster.breite === antwort.breite && muster.hoehe === antwort.hoehe;
+      const bearbeitung = passt
+        ? bearbeitungUmschreiben(muster.bearbeitung, muster.palette, antwort.palette)
+        : new Int16Array(antwort.raster.length).fill(-1);
+
+      ausloesen({
+        art: "erzeugt",
+        muster: {
+          breite: antwort.breite,
+          hoehe: antwort.hoehe,
+          basis: antwort.raster,
+          bearbeitung,
+          palette: antwort.palette,
+          kennzahlen: antwort.kennzahlen,
+          farbenVorher: antwort.farbenVorher,
+          farbenNachher: antwort.farbenNachher,
+          garneZusammengelegt: antwort.garneZusammengelegt,
+        },
+      });
+      return true;
+    } catch {
+      setFehler(
+        "Dieses Bild konnte nicht gelesen werden. Bitte wählen Sie ein anderes Bild aus, am besten ein Foto im Format JPG oder PNG.",
+      );
+      return false;
+    } finally {
+      setLaeuft(false);
+      setFortschritt(null);
+    }
+  }, [bild, einstellungen, garne, muster, workerHolen]);
+
+  // --- Nur die Glättung -----------------------------------------------------
+  const glaettungSetzen = useCallback(
+    (stufeNummer: number) => {
+      const nummer = begrenzen(stufeNummer);
+      setEinstellungen((e) => ({ ...e, glaettung: nummer }));
+      if (!muster) return;
+
+      const stufe = GLAETTUNGSSTUFEN[nummer];
+      setLaeuft(true);
+
+      void anWorkerSenden(workerHolen(), wartend, {
+        art: "glaetten",
+        lambda: stufe.lambda,
+        mindestFlaeche: stufe.mindestFlaeche,
+      })
+        .then((antwort) => {
+          if (antwort.art === "fehler") {
+            setFehler(antwort.text);
+            return;
+          }
+          ausloesen({
+            art: "erzeugt",
+            muster: {
+              breite: antwort.breite,
+              hoehe: antwort.hoehe,
+              basis: antwort.raster,
+              bearbeitung: bearbeitungUmschreiben(
+                muster.bearbeitung,
+                muster.palette,
+                antwort.palette,
+              ),
+              palette: antwort.palette,
+              kennzahlen: antwort.kennzahlen,
+              farbenVorher: antwort.farbenVorher,
+              farbenNachher: antwort.farbenNachher,
+              garneZusammengelegt: antwort.garneZusammengelegt,
+            },
+          });
+        })
+        .finally(() => {
+          setLaeuft(false);
+          setFortschritt(null);
+        });
+    },
+    [muster, workerHolen],
+  );
+
+  const raster = useMemo(
+    () => (muster ? zusammenfuehren(muster.basis, muster.bearbeitung) : null),
+    [muster],
+  );
+
+  const wert = useMemo<MusterKontext>(
+    () => ({
+      bild,
+      bildWaehlen,
+      bildEntfernen,
+      einstellungen,
+      einstellungenSetzen: (teil) => setEinstellungen((e) => ({ ...e, ...teil })),
+      garne,
+      garneSetzen: setGarne,
+      muster,
+      raster,
+      laeuft,
+      fortschritt,
+      fehler,
+      fehlerSetzen: setFehler,
+      erzeugen,
+      glaettungSetzen,
+      felderAendern: (titel, indizes, werte) =>
+        ausloesen({ art: "felderAendern", titel, indizes, werte }),
+      bearbeitungErsetzen: (titel, neue) =>
+        ausloesen({ art: "bearbeitungErsetzen", titel, neue }),
+      paletteErsetzen: (palette) => ausloesen({ art: "paletteErsetzen", palette }),
+      musterErsetzen: (m) => ausloesen({ art: "ersetzen", muster: m }),
+      rueckgaengig: () => ausloesen({ art: "rueckgaengig" }),
+      wiederholen: () => ausloesen({ art: "wiederholen" }),
+      kannRueckgaengig: zustand.rueckgaengigStapel.length > 0,
+      kannWiederholen: zustand.wiederholenStapel.length > 0,
+      letzterSchrittTitel:
+        zustand.rueckgaengigStapel[zustand.rueckgaengigStapel.length - 1]?.titel ?? null,
+      naechsterSchrittTitel:
+        zustand.wiederholenStapel[zustand.wiederholenStapel.length - 1]?.titel ?? null,
+    }),
+    [
+      bild,
+      bildWaehlen,
+      bildEntfernen,
+      einstellungen,
+      garne,
+      muster,
+      raster,
+      laeuft,
+      fortschritt,
+      fehler,
+      erzeugen,
+      glaettungSetzen,
+      zustand.rueckgaengigStapel,
+      zustand.wiederholenStapel,
+    ],
+  );
+
+  return <Kontext.Provider value={wert}>{children}</Kontext.Provider>;
+}
+
+function begrenzen(stufe: number): number {
+  return Math.min(GLAETTUNGSSTUFEN.length - 1, Math.max(0, Math.round(stufe)));
+}
+
+/** Einen Auftrag an den Worker schicken und auf genau eine Antwort warten. */
+function anWorkerSenden(
+  worker: Worker,
+  wartend: React.RefObject<((w: AntwortVomWorker) => void) | null>,
+  auftrag: AnWorker,
+  transfer: Transferable[] = [],
+): Promise<AntwortVomWorker> {
+  return new Promise((aufloesen) => {
+    wartend.current = (nachricht) => {
+      wartend.current = null;
+      aufloesen(nachricht);
+    };
+    worker.postMessage(auftrag, transfer);
+  });
+}

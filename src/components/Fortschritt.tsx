@@ -24,7 +24,7 @@ export function Fortschritt() {
   );
 
   return (
-    <nav aria-label="Fortschritt" className="border-b-2 border-linie bg-white">
+    <nav aria-label="Fortschritt" className="shrink-0 border-b-2 border-linie bg-white">
       <ol className="mx-auto flex max-w-[1400px] flex-wrap items-stretch gap-2 px-4 py-3">
         {SCHRITTE.map((schritt, i) => {
           const erledigt = i < aktuell;

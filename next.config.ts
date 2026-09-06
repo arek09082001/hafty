@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Keine automatisch erzeugten AGENTS.md/CLAUDE.md im Projekt.
+  agentRules: false,
 };
 
 export default nextConfig;
