@@ -348,6 +348,7 @@ export function MusterAnsehen() {
    * des nächsten – die neuere Arbeit bleibt als eigener Zweig erhalten.
    */
   const standWiederherstellen = async (stand: Stand) => {
+    if (!muster) return;
     const inhalt = await standHolen(stand);
     if (!inhalt) {
       fehlerSetzen(
@@ -368,6 +369,8 @@ export function MusterAnsehen() {
       farbenVorher: inhalt.palette.length,
       farbenNachher: inhalt.palette.length,
       garneZusammengelegt: 0,
+      // Ein wiederhergestellter Stand gehört weiter zum selben Bild.
+      bildKennung: muster.bildKennung,
     });
     setAuswahl(null);
     setMeldung("Der frühere Stand ist wieder da.");
@@ -756,9 +759,9 @@ export function MusterAnsehen() {
         offen={garnwechsel !== null}
         titel="Ein anderes Garn für diese Farbe"
         text="Die Farbwerte der Hersteller sind Näherungen. Wenn Sie Ihre Garnkarte vor sich haben und ein anderer Ton besser passt, wählen Sie ihn hier aus."
-        bestaetigenText="Farbe behalten"
+        bestaetigenText="Fenster schließen"
+        nurSchliessen
         onBestaetigen={() => setGarnwechsel(null)}
-        abbrechenText="Abbrechen"
         onAbbrechen={() => setGarnwechsel(null)}
       >
         <Garnwahl

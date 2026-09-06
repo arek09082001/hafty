@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# … die Vorlage gehört aber ins Repo, die README verweist darauf
+!.env.example
 
 # vercel
 .vercel

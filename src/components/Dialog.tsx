@@ -17,6 +17,7 @@ export function Dialog({
   onBestaetigen,
   onAbbrechen,
   children,
+  nurSchliessen = false,
 }: {
   offen: boolean;
   titel: string;
@@ -27,6 +28,13 @@ export function Dialog({
   onBestaetigen: () => void;
   onAbbrechen: () => void;
   children?: ReactNode;
+  /**
+   * Für reine Auswahlfenster, in denen das Antippen selbst schon die
+   * Entscheidung ist. Dann gibt es nur einen Knopf – zwei Knöpfe, die
+   * dasselbe tun, verwirren mehr, als sie helfen. Ein sichtbarer Weg
+   * heraus bleibt trotzdem.
+   */
+  nurSchliessen?: boolean;
 }) {
   const ersterKnopf = useRef<HTMLButtonElement>(null);
 
@@ -58,9 +66,11 @@ export function Dialog({
           <Knopf ref={ersterKnopf} art={bestaetigenArt} onClick={onBestaetigen}>
             {bestaetigenText}
           </Knopf>
-          <Knopf art="neben" onClick={onAbbrechen}>
-            {abbrechenText}
-          </Knopf>
+          {nurSchliessen ? null : (
+            <Knopf art="neben" onClick={onAbbrechen}>
+              {abbrechenText}
+            </Knopf>
+          )}
         </div>
       </div>
     </div>

@@ -55,9 +55,13 @@ export type Muster = {
   farbenVorher: number;
   farbenNachher: number;
   garneZusammengelegt: number;
+  /** Aus welchem Bild dieses Muster entstanden ist. */
+  bildKennung: string;
 };
 
 export type Bildquelle = {
+  /** Eindeutig je ausgewähltem Bild – daran hängt, ob Bearbeitungen passen. */
+  kennung: string;
   name: string;
   art: "datei" | "beispiel";
   blob: Blob;
@@ -385,12 +389,14 @@ export function MusterProvider({ children }: { children: ReactNode }) {
             farbenVorher: stand.palette.length,
             farbenNachher: stand.palette.length,
             garneZusammengelegt: 0,
+            bildKennung: stand.bildKennung,
           },
         });
         setEinstellungen(stand.einstellungen);
         setMusterId(stand.musterId);
         if (stand.bild && stand.bildMasse) {
           setBild({
+            kennung: stand.bildKennung,
             name: stand.bildName,
             art: "datei",
             blob: stand.bild,
@@ -424,6 +430,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         bild: bild?.blob ?? null,
         bildName: bild?.name ?? "",
         bildMasse: bild?.masse ?? null,
+        bildKennung: muster.bildKennung,
         gespeichertAm: Date.now(),
       });
     }, 800);
@@ -438,7 +445,12 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bitmap.close();
       setBild((vorher) => {
         if (vorher) URL.revokeObjectURL(vorher.vorschauUrl);
-        return { ...quelle, vorschauUrl: URL.createObjectURL(quelle.blob), masse };
+        return {
+          ...quelle,
+          kennung: crypto.randomUUID(),
+          vorschauUrl: URL.createObjectURL(quelle.blob),
+          masse,
+        };
       });
     },
     [],
@@ -501,7 +513,15 @@ export function MusterProvider({ children }: { children: ReactNode }) {
 
       // Handbearbeitungen aus einem früheren Durchlauf übernehmen, indem
       // ihre Farben auf die neue Palette umgeschrieben werden.
-      const passt = muster && muster.breite === antwort.breite && muster.hoehe === antwort.hoehe;
+      //
+      // Nur, wenn dasselbe Bild zugrunde liegt und das Raster gleich groß
+      // geblieben ist: bei einem anderen Bild lägen die alten Stiche an
+      // willkürlichen Stellen und die Nutzerin müsste sie mühsam suchen.
+      const passt =
+        muster !== null &&
+        muster.bildKennung === bild.kennung &&
+        muster.breite === antwort.breite &&
+        muster.hoehe === antwort.hoehe;
       const bearbeitung = passt
         ? bearbeitungUmschreiben(muster.bearbeitung, muster.palette, antwort.palette)
         : new Int16Array(antwort.raster.length).fill(-1);
@@ -516,6 +536,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         farbenVorher: antwort.farbenVorher,
         farbenNachher: antwort.farbenNachher,
         garneZusammengelegt: antwort.garneZusammengelegt,
+        bildKennung: bild.kennung,
       };
       ausloesen({ art: "erzeugt", muster: neu });
 
@@ -569,6 +590,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
               farbenVorher: antwort.farbenVorher,
               farbenNachher: antwort.farbenNachher,
               garneZusammengelegt: antwort.garneZusammengelegt,
+              bildKennung: muster.bildKennung,
             },
           });
         })
