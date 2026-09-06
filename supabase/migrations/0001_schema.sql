@@ -82,10 +82,22 @@ create index if not exists pattern_versions_pattern_idx
 create index if not exists pattern_versions_parent_idx
   on public.pattern_versions (parent_version_id);
 
-alter table public.patterns
-  add constraint patterns_current_version_fk
-  foreign key (current_version_id)
-  references public.pattern_versions (id) on delete set null;
+-- Der Verweis auf den aktuellen Stand kann erst hier gesetzt werden, weil
+-- sich die beiden Tabellen gegenseitig referenzieren. In einen DO-Block
+-- gepackt, damit die ganze Datei ein zweites Mal laufen darf, ohne
+-- abzubrechen – im SQL-Editor passiert das schnell.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'patterns_current_version_fk'
+  ) then
+    alter table public.patterns
+      add constraint patterns_current_version_fk
+      foreign key (current_version_id)
+      references public.pattern_versions (id) on delete set null;
+  end if;
+end
+$$;
 
 -- --------------------------------------------------------------------------
 -- Zuordnung Palettenindex -> Garnfarbe (die Legende)
