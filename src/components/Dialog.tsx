@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { Knopf } from "./Knopf";
+import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
  * Ein Fenster hat immer einen sichtbaren Abbrechen-Knopf. Die Escape-Taste
@@ -13,7 +14,7 @@ export function Dialog({
   text,
   bestaetigenText,
   bestaetigenArt = "haupt",
-  abbrechenText = "Abbrechen",
+  abbrechenText,
   onBestaetigen,
   onAbbrechen,
   children,
@@ -36,6 +37,7 @@ export function Dialog({
    */
   nurSchliessen?: boolean;
 }) {
+  const { t } = useSprache();
   const ersterKnopf = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -68,7 +70,7 @@ export function Dialog({
           </Knopf>
           {nurSchliessen ? null : (
             <Knopf art="neben" onClick={onAbbrechen}>
-              {abbrechenText}
+              {abbrechenText ?? t("allgemein.abbrechen")}
             </Knopf>
           )}
         </div>

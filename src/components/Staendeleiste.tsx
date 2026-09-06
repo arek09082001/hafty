@@ -5,12 +5,8 @@ import { useEffect, useState } from "react";
 import { Knopf } from "./Knopf";
 import { Hinweis } from "./Hinweis";
 import { Dialog } from "./Dialog";
-import {
-  staendeLaden,
-  standMerken,
-  zeitpunktText,
-  type Stand,
-} from "@/lib/speicher/staende";
+import { staendeLaden, standMerken, zeitpunktText, type Stand } from "@/lib/speicher/staende";
+import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
  * Die gespeicherten Stände als waagerechte Leiste aus Vorschaubildern.
@@ -37,6 +33,8 @@ export function Staendeleiste({
   // Der Schlüssel sagt, welchen Datenstand die Liste zeigt. Solange er nicht
   // zum gewünschten passt, wird noch geladen – so braucht es kein eigenes
   // Ladekennzeichen, das im Effekt gesetzt werden müsste.
+  const { t, sprache } = useSprache();
+  const zeit = (iso: string) => zeitpunktText(iso, sprache, t);
   const schluessel = `${musterId ?? ""}#${neuLaden}`;
   const [geladen, setGeladen] = useState<{
     schluessel: string;
@@ -94,26 +92,20 @@ export function Staendeleiste({
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-      <h2 className="text-[1.3rem] font-bold">Frühere Stände</h2>
+      <h2 className="text-[1.2rem] font-bold">{t("staende.titel")}</h2>
 
       <Knopf art="neben" onClick={merken} disabled={merktGerade}>
-        {merktGerade ? "Wird gemerkt …" : "Diesen Stand merken"}
+        {merktGerade ? t("staende.wirdGemerkt") : t("staende.merken")}
       </Knopf>
 
       {!musterId ? (
-        <p className="text-[1.05rem] text-gedaempft">
-          Sobald Sie etwas am Muster ändern, wird der Stand von selbst gesichert. Hier sehen Sie
-          dann alle früheren Stände und können jederzeit dorthin zurück.
-        </p>
+        <p className="text-[1.05rem] text-gedaempft">{t("staende.erklaerung")}</p>
       ) : laedt ? (
-        <p className="text-[1.05rem] text-gedaempft">Die Stände werden geholt …</p>
+        <p className="text-[1.05rem] text-gedaempft">{t("staende.wirdGeholt")}</p>
       ) : gingSchief ? (
-        <Hinweis art="fehler">
-          Die früheren Stände konnten nicht geholt werden. Bitte prüfen Sie Ihre
-          Internetverbindung. Ihre Arbeit auf dem Bildschirm bleibt davon unberührt.
-        </Hinweis>
+        <Hinweis art="fehler">{t("staende.fehlerLaden")}</Hinweis>
       ) : staende.length === 0 ? (
-        <p className="text-[1.05rem] text-gedaempft">Noch keine früheren Stände.</p>
+        <p className="text-[1.05rem] text-gedaempft">{t("staende.nochKeine")}</p>
       ) : (
         <ul className="flex gap-3 overflow-x-auto pb-2">
           {staende.map((stand) => {
@@ -142,11 +134,14 @@ export function Staendeleiste({
                     </span>
                   )}
                   <span className="text-center text-[0.95rem] font-semibold leading-tight">
-                    {zeitpunktText(stand.angelegtAm)} – {stand.farben} Farben
+                    {t("staende.eintrag", {
+                      zeit: zeit(stand.angelegtAm),
+                      farben: String(stand.farben),
+                    })}
                   </span>
                   <span className="text-center text-[0.85rem] text-gedaempft">
-                    {stand.gemerkt ? "Gemerkt" : stand.beschriftung}
-                    {ist ? " · Sie arbeiten hier" : ""}
+                    {stand.gemerkt ? t("staende.gemerkt") : t(stand.beschriftung)}
+                    {ist ? t("staende.sieArbeitenHier") : ""}
                   </span>
                 </button>
               </li>
@@ -157,9 +152,11 @@ export function Staendeleiste({
 
       <Dialog
         offen={vorschau !== null}
-        titel={vorschau ? `Stand von ${zeitpunktText(vorschau.angelegtAm)}` : ""}
-        bestaetigenText={stelltWiederHer ? "Wird geholt …" : "Diesen Stand wiederherstellen"}
-        abbrechenText="Schließen"
+        titel={vorschau ? t("staende.standVon", { zeit: zeit(vorschau.angelegtAm) }) : ""}
+        bestaetigenText={
+          stelltWiederHer ? t("allgemein.wirdGeholt") : t("staende.wiederherstellen")
+        }
+        abbrechenText={t("staende.schliessen")}
         onBestaetigen={wiederherstellen}
         onAbbrechen={() => setVorschau(null)}
       >
@@ -168,7 +165,7 @@ export function Staendeleiste({
             {vorschau.vorschauUrl ? (
               <Image
                 src={vorschau.vorschauUrl}
-                alt={`Vorschau des Standes von ${zeitpunktText(vorschau.angelegtAm)}`}
+                alt={t("staende.vorschauBeschriftung", { zeit: zeit(vorschau.angelegtAm) })}
                 width={420}
                 height={420}
                 unoptimized
@@ -176,14 +173,14 @@ export function Staendeleiste({
               />
             ) : null}
             <p className="text-[1.05rem]">
-              {vorschau.farben} Farben. {vorschau.beschriftung}
+              {t("staende.vorschauText", {
+                farben: String(vorschau.farben),
+                beschriftung: t(vorschau.beschriftung),
+              })}
             </p>
-            <Hinweis>
-              Wenn Sie diesen Stand wiederherstellen, geht Ihre neuere Arbeit nicht verloren – sie
-              bleibt als eigener Stand in dieser Leiste stehen.
-            </Hinweis>
+            <Hinweis>{t("staende.nichtsVerloren")}</Hinweis>
             <Knopf art="neben" onClick={() => gemerktUmschalten(vorschau)}>
-              {vorschau.gemerkt ? "Nicht mehr merken" : "Diesen Stand dauerhaft merken"}
+              {vorschau.gemerkt ? t("staende.nichtMehrMerken") : t("staende.dauerhaftMerken")}
             </Knopf>
           </div>
         ) : null}

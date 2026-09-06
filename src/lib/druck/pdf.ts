@@ -17,12 +17,20 @@
  * nichts verlorengeht. Jede zehnte Rasterlinie ist dicker, und an allen
  * vier Rändern stehen die Reihen- und Spaltennummern – so lässt sich auf
  * dem Papier genauso zählen wie auf dem Stoff.
+ *
+ * Zur Schrift: die eingebauten Schriften eines PDF können nur WinAnsi und
+ * damit kein einziges polnisches Sonderzeichen – „Wzór" allein bringt sie
+ * zum Absturz. Deshalb wird eine echte Schriftdatei mitgeliefert und
+ * eingebettet. Sie ist auf die gebrauchten Zeichen zusammengestrichen und
+ * dadurch nur rund 20 kB groß (siehe scripts/schrift-verkleinern.mjs).
  */
 
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
 import { cmText, sticheInCm, type PalettenEintrag } from "@/lib/muster/typen";
 import { garnlaengeMeter, meterText } from "./garnverbrauch";
+import type { Textschluessel } from "@/lib/sprache/texte";
 
 /** A4 hochkant in Punkten. */
 const SEITE_BREITE = 595.28;
@@ -42,6 +50,9 @@ const SCHWARZ = rgb(0, 0, 0);
 const GRAU = rgb(0.55, 0.55, 0.55);
 const HELLGRAU = rgb(0.82, 0.82, 0.82);
 
+/** Übersetzen und Zahlen schreiben – der Ausdruck folgt der Sprache der App. */
+export type Uebersetzer = (schluessel: Textschluessel, werte?: Record<string, string>) => string;
+
 export type Druckauftrag = {
   name: string;
   breite: number;
@@ -49,8 +60,11 @@ export type Druckauftrag = {
   raster: Uint8Array;
   palette: PalettenEintrag[];
   stoffzaehlung: number;
+  t: Uebersetzer;
+  zahl: (n: number) => string;
+  landeskennung: string;
   /** Wird bei jedem Abschnitt aufgerufen, damit die Seite etwas anzeigen kann. */
-  melden?: (text: string, anteil: number) => void;
+  melden?: (text: Textschluessel, anteil: number) => void;
 };
 
 type Blattplan = {
@@ -248,7 +262,11 @@ function rasterBlattZeichnen(
   }
 
   // --- Fußzeile mit der Blattnummer ---------------------------------------
-  const nummer = `${inFarbe ? "Farbe" : "Schwarzweiß"} · Blatt ${blatt.spalte + 1} von links, ${blatt.reihe + 1} von oben`;
+  const nummer = auftrag.t("pdf.blattFuss", {
+    fassung: auftrag.t(inFarbe ? "pdf.inFarbe" : "pdf.schwarzweiss"),
+    spalte: String(blatt.spalte + 1),
+    reihe: String(blatt.reihe + 1),
+  });
   seite.drawText(nummer, {
     x: RAND,
     y: RAND - 12,
@@ -272,21 +290,23 @@ function legendeZeichnen(
   let seite = pdf.addPage([SEITE_BREITE, SEITE_HOEHE]);
   let y = TABELLE_OBEN;
 
+  const t = auftrag.t;
+
   const kopf = () => {
     kopfzeileZeichnen(
       seite,
       fett,
       normal,
-      "Ihre Garne",
-      `${auftrag.palette.length} Farben · ${auftrag.name}`,
-      "Der Garnverbrauch ist geschätzt und gilt für zwei Fäden eines Stranges.",
+      t("pdf.garnliste"),
+      t("pdf.garnlisteKopf", { anzahl: String(auftrag.palette.length), name: auftrag.name }),
+      t("pdf.garnlisteHinweis"),
     );
     // Spaltenüberschriften
-    seite.drawText("Symbol", { x: RAND, y, size: 9, font: fett, color: GRAU });
-    seite.drawText("Garn", { x: RAND + 78, y, size: 9, font: fett, color: GRAU });
-    seite.drawText("Farbe", { x: RAND + 190, y, size: 9, font: fett, color: GRAU });
-    seite.drawText("Stiche", { x: RAND + 372, y, size: 9, font: fett, color: GRAU });
-    seite.drawText("Garn nötig", { x: RAND + 442, y, size: 9, font: fett, color: GRAU });
+    seite.drawText(t("pdf.spalteSymbol"), { x: RAND, y, size: 9, font: fett, color: GRAU });
+    seite.drawText(t("pdf.spalteGarn"), { x: RAND + 78, y, size: 9, font: fett, color: GRAU });
+    seite.drawText(t("pdf.spalteFarbe"), { x: RAND + 190, y, size: 9, font: fett, color: GRAU });
+    seite.drawText(t("pdf.spalteStiche"), { x: RAND + 372, y, size: 9, font: fett, color: GRAU });
+    seite.drawText(t("pdf.spalteGarnNoetig"), { x: RAND + 442, y, size: 9, font: fett, color: GRAU });
     y -= 14;
     seite.drawLine({
       start: { x: RAND, y },
@@ -335,7 +355,9 @@ function legendeZeichnen(
       color: SCHWARZ,
     });
 
-    const garnText = eintrag.garn ? `${eintrag.garn.marke} ${eintrag.garn.code}` : "eigene Farbe";
+    const garnText = eintrag.garn
+      ? `${eintrag.garn.marke} ${eintrag.garn.code}`
+      : t("pdf.eigeneFarbe");
     const farbName = eintrag.garn ? eintrag.garn.name : eintrag.hex;
 
     seite.drawText(garnText, { x: RAND + 78, y: y + 2, size: 11, font: fett, color: SCHWARZ });
@@ -346,20 +368,23 @@ function legendeZeichnen(
       font: normal,
       color: SCHWARZ,
     });
-    seite.drawText(eintrag.stiche.toLocaleString("de-DE"), {
+    seite.drawText(auftrag.zahl(eintrag.stiche), {
       x: RAND + 372,
       y: y + 2,
       size: 11,
       font: normal,
       color: SCHWARZ,
     });
-    seite.drawText(meterText(garnlaengeMeter(eintrag.stiche, auftrag.stoffzaehlung)), {
-      x: RAND + 442,
-      y: y + 2,
-      size: 11,
-      font: normal,
-      color: SCHWARZ,
-    });
+    seite.drawText(
+      meterText(garnlaengeMeter(eintrag.stiche, auftrag.stoffzaehlung), auftrag.landeskennung),
+      {
+        x: RAND + 442,
+        y: y + 2,
+        size: 11,
+        font: normal,
+        color: SCHWARZ,
+      },
+    );
 
     y -= zeilenHoehe;
     seite.drawLine({
@@ -381,7 +406,10 @@ function legendeZeichnen(
     y = TABELLE_OBEN;
   }
   seite.drawText(
-    `Zusammen ${gesamtStiche.toLocaleString("de-DE")} Stiche und ungefähr ${meterText(gesamtMeter)} Garn.`,
+    t("pdf.summe", {
+      stiche: auftrag.zahl(gesamtStiche),
+      garn: meterText(gesamtMeter, auftrag.landeskennung),
+    }),
     { x: RAND, y: y - 6, size: 11, font: fett, color: SCHWARZ },
   );
 }
@@ -438,8 +466,16 @@ async function vorschauSeite(
     fett,
     normal,
     auftrag.name,
-    `Fertige Größe ${cmText(breiteCm)} cm × ${cmText(hoeheCm)} cm auf Aida ${auftrag.stoffzaehlung}`,
-    `${auftrag.breite} × ${auftrag.hoehe} Stiche · ${auftrag.palette.length} Farben`,
+    auftrag.t("pdf.fertigeGroesse", {
+      breite: cmText(breiteCm, auftrag.landeskennung),
+      hoehe: cmText(hoeheCm, auftrag.landeskennung),
+      zaehlung: String(auftrag.stoffzaehlung),
+    }),
+    auftrag.t("pdf.sticheFarben", {
+      breite: String(auftrag.breite),
+      hoehe: String(auftrag.hoehe),
+      farben: String(auftrag.palette.length),
+    }),
   );
 
   const png = await vorschauPng(auftrag);
@@ -462,7 +498,7 @@ async function vorschauSeite(
   // --- Blattplan, wenn es mehr als ein Blatt gibt -------------------------
   let y = RAND + 130;
   if (plan.blaetter.length > 1) {
-    seite.drawText("So gehören die Blätter zusammen", {
+    seite.drawText(auftrag.t("pdf.blaetterZusammen"), {
       x: RAND,
       y,
       size: 12,
@@ -497,11 +533,14 @@ async function vorschauSeite(
     }
 
     seite.drawText(
-      `${plan.blaetter.length} Blätter, jeweils mit ${UEBERLAPPUNG} Reihen Überlappung. Die Angabe steht unten auf jedem Blatt.`,
+      auftrag.t("pdf.blaetterHinweis", {
+        anzahl: String(plan.blaetter.length),
+        ueberlappung: String(UEBERLAPPUNG),
+      }),
       { x: RAND, y: RAND + 6, size: 9, font: normal, color: GRAU },
     );
   } else {
-    seite.drawText("Das ganze Muster passt auf ein Blatt.", {
+    seite.drawText(auftrag.t("pdf.einBlatt"), {
       x: RAND,
       y: RAND + 6,
       size: 10,
@@ -516,23 +555,28 @@ async function vorschauSeite(
  */
 export async function musterAlsPdf(auftrag: Druckauftrag): Promise<Blob> {
   const melden = auftrag.melden ?? (() => {});
-  melden("Das Muster wird für den Druck vorbereitet.", 0.05);
+  melden("arbeit.druckVorbereiten", 0.05);
 
   const pdf = await PDFDocument.create();
   pdf.setTitle(auftrag.name);
   pdf.setCreator("Stickmuster");
 
-  const normal = await pdf.embedFont(StandardFonts.Helvetica);
-  const fett = await pdf.embedFont(StandardFonts.HelveticaBold);
+  pdf.registerFontkit(fontkit);
+  const [normalBytes, fettBytes] = await Promise.all([
+    schriftHolen("/schriften/schrift-normal.ttf"),
+    schriftHolen("/schriften/schrift-fett.ttf"),
+  ]);
+  const normal = await pdf.embedFont(normalBytes, { subset: true });
+  const fett = await pdf.embedFont(fettBytes, { subset: true });
 
   const plan = blattplan(auftrag.breite, auftrag.hoehe);
   const breiteCm = sticheInCm(auftrag.breite, auftrag.stoffzaehlung);
   const hoeheCm = sticheInCm(auftrag.hoehe, auftrag.stoffzaehlung);
 
-  melden("Die Vorschau wird gezeichnet.", 0.15);
+  melden("arbeit.vorschauZeichnen", 0.15);
   await vorschauSeite(pdf, fett, normal, auftrag, plan);
 
-  melden("Die Garnliste wird geschrieben.", 0.25);
+  melden("arbeit.garnlisteSchreiben", 0.25);
   legendeZeichnen(pdf, fett, normal, auftrag);
 
   const gesamt = plan.blaetter.length * 2;
@@ -545,15 +589,27 @@ export async function musterAlsPdf(auftrag: Druckauftrag): Promise<Blob> {
         seite,
         fett,
         normal,
-        `${auftrag.name} – ${inFarbe ? "in Farbe" : "schwarzweiß"}`,
-        `${cmText(breiteCm)} cm × ${cmText(hoeheCm)} cm auf Aida ${auftrag.stoffzaehlung}`,
-        `Reihen ${blatt.y0 + 1} bis ${blatt.y1} · Spalten ${blatt.x0 + 1} bis ${blatt.x1}`,
+        auftrag.t("pdf.blattTitel", {
+          name: auftrag.name,
+          fassung: auftrag.t(inFarbe ? "pdf.inFarbe" : "pdf.schwarzweiss"),
+        }),
+        auftrag.t("pdf.masseKurz", {
+          breite: cmText(breiteCm, auftrag.landeskennung),
+          hoehe: cmText(hoeheCm, auftrag.landeskennung),
+          zaehlung: String(auftrag.stoffzaehlung),
+        }),
+        auftrag.t("pdf.reihenSpalten", {
+          vonReihe: String(blatt.y0 + 1),
+          bisReihe: String(blatt.y1),
+          vonSpalte: String(blatt.x0 + 1),
+          bisSpalte: String(blatt.x1),
+        }),
       );
       rasterBlattZeichnen(seite, fett, normal, auftrag, plan, blatt, inFarbe);
 
       fertig++;
       melden(
-        `Blatt ${fertig} von ${gesamt} wird gezeichnet.`,
+        "arbeit.blattZeichnen",
         0.3 + (fertig / gesamt) * 0.6,
       );
       // Dem Browser kurz Luft lassen, damit die Anzeige nachkommt.
@@ -561,9 +617,19 @@ export async function musterAlsPdf(auftrag: Druckauftrag): Promise<Blob> {
     }
   }
 
-  melden("Die Datei wird zusammengestellt.", 0.95);
+  melden("arbeit.dateiBauen", 0.95);
   const bytes = await pdf.save();
   return new Blob([bytes as BlobPart], { type: "application/pdf" });
+}
+
+/**
+ * Die Schriftdatei holen. Sie liegt neben der App und wird erst beim Drucken
+ * geladen – wer nie druckt, lädt sie auch nie.
+ */
+async function schriftHolen(pfad: string): Promise<ArrayBuffer> {
+  const antwort = await fetch(pfad);
+  if (!antwort.ok) throw new Error(`Schrift ${pfad} nicht gefunden.`);
+  return antwort.arrayBuffer();
 }
 
 /** Wie viele Blätter der Ausdruck bekommt – für die Anzeige vor dem Drucken. */

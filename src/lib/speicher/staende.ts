@@ -26,6 +26,8 @@ import { entpacken, packen } from "./browserspeicher";
 import { rasterEntpacken, rasterPacken } from "./rle";
 import { hexNachRgb } from "@/lib/farbe/lab";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
+import { LANDESKENNUNG, type Sprache } from "@/lib/sprache/SprachProvider";
+import type { Textschluessel } from "@/lib/sprache/texte";
 
 /** So viele automatische Stände bleiben erhalten. Gemerkte nie löschen. */
 const AUTOMATISCH_BEHALTEN = 20;
@@ -38,7 +40,8 @@ export type Stand = {
   id: string;
   musterId: string;
   elternId: string | null;
-  beschriftung: string;
+  /** Warum dieser Stand entstanden ist – als Textschlüssel. */
+  beschriftung: Textschluessel;
   gemerkt: boolean;
   angelegtAm: string;
   farben: number;
@@ -101,7 +104,7 @@ export async function standSichern(argumente: {
   musterId: string | null;
   elternId: string | null;
   name: string;
-  beschriftung: string;
+  beschriftung: Textschluessel;
   gemerkt: boolean;
   breite: number;
   hoehe: number;
@@ -254,7 +257,7 @@ export async function staendeLaden(musterId: string): Promise<Stand[]> {
         id: zeile.id as string,
         musterId: zeile.pattern_id as string,
         elternId: (zeile.parent_version_id as string | null) ?? null,
-        beschriftung: (zeile.label as string) ?? "",
+        beschriftung: ((zeile.label as string) || "staende.neuErzeugt") as Textschluessel,
         gemerkt: Boolean(zeile.pinned),
         angelegtAm: zeile.created_at as string,
         farben: palette.length,
@@ -330,19 +333,29 @@ export async function aufraeumen(musterId: string): Promise<void> {
  * Ein Zeitpunkt, wie ihn ein Mensch sagt: „Heute, 14:30". Keine
  * Zeitstempel, keine Versionsnummern.
  */
-export function zeitpunktText(iso: string): string {
+export function zeitpunktText(
+  iso: string,
+  sprache: Sprache,
+  t: (schluessel: Textschluessel, werte?: Record<string, string>) => string,
+): string {
+  const kennung = LANDESKENNUNG[sprache];
   const zeit = new Date(iso);
-  const uhr = zeit.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  const uhr = zeit.toLocaleTimeString(kennung, { hour: "2-digit", minute: "2-digit" });
 
   const heute = new Date();
   const gleicherTag = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
 
-  if (gleicherTag(zeit, heute)) return `Heute, ${uhr}`;
+  if (gleicherTag(zeit, heute)) return t("staende.heute", { uhr });
 
   const gestern = new Date(heute);
   gestern.setDate(heute.getDate() - 1);
-  if (gleicherTag(zeit, gestern)) return `Gestern, ${uhr}`;
+  if (gleicherTag(zeit, gestern)) return t("staende.gestern", { uhr });
 
-  return `${zeit.toLocaleDateString("de-DE", { day: "numeric", month: "long" })}, ${uhr}`;
+  return t("staende.datum", {
+    datum: zeit.toLocaleDateString(kennung, { day: "numeric", month: "long" }),
+    uhr,
+  });
 }

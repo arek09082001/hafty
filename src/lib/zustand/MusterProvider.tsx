@@ -26,6 +26,7 @@ import { arbeitsstandLaden, arbeitsstandSichern } from "@/lib/speicher/browsersp
 import { standSichern, type Stand } from "@/lib/speicher/staende";
 import { garneLaden, type GarnMitVorrat } from "@/lib/speicher/garne";
 import type { AnWorker, AntwortVomWorker, VomWorker } from "@/lib/worker/nachrichten";
+import type { Textschluessel } from "@/lib/sprache/texte";
 
 /**
  * Ein Rückgängig-Schritt hält nur die geänderten Felder fest, nicht das ganze
@@ -34,7 +35,8 @@ import type { AnWorker, AntwortVomWorker, VomWorker } from "@/lib/worker/nachric
  * und es passen mühelos über hundert Schritte in den Arbeitsspeicher.
  */
 export type Schritt = {
-  titel: string;
+  /** Der Name des Schrittes als Textschlüssel – übersetzt wird erst beim Anzeigen. */
+  titel: Textschluessel;
   indizes: Int32Array;
   alt: Int16Array;
   neu: Int16Array;
@@ -85,8 +87,8 @@ type Aktion =
   | { art: "erzeugt"; muster: Muster }
   /** Einen kompletten Stand einsetzen (gespeicherter Stand, Wiederherstellung). */
   | { art: "ersetzen"; muster: Muster }
-  | { art: "felderAendern"; titel: string; indizes: number[]; werte: number[] }
-  | { art: "bearbeitungErsetzen"; titel: string; neue: Int16Array }
+  | { art: "felderAendern"; titel: Textschluessel; indizes: number[]; werte: number[] }
+  | { art: "bearbeitungErsetzen"; titel: Textschluessel; neue: Int16Array }
   | { art: "paletteErsetzen"; palette: PalettenEintrag[] }
   | { art: "rueckgaengig" }
   | { art: "wiederholen" };
@@ -230,17 +232,18 @@ type MusterKontext = {
   raster: Uint8Array | null;
 
   laeuft: boolean;
-  fortschritt: { text: string; anteil: number } | null;
-  fehler: string | null;
-  fehlerSetzen: (text: string | null) => void;
+  fortschritt: { text: Textschluessel; anteil: number } | null;
+  /** Fehlermeldung als Textschlüssel – übersetzt wird erst beim Anzeigen. */
+  fehler: Textschluessel | null;
+  fehlerSetzen: (schluessel: Textschluessel | null) => void;
 
   /** Der volle Durchlauf: Bild -> Muster. */
   erzeugen: () => Promise<boolean>;
   /** Nur die Glättung neu rechnen – für den Schieberegler. */
   glaettungSetzen: (stufe: number) => void;
 
-  felderAendern: (titel: string, indizes: number[], werte: number[]) => void;
-  bearbeitungErsetzen: (titel: string, neue: Int16Array) => void;
+  felderAendern: (titel: Textschluessel, indizes: number[], werte: number[]) => void;
+  bearbeitungErsetzen: (titel: Textschluessel, neue: Int16Array) => void;
   paletteErsetzen: (palette: PalettenEintrag[]) => void;
   musterErsetzen: (m: Muster) => void;
 
@@ -254,7 +257,7 @@ type MusterKontext = {
    * Einen Stand sichern. Läuft bei jedem großen Schritt automatisch und
    * zusätzlich von Hand über „Diesen Stand merken".
    */
-  standAnlegen: (beschriftung: string, gemerkt?: boolean) => Promise<boolean>;
+  standAnlegen: (beschriftung: Textschluessel, gemerkt?: boolean) => Promise<boolean>;
   /** Nach dem Wiederherstellen: auf diesen Stand als Elternteil umschalten. */
   standUebernehmen: (stand: Stand, muster: Muster) => void;
 
@@ -262,8 +265,8 @@ type MusterKontext = {
   wiederholen: () => void;
   kannRueckgaengig: boolean;
   kannWiederholen: boolean;
-  letzterSchrittTitel: string | null;
-  naechsterSchrittTitel: string | null;
+  letzterSchrittTitel: Textschluessel | null;
+  naechsterSchrittTitel: Textschluessel | null;
 };
 
 const Kontext = createContext<MusterKontext | null>(null);
@@ -284,8 +287,10 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   const [einstellungen, setEinstellungen] = useState<Einstellungen>(STANDARD_EINSTELLUNGEN);
   const [alleGarne, setAlleGarne] = useState<GarnMitVorrat[]>([]);
   const [laeuft, setLaeuft] = useState(false);
-  const [fortschritt, setFortschritt] = useState<{ text: string; anteil: number } | null>(null);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fortschritt, setFortschritt] = useState<{ text: Textschluessel; anteil: number } | null>(
+    null,
+  );
+  const [fehler, setFehler] = useState<Textschluessel | null>(null);
   const [wiederhergestellt, setWiederhergestellt] = useState(false);
   const [musterId, setMusterId] = useState<string | null>(null);
   const [versionId, setVersionId] = useState<string | null>(null);
@@ -296,7 +301,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   // `erzeugen` sichert den neuen Stand mit, darf aber nicht von `sichern`
   // abhängen – sonst würde sich jede Sicherung selbst neu erzeugen lassen.
   const sichernRef = useRef<
-    ((m: Muster, beschriftung: string, gemerkt: boolean) => Promise<boolean>) | null
+    ((m: Muster, beschriftung: Textschluessel, gemerkt: boolean) => Promise<boolean>) | null
   >(null);
 
   const { muster } = zustand;
@@ -466,15 +471,13 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   // --- Der volle Durchlauf --------------------------------------------------
   const erzeugen = useCallback(async () => {
     if (!bild) {
-      setFehler(
-        "Es ist noch kein Bild ausgesucht. Gehen Sie einen Schritt zurück und wählen Sie ein Bild aus.",
-      );
+      setFehler("arbeit.fehlerKeinBild");
       return false;
     }
 
     setFehler(null);
     setLaeuft(true);
-    setFortschritt({ text: "Das Bild wird gelesen.", anteil: 0.02 });
+    setFortschritt({ text: "arbeit.bildLesen", anteil: 0.02 });
 
     try {
       const bitmap = await createImageBitmap(bild.blob);
@@ -541,12 +544,14 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       ausloesen({ art: "erzeugt", muster: neu });
 
       // Ein großer Schritt – der Stand wird von selbst gesichert.
-      void sichernRef.current?.(neu, passt ? "Farbanzahl geändert" : "Neu erzeugt", false);
+      void sichernRef.current?.(
+        neu,
+        passt ? "staende.farbanzahlGeaendert" : "staende.neuErzeugt",
+        false,
+      );
       return true;
     } catch {
-      setFehler(
-        "Dieses Bild konnte nicht gelesen werden. Bitte wählen Sie ein anderes Bild aus, am besten ein Foto im Format JPG oder PNG.",
-      );
+      setFehler("arbeit.fehlerBildLesen");
       return false;
     } finally {
       setLaeuft(false);
@@ -613,7 +618,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
    * Stand noch nicht im Zustand des Hooks.
    */
   const sichern = useCallback(
-    async (zuSichern: Muster, beschriftung: string, gemerkt: boolean) => {
+    async (zuSichern: Muster, beschriftung: Textschluessel, gemerkt: boolean) => {
       const ergebnis = await standSichern({
         musterId,
         elternId: versionId,
@@ -643,7 +648,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   }, [sichern]);
 
   const standAnlegen = useCallback(
-    async (beschriftung: string, gemerkt = false) => {
+    async (beschriftung: Textschluessel, gemerkt = false) => {
       if (!muster) return false;
       return sichern(muster, beschriftung, gemerkt);
     },

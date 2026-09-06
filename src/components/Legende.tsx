@@ -2,6 +2,7 @@
 
 import { istDunkel, hexNachRgb } from "@/lib/farbe/lab";
 import type { PalettenEintrag } from "@/lib/muster/typen";
+import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
  * Die Legende: welches Symbol steht für welches Garn, und wie oft kommt es
@@ -19,6 +20,8 @@ export function Legende({
   onWaehlen?: (index: number) => void;
   onGarnAendern?: (index: number) => void;
 }) {
+  const { t, zahl } = useSprache();
+
   return (
     <ul className="flex flex-col gap-2">
       {palette.map((eintrag) => {
@@ -39,15 +42,15 @@ export function Legende({
             </span>
             <span className="flex min-w-0 flex-1 flex-col text-left leading-tight">
               <span className="text-[1.05rem] font-semibold">
-                {eintrag.garn ? `${eintrag.garn.marke} ${eintrag.garn.code}` : "Eigene Farbe"}
+                {eintrag.garn ? `${eintrag.garn.marke} ${eintrag.garn.code}` : t("legende.eigeneFarbe")}
               </span>
               <span className="truncate text-[0.95rem] text-gedaempft">
                 {eintrag.garn ? eintrag.garn.name : eintrag.hex}
               </span>
             </span>
             <span className="shrink-0 text-right text-[1rem]">
-              {eintrag.stiche.toLocaleString("de-DE")}
-              <span className="block text-[0.85rem] text-gedaempft">Stiche</span>
+              {zahl(eintrag.stiche)}
+              <span className="block text-[0.85rem] text-gedaempft">{t("legende.stiche")}</span>
             </span>
           </>
         );
@@ -78,9 +81,7 @@ export function Legende({
                 onClick={() => onGarnAendern(eintrag.index)}
                 className="min-h-[56px] shrink-0 rounded-xl border-2 border-linie bg-white px-3 text-[0.95rem] font-semibold underline hover:bg-hinweis"
               >
-                Anderes
-                <br />
-                Garn
+                {t("legende.anderesGarn")}
               </button>
             ) : null}
           </li>

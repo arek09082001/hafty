@@ -32,6 +32,7 @@ import { symboleVerteilen } from "@/lib/muster/symbole";
 import type { Garn, PalettenEintrag } from "@/lib/muster/typen";
 import type { Lab } from "@/lib/farbe/lab";
 import type { AnWorker, VomWorker } from "./nachrichten";
+import type { Textschluessel } from "@/lib/sprache/texte";
 
 const eigen = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -58,7 +59,7 @@ function melden(nachricht: VomWorker, transfer: Transferable[] = []) {
   eigen.postMessage(nachricht, transfer);
 }
 
-function fortschritt(text: string, anteil: number) {
+function fortschritt(text: Textschluessel, anteil: number) {
   melden({ art: "fortschritt", text, anteil });
 }
 
@@ -73,11 +74,7 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
     // Die Nutzerin bekommt nie den technischen Text zu sehen, aber für die
     // Fehlersuche in der Entwicklung ist er nützlich.
     console.error(fehler);
-    melden({
-      art: "fehler",
-      text:
-        "Das Muster konnte nicht berechnet werden. Bitte versuchen Sie es mit einem kleineren Muster oder weniger Farben noch einmal.",
-    });
+    melden({ art: "fehler", text: "arbeit.fehlerBerechnung" });
   }
 });
 
@@ -90,7 +87,7 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
     auftrag;
 
   // --- Schritt 1: Bild als ImageData ---------------------------------------
-  fortschritt("Das Bild wird gelesen.", 0.05);
+  fortschritt("arbeit.bildLesen", 0.05);
   const leinwand = new OffscreenCanvas(bild.width, bild.height);
   const stift = leinwand.getContext("2d", { willReadFrequently: true });
   if (!stift) throw new Error("Kein 2D-Kontext auf dem OffscreenCanvas.");
@@ -99,25 +96,25 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
   bild.close();
 
   // --- Schritt 2: auf das Stichraster herunterrechnen -----------------------
-  fortschritt("Das Bild wird auf das Stichraster gerechnet.", 0.15);
+  fortschritt("arbeit.herunterrechnen", 0.15);
   let raster: Rasterbild = herunterrechnen(quelle, breiteStiche, hoeheStiche);
 
   // --- Schritt 3: kantenerhaltender Filter ---------------------------------
-  fortschritt("Bildrauschen wird herausgenommen.", 0.3);
+  fortschritt("arbeit.rauschen", 0.3);
   raster = medianFilter(raster);
 
   // --- Schritt 5: Farbreduktion --------------------------------------------
   // (Schritt 4, die Umrechnung nach CIELAB, ist beim Herunterrechnen schon
   //  passiert: das Raster liegt von Anfang an in Lab vor.)
-  fortschritt("Die Farben werden zusammengefasst.", 0.4);
+  fortschritt("arbeit.farbenFassen", 0.4);
   const cluster = kmeans(raster, farbanzahl);
 
   // --- Schritt 6: auf reale Garne abbilden ---------------------------------
-  fortschritt("Zu jeder Farbe wird das passende Garn gesucht.", 0.6);
+  fortschritt("arbeit.garneSuchen", 0.6);
   const zuordnung = aufGarneAbbilden(cluster.zentren, garne);
 
   // --- Abstandstabelle: die Grundlage für alles Weitere ---------------------
-  fortschritt("Das Muster wird vorbereitet.", 0.7);
+  fortschritt("arbeit.vorbereiten", 0.7);
   const tabelle = abstandstabelleBauen(raster.lab, zuordnung.farben);
 
   // Ausgangszuordnung: jedes Feld bekommt die farblich nächste Palettenfarbe.
@@ -145,14 +142,11 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
 
 function nurGlaetten(lambda: number, mindestFlaeche: number) {
   if (!stand) {
-    melden({
-      art: "fehler",
-      text: "Es ist noch kein Muster da. Bitte gehen Sie einen Schritt zurück und wählen Sie ein Bild aus.",
-    });
+    melden({ art: "fehler", text: "arbeit.fehlerKeinMuster" });
     return;
   }
 
-  fortschritt("Einzelne Stiche werden herausgeglättet.", 0.85);
+  fortschritt("arbeit.glaetten", 0.85);
 
   const k = stand.paletteLab.length;
   const { raster, kennzahlen } = glaetten(

@@ -87,22 +87,22 @@ export const STANDARD_EINSTELLUNGEN: Einstellungen = {
  * allein ist oberhalb von etwa 7 wirkungslos (siehe glaettung.ts).
  *
  * In der Oberfläche steht nie eine dieser Zahlen, sondern immer nur die
- * Beschriftung.
+ * Beschriftung – `titel` ist deshalb ein Textschlüssel und kein fertiger Satz.
  */
 export const GLAETTUNGSSTUFEN = [
-  { lambda: 0, mindestFlaeche: 1, titel: "sehr detailliert" },
-  { lambda: 1.2, mindestFlaeche: 2, titel: "detailliert" },
-  { lambda: 2.6, mindestFlaeche: 4, titel: "ausgewogen" },
-  { lambda: 4.5, mindestFlaeche: 9, titel: "ruhig" },
-  { lambda: 7.5, mindestFlaeche: 18, titel: "ruhig und einfach zu sticken" },
+  { lambda: 0, mindestFlaeche: 1, titel: "glaettung.stufe0" },
+  { lambda: 1.2, mindestFlaeche: 2, titel: "glaettung.stufe1" },
+  { lambda: 2.6, mindestFlaeche: 4, titel: "glaettung.stufe2" },
+  { lambda: 4.5, mindestFlaeche: 9, titel: "glaettung.stufe3" },
+  { lambda: 7.5, mindestFlaeche: 18, titel: "glaettung.stufe4" },
 ] as const;
 
 /** Übliche Stoffzählungen. */
 export const STOFFZAEHLUNGEN = [
-  { wert: 11, titel: "Aida 11 – große Kreuze" },
-  { wert: 14, titel: "Aida 14 – am gebräuchlichsten" },
-  { wert: 16, titel: "Aida 16 – feiner" },
-  { wert: 18, titel: "Aida 18 – sehr fein" },
+  { wert: 11, titel: "einst.stoff11" },
+  { wert: 14, titel: "einst.stoff14" },
+  { wert: 16, titel: "einst.stoff16" },
+  { wert: 18, titel: "einst.stoff18" },
 ] as const;
 
 /** Höchstzahl an Feldern, die berechnet wird. 400 × 400 Stiche. */
@@ -119,6 +119,9 @@ export function sticheInCm(stiche: number, stoffzaehlung: number): number {
 }
 
 /** Eine Zentimeterangabe für die Anzeige aufbereiten. */
-export function cmText(cm: number): string {
-  return cm.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+export function cmText(cm: number, landeskennung = "de-DE"): string {
+  return cm.toLocaleString(landeskennung, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 }

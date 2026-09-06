@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Knopf } from "./Knopf";
 import { istDunkel, hexNachRgb } from "@/lib/farbe/lab";
 import type { GarnMitVorrat } from "@/lib/speicher/garne";
+import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
  * Garne finden – auf zwei Wegen, weil beide gebraucht werden:
@@ -29,6 +30,7 @@ export function Garnwahl({
   onWaehlen: (garn: GarnMitVorrat) => void;
   hoehe?: string;
 }) {
+  const { t } = useSprache();
   const [suche, setSuche] = useState("");
 
   const gefunden = useMemo(() => {
@@ -46,7 +48,7 @@ export function Garnwahl({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <label htmlFor="garnsuche" className="text-[1.1rem] font-semibold">
-          Nach Nummer oder Farbnamen suchen
+          {t("garne.suche")}
         </label>
         <div className="flex flex-wrap gap-3">
           <input
@@ -54,12 +56,12 @@ export function Garnwahl({
             value={suche}
             onChange={(e) => setSuche(e.target.value)}
             inputMode="search"
-            placeholder="Zum Beispiel: 310 oder Rot"
+            placeholder={t("garne.suchePlatzhalter")}
             className="min-h-[60px] flex-1 rounded-xl border-2 border-tinte bg-white px-4 text-[1.15rem]"
           />
           {suche !== "" ? (
             <Knopf art="neben" onClick={() => setSuche("")}>
-              Suche leeren
+              {t("garne.sucheLeeren")}
             </Knopf>
           ) : null}
         </div>
@@ -67,8 +69,7 @@ export function Garnwahl({
 
       {gefunden.length === 0 ? (
         <p className="rounded-xl border-2 border-linie bg-hinweis p-5 text-[1.05rem]">
-          Zu „{suche}“ gibt es kein Garn. Versuchen Sie es mit der Nummer von der Banderole, zum
-          Beispiel 310, oder tippen Sie unten einfach eine Farbe an.
+          {t("garne.nichtsGefunden", { suche })}
         </p>
       ) : (
         <ul className={`grid gap-3 overflow-y-auto ${hoehe} grid-cols-[repeat(auto-fill,minmax(150px,1fr))] pr-1`}>
@@ -92,7 +93,7 @@ export function Garnwahl({
                       color: istDunkel(rgb[0], rgb[1], rgb[2]) ? "#ffffff" : "#000000",
                     }}
                   >
-                    {ist ? (markierungText ?? "Ausgewählt") : ""}
+                    {ist ? (markierungText ?? t("garne.ausgewaehlt")) : ""}
                   </span>
                   <span className="flex flex-col bg-white px-3 py-2 leading-tight">
                     <span className="text-[1.05rem] font-bold">

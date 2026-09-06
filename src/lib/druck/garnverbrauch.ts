@@ -24,7 +24,11 @@ export function garnlaengeMeter(stiche: number, stoffzaehlung: number): number {
 }
 
 /** Eine Länge in Metern für den Ausdruck aufbereiten. */
-export function meterText(meter: number): string {
+export function meterText(meter: number, landeskennung = "de-DE"): string {
   if (meter < 1) return `${Math.max(1, Math.round(meter * 100))} cm`;
-  return `${meter.toLocaleString("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m`;
+  const zahl = meter.toLocaleString(landeskennung, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+  return `${zahl} m`;
 }

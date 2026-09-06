@@ -4,14 +4,34 @@ Eine Web-App, die ein Foto in ein Kreuzstich-Zählmuster verwandelt. Die gesamte
 Bildverarbeitung läuft im Browser in einem Web Worker – für die Musterberechnung
 gibt es keinen Server-Roundtrip.
 
-Die Oberfläche ist vollständig deutsch und für eine Nutzerin ohne
-Computererfahrung gebaut: Grundschrift 20px, Schaltflächen mindestens 56px hoch,
-pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
+Die Oberfläche gibt es auf **Deutsch und Polnisch** und ist für eine Nutzerin
+ohne Computererfahrung gebaut: Grundschrift 20px, Schaltflächen mindestens 56px
+hoch, pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
 
 **Es gibt keine Anmeldung.** Die App ist für eine einzige Person gedacht, die
 ihre Muster wiederfinden will, ohne sich etwas merken zu müssen: Seite
 aufrufen und loslegen. Was das für die Sicherheit bedeutet, steht weiter
 unten unter „Keine Anmeldung – was das heißt".
+
+## Zwei Sprachen
+
+Alle sichtbaren Texte stehen in `src/lib/sprache/texte.ts`, Deutsch und
+Polnisch nebeneinander. Deutsch ist die Vorlage, Polnisch wird dagegen
+getypt – eine fehlende Übersetzung ist damit ein Fehler beim Übersetzen des
+Programms und nicht erst im Betrieb zu merken.
+
+Beim allerersten Besuch entscheidet die Spracheinstellung des Geräts; wer
+einmal von Hand umschaltet, bekommt ab dann immer seine Sprache. Die beiden
+Knöpfe stehen oben rechts, jeder in seiner eigenen Sprache beschriftet.
+Übersetzt wird alles: die Oberfläche, die Meldungen, die Zahlen- und
+Datumsschreibweise und der Ausdruck.
+
+Für den Ausdruck liegt eine eigene Schriftdatei bei: die eingebauten
+Schriften eines PDF beherrschen nur WinAnsi und damit kein einziges
+polnisches Sonderzeichen. `public/schriften/` enthält deshalb eine auf die
+gebrauchten Zeichen zusammengestrichene Fassung der Liberation Sans
+(je rund 20 kB statt 400 kB, Lizenz liegt daneben). Neu erzeugen mit
+`node scripts/schrift-verkleinern.mjs`.
 
 ## Stack
 
@@ -126,6 +146,7 @@ in der Migration ab und es fehlen stillschweigend die letzten Regeln.
 src/app/schritt/…       Die vier Schritte des geführten Weges
 src/app/garne           Der eigene Garnvorrat
 src/components          Schaltflächen, Fortschrittsleiste, Fenster
+src/lib/sprache         Wörterbuch Deutsch/Polnisch und der Sprachumschalter
 src/lib/supabase        Zugang zur Datenbank
 supabase/migrations     SQL-Migrationen
 supabase/tests          Nachbau und Prüfung der Zugriffsregeln

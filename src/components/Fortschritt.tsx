@@ -2,21 +2,28 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSprache } from "@/lib/sprache/SprachProvider";
+import { Sprachwahl } from "./Sprachwahl";
 
 /** Die vier Schritte des gefuehrten Weges. */
 export const SCHRITTE = [
-  { pfad: "/schritt/bild", titel: "Bild aussuchen" },
-  { pfad: "/schritt/einstellungen", titel: "Größe und Farben" },
-  { pfad: "/schritt/muster", titel: "Muster ansehen und ändern" },
-  { pfad: "/schritt/drucken", titel: "Drucken" },
+  { pfad: "/schritt/bild", titel: "schritt.bild" },
+  { pfad: "/schritt/einstellungen", titel: "schritt.einstellungen" },
+  { pfad: "/schritt/muster", titel: "schritt.muster" },
+  { pfad: "/schritt/drucken", titel: "schritt.drucken" },
 ] as const;
 
 /**
  * Der Fortschritt steht immer oben und ist gleichzeitig die Navigation:
  * ein bereits erledigter Schritt kann jederzeit wieder angetippt werden,
  * ohne dass dabei etwas verloren geht.
+ *
+ * Der Garnvorrat und die Sprachwahl sitzen in derselben Zeile. Vorher waren
+ * das zwei Leisten übereinander, und die haben dem Muster fast achtzig
+ * Bildpunkte Höhe weggenommen – auf einem Tablet im Querformat ist das viel.
  */
 export function Fortschritt() {
+  const { t } = useSprache();
   const pfad = usePathname();
   const aktuell = Math.max(
     0,
@@ -24,8 +31,9 @@ export function Fortschritt() {
   );
 
   return (
-    <nav aria-label="Fortschritt" className="shrink-0 border-b-2 border-linie bg-white">
-      <ol className="mx-auto flex max-w-[1400px] flex-wrap items-stretch gap-2 px-4 py-3">
+    <nav aria-label={t("schritt.fortschritt")} className="shrink-0 border-b-2 border-linie bg-white">
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-4 py-2">
+        <ol className="flex min-w-0 flex-1 flex-wrap items-stretch gap-2">
         {SCHRITTE.map((schritt, i) => {
           const erledigt = i < aktuell;
           const jetzt = i === aktuell;
@@ -35,7 +43,7 @@ export function Fortschritt() {
             <>
               <span
                 aria-hidden
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-[1.05rem] font-bold ${
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[1rem] font-bold ${
                   jetzt
                     ? "border-hauptaktion bg-hauptaktion text-white"
                     : erledigt
@@ -45,18 +53,18 @@ export function Fortschritt() {
               >
                 {i + 1}
               </span>
-              <span className="text-left text-[0.95rem] font-semibold leading-tight">
-                {schritt.titel}
+              <span className="text-left text-[0.9rem] font-semibold leading-tight">
+                {t(schritt.titel)}
               </span>
             </>
           );
 
           const stil =
-            "flex min-h-[56px] flex-1 items-center gap-3 rounded-xl px-3 py-2 " +
+            "flex min-h-[52px] flex-1 items-center gap-2 rounded-xl px-2 py-1 " +
             (jetzt ? "bg-hinweis" : "");
 
           return (
-            <li key={schritt.pfad} className="flex flex-1 basis-[220px]">
+            <li key={schritt.pfad} className="flex flex-1 basis-[180px]">
               {erreichbar && !jetzt ? (
                 <Link href={schritt.pfad} className={`${stil} hover:bg-hinweis`}>
                   {inhalt}
@@ -72,7 +80,18 @@ export function Fortschritt() {
             </li>
           );
         })}
-      </ol>
+        </ol>
+
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            href="/garne"
+            className="flex min-h-[48px] items-center rounded-xl px-3 text-[0.95rem] font-semibold underline hover:bg-hinweis"
+          >
+            {t("kopf.meineGarne")}
+          </Link>
+          <Sprachwahl />
+        </div>
+      </div>
     </nav>
   );
 }

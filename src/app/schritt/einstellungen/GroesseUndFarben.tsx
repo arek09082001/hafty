@@ -8,6 +8,7 @@ import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Zahlenwahl } from "@/components/Zahlenwahl";
 import { useMuster } from "@/lib/zustand/MusterProvider";
+import { useSprache } from "@/lib/sprache/SprachProvider";
 import {
   MAX_BREITE,
   MAX_FARBEN,
@@ -22,24 +23,22 @@ import {
 export function GroesseUndFarben() {
   const { bild, einstellungen, einstellungenSetzen, erzeugen, laeuft, fortschritt, fehler, alleGarne } =
     useMuster();
+  const { t, zahl, landeskennung } = useSprache();
   const [eigenerFehler, setEigenerFehler] = useState<string | null>(null);
   const router = useRouter();
 
   if (!bild) {
     return (
       <Seite
-        titel="Größe und Farben"
-        erklaerung="Für diesen Schritt fehlt noch das Bild."
+        titel={t("einst.titel")}
+        erklaerung={t("einst.fehltBild")}
         fuss={
           <KnopfLink art="haupt" gross href="/schritt/bild">
-            Zurück zum Bild aussuchen
+            {t("einst.zurueckBildAussuchen")}
           </KnopfLink>
         }
       >
-        <Hinweis>
-          Sie haben noch kein Bild ausgesucht. Gehen Sie einen Schritt zurück und wählen Sie ein Foto
-          oder ein Beispielbild aus.
-        </Hinweis>
+        <Hinweis>{t("einst.fehltBildText")}</Hinweis>
       </Seite>
     );
   }
@@ -57,9 +56,9 @@ export function GroesseUndFarben() {
     setEigenerFehler(null);
     if (zuGross) {
       setEigenerFehler(
-        `So groß kann das Muster nicht werden. Bitte stellen Sie die Breite auf höchstens ${Math.floor(
-          Math.sqrt(MAX_FELDER / seitenverhaeltnis),
-        )} Stiche ein.`,
+        t("einst.zuGrossGenau", {
+          max: String(Math.floor(Math.sqrt(MAX_FELDER / seitenverhaeltnis))),
+        }),
       );
       return;
     }
@@ -69,26 +68,26 @@ export function GroesseUndFarben() {
 
   return (
     <Seite
-      titel="Größe und Farben"
-      erklaerung="Wie breit soll das Muster werden, auf welchem Stoff sticken Sie und wie viele Farben darf es haben? Die fertige Größe sehen Sie unten sofort in Zentimetern."
+      titel={t("einst.titel")}
+      erklaerung={t("einst.erklaerung")}
       fuss={
         <>
           <KnopfLink art="neben" href="/schritt/bild">
-            Zurück zum Bild
+            {t("einst.zurueckBild")}
           </KnopfLink>
           <Knopf art="haupt" gross onClick={musterErstellen} disabled={laeuft}>
-            {laeuft ? "Das Muster wird berechnet …" : "Muster erstellen"}
+            {laeuft ? t("einst.wirdBerechnet") : t("einst.musterErstellen")}
           </Knopf>
         </>
       }
     >
       <div className="flex flex-col gap-9">
-        {fehler ? <Hinweis art="fehler">{fehler}</Hinweis> : null}
+        {fehler ? <Hinweis art="fehler">{t(fehler)}</Hinweis> : null}
         {eigenerFehler ? <Hinweis art="fehler">{eigenerFehler}</Hinweis> : null}
 
         {laeuft && fortschritt ? (
           <div className="rounded-2xl border-2 border-hauptaktion bg-white p-5">
-            <p className="text-[1.15rem] font-semibold">{fortschritt.text}</p>
+            <p className="text-[1.15rem] font-semibold">{t(fortschritt.text)}</p>
             <div className="mt-3 h-5 w-full overflow-hidden rounded-full border-2 border-linie bg-hinweis">
               <div
                 className="h-full bg-hauptaktion transition-[width] duration-300"
@@ -101,18 +100,18 @@ export function GroesseUndFarben() {
         <div className="grid gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="flex flex-col gap-9">
             <Zahlenwahl
-              beschriftung="Breite des Musters"
+              beschriftung={t("einst.breite")}
               wert={breite}
               min={MIN_BREITE}
               max={MAX_BREITE}
               schritt={10}
-              einheit="Stiche"
+              einheit={t("allgemein.stiche")}
               onAendern={(v) => einstellungenSetzen({ breiteStiche: v })}
-              hinweis="Wie viele Kreuze soll das Muster in der Breite haben? Die Höhe ergibt sich aus dem Bild von selbst."
+              hinweis={t("einst.breiteHinweis")}
             />
 
             <div className="flex flex-col gap-3">
-              <span className="text-[1.2rem] font-semibold">Ihr Stoff</span>
+              <span className="text-[1.2rem] font-semibold">{t("einst.stoff")}</span>
               <ul className="flex flex-col gap-3">
                 {STOFFZAEHLUNGEN.map((stoff) => {
                   const gewaehlt = einstellungen.stoffzaehlung === stoff.wert;
@@ -136,77 +135,66 @@ export function GroesseUndFarben() {
                         >
                           {gewaehlt ? <span className="h-3 w-3 rounded-full bg-white" /> : null}
                         </span>
-                        {stoff.titel}
+                        {t(stoff.titel)}
                       </button>
                     </li>
                   );
                 })}
               </ul>
-              <p className="max-w-[60ch] text-[1rem] text-gedaempft">
-                Die Zahl steht auf der Stoffbanderole. Sie sagt, wie viele Kreuze auf einen Zoll
-                passen – je höher die Zahl, desto feiner das Bild und desto kleiner das Ergebnis.
-              </p>
+              <p className="max-w-[60ch] text-[1rem] text-gedaempft">{t("einst.stoffHinweis")}</p>
             </div>
 
             <Zahlenwahl
-              beschriftung="Anzahl der Farben"
+              beschriftung={t("einst.farbanzahl")}
               wert={einstellungen.farbanzahl}
               min={MIN_FARBEN}
               max={MAX_FARBEN}
               schritt={2}
-              einheit="Farben"
+              einheit={t("einst.farbenEinheit")}
               onAendern={(v) => einstellungenSetzen({ farbanzahl: v })}
-              hinweis="Weniger Farben bedeuten weniger Garne zu kaufen und weniger Wechsel beim Sticken. Mehr Farben geben das Foto genauer wieder."
+              hinweis={t("einst.farbanzahlHinweis")}
             />
           </div>
 
           <aside className="flex flex-col gap-5 self-start rounded-2xl border-2 border-tinte bg-white p-6">
-            <h2 className="text-[1.4rem] font-bold">So groß wird Ihre Stickerei</h2>
+            <h2 className="text-[1.4rem] font-bold">{t("einst.soGross")}</h2>
             <p className="text-[2rem] font-bold leading-tight text-hauptaktion">
-              {cmText(breiteCm)} cm × {cmText(hoeheCm)} cm
+              {cmText(breiteCm, landeskennung)} cm × {cmText(hoeheCm, landeskennung)} cm
             </p>
             <dl className="flex flex-col gap-2 text-[1.05rem]">
               <div className="flex justify-between gap-4">
-                <dt>Stiche in der Breite</dt>
+                <dt>{t("einst.sticheBreite")}</dt>
                 <dd className="font-semibold">{breite}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt>Stiche in der Höhe</dt>
+                <dt>{t("einst.sticheHoehe")}</dt>
                 <dd className="font-semibold">{hoehe}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt>Stiche gesamt</dt>
-                <dd className="font-semibold">{(breite * hoehe).toLocaleString("de-DE")}</dd>
+                <dt>{t("einst.sticheGesamt")}</dt>
+                <dd className="font-semibold">{zahl(breite * hoehe)}</dd>
               </div>
             </dl>
-            <p className="text-[1rem] text-gedaempft">
-              Rechnen Sie an jeder Seite noch etwa 5 cm Stoff dazu, damit Sie die Arbeit einspannen
-              können.
-            </p>
+            <p className="text-[1rem] text-gedaempft">{t("einst.stoffZugabe")}</p>
             {zuGross ? (
-              <Hinweis art="fehler">
-                So groß kann das Muster nicht werden. Bitte stellen Sie die Breite kleiner ein.
-              </Hinweis>
+              <Hinweis art="fehler">{t("einst.zuGross")}</Hinweis>
             ) : null}
           </aside>
         </div>
 
         <section className="flex flex-col gap-4 rounded-2xl border-2 border-linie bg-white p-5">
-          <h2 className="text-[1.3rem] font-bold">Welche Garne sollen verwendet werden?</h2>
+          <h2 className="text-[1.3rem] font-bold">{t("einst.welcheGarne")}</h2>
           {eigeneGarne === 0 ? (
             <p className="max-w-[70ch] text-[1.05rem]">
-              Sie haben noch nicht eingetragen, welche Garne Sie zu Hause haben. Das Muster wird
-              deshalb aus allen Farben zusammengestellt.{" "}
+              {t("einst.keineEigenen")}{" "}
               <Link href="/garne" className="font-semibold underline">
-                Jetzt meine Garne eintragen
+                {t("einst.jetztEintragen")}
               </Link>
             </p>
           ) : (
             <>
               <p className="max-w-[70ch] text-[1.05rem]">
-                Sie haben {eigeneGarne} {eigeneGarne === 1 ? "Garn" : "Garne"} zu Hause. Wenn Sie
-                das einschalten, wird das Muster nur aus diesen Garnen zusammengestellt – dann
-                müssen Sie nichts nachkaufen.
+                {t("einst.eigeneGarneText", { anzahl: zahl(eigeneGarne) })}
               </p>
               <button
                 type="button"
@@ -232,7 +220,9 @@ export function GroesseUndFarben() {
                     }`}
                   />
                 </span>
-                Nur meine Garne verwenden: {einstellungen.nurEigeneGarne ? "ein" : "aus"}
+                {t("einst.nurEigene", {
+                  zustand: einstellungen.nurEigeneGarne ? t("einst.ein") : t("einst.aus"),
+                })}
               </button>
             </>
           )}
@@ -240,14 +230,10 @@ export function GroesseUndFarben() {
 
         <details className="rounded-2xl border-2 border-linie bg-white p-5">
           <summary className="min-h-[56px] cursor-pointer list-none text-[1.15rem] font-semibold">
-            Selten gebraucht: Farbverlauf nachahmen
+            {t("einst.verlauf")}
           </summary>
           <div className="mt-4 flex flex-col gap-4">
-            <p className="max-w-[60ch] text-[1.05rem]">
-              Wenn Sie das einschalten, werden zwei Farben abwechselnd nebeneinandergesetzt, damit
-              ein Verlauf weicher aussieht. Auf dem Bildschirm wirkt das gut, beim Sticken bedeutet
-              es aber viele einzelne Stiche. Deshalb ist es normalerweise ausgeschaltet.
-            </p>
+            <p className="max-w-[60ch] text-[1.05rem]">{t("einst.verlaufText")}</p>
             <button
               type="button"
               onClick={() => einstellungenSetzen({ dithering: !einstellungen.dithering })}
@@ -270,7 +256,9 @@ export function GroesseUndFarben() {
                   }`}
                 />
               </span>
-              Farbverlauf nachahmen: {einstellungen.dithering ? "ein" : "aus"}
+              {t("einst.verlaufSchalter", {
+                zustand: einstellungen.dithering ? t("einst.ein") : t("einst.aus"),
+              })}
             </button>
           </div>
         </details>

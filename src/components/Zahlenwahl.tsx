@@ -1,6 +1,7 @@
 "use client";
 
 import { Knopf } from "./Knopf";
+import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
  * Eine Zahl einstellen – mit zwei großen Knöpfen statt eines Drehfeldes.
@@ -26,6 +27,7 @@ export function Zahlenwahl({
   onAendern: (neu: number) => void;
   hinweis?: string;
 }) {
+  const { t } = useSprache();
   const begrenzen = (v: number) => Math.max(min, Math.min(max, v));
 
   return (
@@ -36,9 +38,9 @@ export function Zahlenwahl({
           art="neben"
           onClick={() => onAendern(begrenzen(wert - schritt))}
           disabled={wert <= min}
-          aria-label={`${beschriftung}: weniger`}
+          aria-label={t("einst.wenigerVon", { was: beschriftung })}
         >
-          Weniger
+          {t("einst.weniger")}
         </Knopf>
         <output className="min-w-[190px] rounded-xl border-2 border-tinte bg-white px-5 py-3 text-center text-[1.5rem] font-bold">
           {wert} {einheit}
@@ -47,9 +49,9 @@ export function Zahlenwahl({
           art="neben"
           onClick={() => onAendern(begrenzen(wert + schritt))}
           disabled={wert >= max}
-          aria-label={`${beschriftung}: mehr`}
+          aria-label={t("einst.mehrVon", { was: beschriftung })}
         >
-          Mehr
+          {t("einst.mehr")}
         </Knopf>
       </div>
       {hinweis ? <p className="max-w-[60ch] text-[1rem] text-gedaempft">{hinweis}</p> : null}

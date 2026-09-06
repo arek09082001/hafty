@@ -293,45 +293,55 @@ export function Rasteransicht({
   );
 }
 
-/** Zoomstufen, zwischen denen die beiden Lupenknöpfe umschalten. */
-export const ZOOMSTUFEN = [2, 3, 4, 6, 8, 11, 15, 20, 26, 34] as const;
+/** Rastpunkte für die beiden Lupenknöpfe, in Bildpunkten je Stich. */
+export const ZOOMSTUFEN = [2, 3, 4, 5, 6, 8, 11, 15, 20, 26, 34] as const;
 
-function stufeZu(zoom: number): number {
-  let beste = 0;
-  for (let i = 0; i < ZOOMSTUFEN.length; i++) {
-    if (Math.abs(ZOOMSTUFEN[i] - zoom) < Math.abs(ZOOMSTUFEN[beste] - zoom)) beste = i;
-  }
-  return beste;
-}
+const KLEINSTER = ZOOMSTUFEN[0];
+const GROESSTER = ZOOMSTUFEN[ZOOMSTUFEN.length - 1];
 
 /**
  * Merkt sich die Vergrößerung.
  *
  * `einpassen` rechnet aus, wie groß ein Stich sein darf, damit das ganze
- * Muster in den vorhandenen Platz passt – die Nutzerin soll ihre Arbeit als
- * Ganzes sehen können, ohne zu scrollen.
+ * Muster in den vorhandenen Platz passt – und nimmt genau diesen Wert, nicht
+ * den nächstkleineren Rastpunkt. Sonst bliebe je nach Bildschirm ein
+ * Viertel der Fläche ungenutzt, und die Nutzerin soll ihre Arbeit so groß
+ * wie möglich sehen.
+ *
+ * Die Rastpunkte gelten nur für „Größer" und „Kleiner": von jeder Stelle aus
+ * geht es zum nächsten Punkt darüber oder darunter.
  */
 export function useZoom(start = 6) {
-  const [stufe, setStufe] = useState(() => stufeZu(start));
+  const [zoom, setZoom] = useState(start);
+
+  const groesser = useCallback(() => {
+    setZoom((z) => ZOOMSTUFEN.find((stufe) => stufe > z + 0.01) ?? GROESSTER);
+  }, []);
+
+  const kleiner = useCallback(() => {
+    setZoom((z) => {
+      for (let i = ZOOMSTUFEN.length - 1; i >= 0; i--) {
+        if (ZOOMSTUFEN[i] < z - 0.01) return ZOOMSTUFEN[i];
+      }
+      return KLEINSTER;
+    });
+  }, []);
 
   const einpassen = useCallback(
     (flaecheBreite: number, flaecheHoehe: number, breite: number, hoehe: number) => {
       if (breite <= 0 || hoehe <= 0 || flaecheBreite <= 0 || flaecheHoehe <= 0) return;
       const passend = Math.min(flaecheBreite / breite, flaecheHoehe / hoehe);
-      // Die größte Stufe wählen, die noch hineinpasst.
-      let ziel = 0;
-      for (let i = 0; i < ZOOMSTUFEN.length; i++) if (ZOOMSTUFEN[i] <= passend) ziel = i;
-      setStufe(ziel);
+      setZoom(Math.max(1, Math.min(GROESSTER, passend)));
     },
     [],
   );
 
   return {
-    zoom: ZOOMSTUFEN[stufe],
-    groesser: () => setStufe((s) => Math.min(ZOOMSTUFEN.length - 1, s + 1)),
-    kleiner: () => setStufe((s) => Math.max(0, s - 1)),
-    kannGroesser: stufe < ZOOMSTUFEN.length - 1,
-    kannKleiner: stufe > 0,
+    zoom,
+    groesser,
+    kleiner,
+    kannGroesser: zoom < GROESSTER - 0.01,
+    kannKleiner: zoom > KLEINSTER + 0.01,
     einpassen,
   };
 }

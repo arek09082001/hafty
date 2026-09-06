@@ -1,6 +1,7 @@
 /** Die Nachrichten zwischen Seite und Web Worker. */
 
 import type { Garn, Kennzahlen, PalettenEintrag } from "@/lib/muster/typen";
+import type { Textschluessel } from "@/lib/sprache/texte";
 
 export type AnWorker =
   | {
@@ -18,7 +19,8 @@ export type AnWorker =
   | { art: "glaetten"; lambda: number; mindestFlaeche: number };
 
 export type VomWorker =
-  | { art: "fortschritt"; text: string; anteil: number }
+  /** `text` ist ein Textschlüssel; übersetzt wird erst in der Oberfläche. */
+  | { art: "fortschritt"; text: Textschluessel; anteil: number }
   | {
       art: "fertig";
       breite: number;
@@ -31,7 +33,7 @@ export type VomWorker =
       /** Wie viele Cluster auf dasselbe Garn gefallen sind. */
       garneZusammengelegt: number;
     }
-  | { art: "fehler"; text: string };
+  | { art: "fehler"; text: Textschluessel };
 
 /** Die abschließende Antwort auf einen Auftrag – ohne Fortschrittsmeldungen. */
 export type AntwortVomWorker = Exclude<VomWorker, { art: "fortschritt" }>;

@@ -12,6 +12,9 @@ import { Staendeleiste } from "@/components/Staendeleiste";
 import { Garnwahl } from "@/components/Garnwahl";
 import { Rasteransicht, useZoom, type Zeigerereignis } from "@/components/Rasteransicht";
 import { Werkzeugwahl, type Werkzeug } from "@/components/Werkzeugwahl";
+import { Bereichswahl } from "@/components/Bereichswahl";
+import { useSprache } from "@/lib/sprache/SprachProvider";
+import type { Textschluessel } from "@/lib/sprache/texte";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { cmText, sticheInCm } from "@/lib/muster/typen";
 import {
@@ -65,6 +68,9 @@ export function MusterAnsehen() {
     paletteErsetzen,
   } = useMuster();
 
+  const { t, zahl, landeskennung } = useSprache();
+  /** Welcher der vier Bereiche rechts gerade offen ist. */
+  const [bereich, setBereich] = useState("werkzeug");
   const [werkzeug, setWerkzeug] = useState<Werkzeug>("flaeche");
   const [farbe, setFarbe] = useState(0);
   const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
@@ -85,7 +91,7 @@ export function MusterAnsehen() {
   const [motivName, setMotivName] = useState("");
   const [motivZumLoeschen, setMotivZumLoeschen] = useState<Motiv | null>(null);
   /** Eigene Meldung dieser Seite, unabhängig vom Fehler aus dem Provider. */
-  const [eigenerFehler, setFehler] = useState<string | null>(null);
+  const [eigenerFehler, setFehler] = useState<Textschluessel | null>(null);
   /** Für welchen Palettenindex gerade ein anderes Garn gesucht wird. */
   const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
 
@@ -131,9 +137,7 @@ export function MusterAnsehen() {
       })
       .catch(() => {
         if (!abgebrochen) {
-          setFehler(
-            "Die Motive konnten nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite noch einmal.",
-          );
+          setFehler("motive.fehlerLaden");
         }
       })
       .finally(() => {
@@ -231,7 +235,7 @@ export function MusterAnsehen() {
           } else {
             const indizes = [...bisher.keys()];
             felderAendern(
-              indizes.length > 1 ? "Stiche gemalt" : "Einen Stich gemalt",
+              indizes.length > 1 ? "schrittname.gemalt" : "schrittname.einStichGemalt",
               indizes,
               indizes.map((i) => bisher.get(i) as number),
             );
@@ -245,7 +249,7 @@ export function MusterAnsehen() {
           const flaecheAuswahl = gleicheFlaecheAuswaehlen(raster, breite, e.x, e.y);
           if (flaecheAuswahl.anzahl === 0) return;
           const { indizes, werte } = auswahlFuellen(flaecheAuswahl, farbeSicher);
-          felderAendern("Fläche gefärbt", indizes, werte);
+          felderAendern("schrittname.flaecheGefaerbt", indizes, werte);
           return;
         }
       }
@@ -270,9 +274,7 @@ export function MusterAnsehen() {
     const stueck = ausschnittHerausloesen(raster, muster.breite, auswahl, muster.palette);
     if (!stueck) return;
     setZwischenablage(stueck);
-    setMeldung(
-      `${auswahl.anzahl.toLocaleString("de-DE")} Stiche wurden kopiert. Tippen Sie jetzt auf „Kopie einfügen“.`,
-    );
+    setMeldung(t("editor.kopiertMeldung", { anzahl: zahl(auswahl.anzahl) }));
   };
 
   const einfuegenStarten = (stueck: Ausschnitt, ausMotiv = false) => {
@@ -284,9 +286,7 @@ export function MusterAnsehen() {
       y: Math.max(0, Math.floor((muster.hoehe - stueck.h) / 2)),
     });
     setAuswahl(null);
-    setMeldung(
-      "Schieben Sie das Stück mit dem Finger an die richtige Stelle. Erst „Hier einsetzen“ schreibt es fest.",
-    );
+    setMeldung(t("editor.einsetzenMeldung"));
     // Die Knöpfe zum Einsetzen müssen sofort zu sehen sein.
     rechteSpalte.current?.scrollTo({ top: 0 });
   };
@@ -300,13 +300,13 @@ export function MusterAnsehen() {
       vorschau.x,
       vorschau.y,
     );
-    if (indizes.length > 0) felderAendern("Stück eingesetzt", indizes, werte);
+    if (indizes.length > 0) felderAendern("schrittname.stueckEingesetzt", indizes, werte);
     // Ein eingesetztes Motiv ist ein großer Schritt und wird gesichert.
     const warMotiv = vorschau.ausMotiv;
     setVorschau(null);
     setMeldung(null);
     if (warMotiv && indizes.length > 0) {
-      window.setTimeout(() => void standAnlegen("Motiv eingesetzt"), 0);
+      window.setTimeout(() => void standAnlegen("staende.motivEingesetzt"), 0);
     }
   };
 
@@ -321,7 +321,7 @@ export function MusterAnsehen() {
   const auswahlFaerben = () => {
     if (!auswahl || auswahl.anzahl === 0) return;
     const { indizes, werte } = auswahlFuellen(auswahl, farbeSicher);
-    felderAendern("Auswahl gefärbt", indizes, werte);
+    felderAendern("schrittname.auswahlGefaerbt", indizes, werte);
   };
 
   const motivMerken = async () => {
@@ -333,20 +333,16 @@ export function MusterAnsehen() {
     setMotivName("");
     if (gespeichert) {
       setMotive((liste) => [gespeichert, ...liste]);
-      setMeldung(`Das Motiv „${gespeichert.name}“ ist gemerkt. Sie finden es rechts in der Liste.`);
+      setMeldung(t("editor.motivGemerkt", { name: gespeichert.name }));
     } else {
-      fehlerSetzen(
-        "Das Motiv konnte nicht gemerkt werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und versuchen Sie es dann noch einmal.",
-      );
+      fehlerSetzen("motive.fehlerMerken");
     }
   };
 
   const motivEinsetzen = async (motiv: Motiv) => {
     const stueck = await motivHolen(motiv);
     if (!stueck) {
-      fehlerSetzen(
-        "Dieses Motiv konnte nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und tippen Sie noch einmal darauf.",
-      );
+      fehlerSetzen("motive.fehlerHolen");
       return;
     }
     einfuegenStarten(stueck, true);
@@ -360,9 +356,7 @@ export function MusterAnsehen() {
     if (!muster) return;
     const inhalt = await standHolen(stand);
     if (!inhalt) {
-      fehlerSetzen(
-        "Dieser Stand konnte nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es noch einmal.",
-      );
+      fehlerSetzen("staende.fehlerHolen");
       return;
     }
     standUebernehmen(stand, {
@@ -382,21 +376,13 @@ export function MusterAnsehen() {
       bildKennung: muster.bildKennung,
     });
     setAuswahl(null);
-    setMeldung("Der frühere Stand ist wieder da.");
+    setMeldung(t("editor.standWiederher"));
   };
 
   const standGemerkt = async () => {
-    const geklappt = await standAnlegen("Von Hand gemerkt", true);
-    setMeldung(
-      geklappt
-        ? "Dieser Stand ist gemerkt. Er bleibt Ihnen erhalten, auch wenn Sie noch viel weiterarbeiten."
-        : null,
-    );
-    if (!geklappt) {
-      fehlerSetzen(
-        "Der Stand konnte nicht gemerkt werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und versuchen Sie es dann noch einmal.",
-      );
-    }
+    const geklappt = await standAnlegen("staende.vonHandGemerkt", true);
+    setMeldung(geklappt ? t("editor.standGemerkt") : null);
+    if (!geklappt) fehlerSetzen("staende.fehlerMerken");
   };
 
   /**
@@ -434,7 +420,9 @@ export function MusterAnsehen() {
     );
     paletteErsetzen(neuePalette);
     setGarnwechsel(null);
-    setMeldung(`Diese Farbe ist jetzt ${garn.marke} ${garn.code} – ${garn.name}.`);
+    setMeldung(
+      t("editor.garnGewechselt", { marke: garn.marke, code: garn.code, name: garn.name }),
+    );
 
     if (musterId) {
       const gespeichert = await legendeGarnSetzen(
@@ -444,11 +432,7 @@ export function MusterAnsehen() {
         alt.symbol,
         alt.stiche,
       );
-      if (!gespeichert) {
-        fehlerSetzen(
-          "Die neue Garnfarbe konnte nicht gespeichert werden. Sie sehen sie hier, aber beim nächsten Öffnen ist wieder die alte da.",
-        );
-      }
+      if (!gespeichert) fehlerSetzen("garne.fehlerGarnSetzen");
     }
   };
 
@@ -456,7 +440,7 @@ export function MusterAnsehen() {
     if (!motivZumLoeschen) return;
     const weg = await motivLoeschen(motivZumLoeschen);
     if (weg) setMotive((liste) => liste.filter((m) => m.id !== motivZumLoeschen.id));
-    else fehlerSetzen("Das Motiv konnte nicht gelöscht werden. Bitte versuchen Sie es noch einmal.");
+    else fehlerSetzen("motive.fehlerLoeschen");
     setMotivZumLoeschen(null);
   };
 
@@ -465,18 +449,15 @@ export function MusterAnsehen() {
   if (!muster || !anzeigeRaster) {
     return (
       <Seite
-        titel="Muster ansehen und ändern"
-        erklaerung="Hier ist noch kein Muster."
+        titel={t("editor.titel")}
+        erklaerung={t("editor.keinMuster")}
         fuss={
           <KnopfLink art="haupt" gross href="/schritt/bild">
-            Zurück zum Bild aussuchen
+            {t("einst.zurueckBildAussuchen")}
           </KnopfLink>
         }
       >
-        <Hinweis>
-          Es wurde noch kein Muster erstellt. Gehen Sie zurück zum ersten Schritt, suchen Sie ein
-          Bild aus und tippen Sie dann auf „Muster erstellen“.
-        </Hinweis>
+        <Hinweis>{t("editor.keinMusterText")}</Hinweis>
       </Seite>
     );
   }
@@ -488,13 +469,33 @@ export function MusterAnsehen() {
   return (
     <Seite
       dicht
-      titel="Muster ansehen und ändern"
-      erklaerung={`${muster.breite} × ${muster.hoehe} Stiche – ${cmText(breiteCm)} cm × ${cmText(hoeheCm)} cm auf Aida ${einstellungen.stoffzaehlung}`}
+      titel={t("editor.titel")}
+      kopfEnde={
+        <div className="flex flex-wrap items-center gap-2">
+          <Knopf art="neben" onClick={zoom.kleiner} disabled={!zoom.kannKleiner} klein>
+            {t("editor.kleiner")}
+          </Knopf>
+          <Knopf art="neben" onClick={zoom.groesser} disabled={!zoom.kannGroesser} klein>
+            {t("editor.groesser")}
+          </Knopf>
+          <Knopf art="neben" onClick={ganzZeigen} klein>
+            {t("editor.allesZeigen")}
+          </Knopf>
+          <Knopf
+            art="neben"
+            onClick={() => setMitSymbolen((a) => !a)}
+            aria-pressed={mitSymbolen}
+            klein
+          >
+            {mitSymbolen ? t("editor.symboleAus") : t("editor.symboleAn")}
+          </Knopf>
+        </div>
+      }
       fuss={
         <>
           <div className="flex flex-wrap items-center gap-3">
             <KnopfLink art="neben" href="/schritt/einstellungen">
-              Ein Schritt zurück
+              {t("editor.einSchrittZurueck")}
             </KnopfLink>
             <Knopf
               art="neben"
@@ -502,9 +503,9 @@ export function MusterAnsehen() {
               disabled={!kannRueckgaengig}
               className="flex-col gap-0"
             >
-              Rückgängig
+              {t("editor.rueckgaengig")}
               {letzterSchrittTitel ? (
-                <span className="block text-[0.85rem] font-normal">{letzterSchrittTitel}</span>
+                <span className="block text-[0.85rem] font-normal">{t(letzterSchrittTitel)}</span>
               ) : null}
             </Knopf>
             <Knopf
@@ -513,71 +514,57 @@ export function MusterAnsehen() {
               disabled={!kannWiederholen}
               className="flex-col gap-0"
             >
-              Wiederholen
+              {t("editor.wiederholen")}
               {naechsterSchrittTitel ? (
-                <span className="block text-[0.85rem] font-normal">{naechsterSchrittTitel}</span>
+                <span className="block text-[0.85rem] font-normal">{t(naechsterSchrittTitel)}</span>
               ) : null}
             </Knopf>
           </div>
           <KnopfLink art="haupt" gross href="/schritt/drucken">
-            Weiter zum Drucken
+            {t("editor.weiterDrucken")}
           </KnopfLink>
         </>
       }
     >
-      <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
-        {/* Links: die Leinwand */}
-        <div className="flex min-h-0 flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <Knopf art="neben" onClick={zoom.kleiner} disabled={!zoom.kannKleiner}>
-              Kleiner
-            </Knopf>
-            <Knopf art="neben" onClick={zoom.groesser} disabled={!zoom.kannGroesser}>
-              Größer
-            </Knopf>
-            <Knopf art="neben" onClick={ganzZeigen}>
-              Alles zeigen
-            </Knopf>
-            <Knopf art="neben" onClick={() => setMitSymbolen((s) => !s)} aria-pressed={mitSymbolen}>
-              Symbole {mitSymbolen ? "aus" : "an"}
-            </Knopf>
-          </div>
-
-          <div
-            ref={flaeche}
-            className="grid min-h-0 flex-1 place-items-center overflow-auto rounded-2xl border-2 border-tinte bg-white p-3"
-          >
-            <Rasteransicht
-              breite={muster.breite}
-              hoehe={muster.hoehe}
-              raster={anzeigeRaster}
-              palette={muster.palette}
-              zoom={zoom.zoom}
-              mitSymbolen={mitSymbolen}
-              auswahl={auswahl?.maske ?? null}
-              vorschau={
-                vorschau
-                  ? {
-                      x: vorschau.x,
-                      y: vorschau.y,
-                      w: vorschau.stueck.w,
-                      h: vorschau.stueck.h,
-                      daten: vorschau.stueck.daten,
-                      maske: vorschau.stueck.maske,
-                    }
-                  : null
-              }
-              onZeiger={zeiger}
-              beschriftung={`Ihr Zählmuster, ${muster.breite} mal ${muster.hoehe} Stiche`}
-            />
-          </div>
+      <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
+        {/* Die Leinwand bekommt so viel Platz wie irgend möglich. */}
+        <div
+          ref={flaeche}
+          className="grid min-h-0 place-items-center overflow-auto rounded-2xl border-2 border-tinte bg-white p-2"
+        >
+          <Rasteransicht
+            breite={muster.breite}
+            hoehe={muster.hoehe}
+            raster={anzeigeRaster}
+            palette={muster.palette}
+            zoom={zoom.zoom}
+            mitSymbolen={mitSymbolen}
+            auswahl={auswahl?.maske ?? null}
+            vorschau={
+              vorschau
+                ? {
+                    x: vorschau.x,
+                    y: vorschau.y,
+                    w: vorschau.stueck.w,
+                    h: vorschau.stueck.h,
+                    daten: vorschau.stueck.daten,
+                    maske: vorschau.stueck.maske,
+                  }
+                : null
+            }
+            onZeiger={zeiger}
+            beschriftung={t("editor.leinwandBeschriftung", {
+              breite: String(muster.breite),
+              hoehe: String(muster.hoehe),
+            })}
+          />
         </div>
 
-        {/* Rechts: alles zum Arbeiten, für sich scrollbar */}
-        <div ref={rechteSpalte} className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
+        {/* Rechts die Bedienung, in vier immer sichtbare Bereiche geteilt. */}
+        <div ref={rechteSpalte} className="flex min-h-0 flex-col gap-3">
           {fehler || eigenerFehler ? (
-            <div className="flex flex-col gap-3">
-              <Hinweis art="fehler">{fehler ?? eigenerFehler}</Hinweis>
+            <div className="flex shrink-0 flex-col gap-2">
+              <Hinweis art="fehler">{t((fehler ?? eigenerFehler) as Textschluessel)}</Hinweis>
               <Knopf
                 art="neben"
                 onClick={() => {
@@ -585,45 +572,47 @@ export function MusterAnsehen() {
                   setFehler(null);
                 }}
               >
-                Meldung schließen
+                {t("allgemein.meldungSchliessen")}
               </Knopf>
             </div>
           ) : null}
 
-          {meldung ? <Hinweis art="erfolg">{meldung}</Hinweis> : null}
+          {meldung ? (
+            <div className="shrink-0">
+              <Hinweis art="erfolg">{meldung}</Hinweis>
+            </div>
+          ) : null}
 
-          {/* Die Einfügevorschau verdrängt alles andere, solange sie liegt. */}
           {vorschau ? (
-            <section className="flex flex-col gap-4 rounded-2xl border-2 border-warnung bg-white p-5">
-              <h2 className="text-[1.3rem] font-bold">Stück einsetzen</h2>
-              <p className="text-[1.05rem]">
-                Schieben Sie das Stück mit dem Finger an die richtige Stelle oder rücken Sie es mit
-                den Knöpfen weiter.
-              </p>
+            /* Solange ein Stück eingesetzt wird, verdrängt es alles andere –
+               es gibt dann genau eine Sache zu tun. */
+            <section className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-2xl border-2 border-warnung bg-white p-5">
+              <h2 className="text-[1.3rem] font-bold">{t("editor.stueckEinsetzen")}</h2>
+              <p className="text-[1.05rem]">{t("editor.stueckSchieben")}</p>
 
               <div className="grid w-[220px] grid-cols-3 gap-2 self-center">
                 <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(0, -1)} className="min-h-[56px]">
-                  Hoch
+                <Knopf art="neben" onClick={() => vorschauVerschieben(0, -1)}>
+                  {t("editor.hoch")}
                 </Knopf>
                 <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(-1, 0)} className="min-h-[56px]">
-                  Links
+                <Knopf art="neben" onClick={() => vorschauVerschieben(-1, 0)}>
+                  {t("editor.links")}
                 </Knopf>
                 <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(1, 0)} className="min-h-[56px]">
-                  Rechts
+                <Knopf art="neben" onClick={() => vorschauVerschieben(1, 0)}>
+                  {t("editor.rechts")}
                 </Knopf>
                 <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(0, 1)} className="min-h-[56px]">
-                  Runter
+                <Knopf art="neben" onClick={() => vorschauVerschieben(0, 1)}>
+                  {t("editor.runter")}
                 </Knopf>
                 <span />
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Knopf art="neben" onClick={vorschauDrehen}>
-                  Vierteldrehung
+                  {t("editor.vierteldrehung")}
                 </Knopf>
                 <Knopf
                   art="neben"
@@ -631,7 +620,7 @@ export function MusterAnsehen() {
                     setVorschau((v) => (v ? { ...v, stueck: spiegelnWaagerecht(v.stueck) } : v))
                   }
                 >
-                  Waagerecht spiegeln
+                  {t("editor.spiegelnWaagerecht")}
                 </Knopf>
                 <Knopf
                   art="neben"
@@ -639,13 +628,13 @@ export function MusterAnsehen() {
                     setVorschau((v) => (v ? { ...v, stueck: spiegelnSenkrecht(v.stueck) } : v))
                   }
                 >
-                  Senkrecht spiegeln
+                  {t("editor.spiegelnSenkrecht")}
                 </Knopf>
               </div>
 
-              <div className="flex flex-wrap gap-3">
+              <div className="mt-auto flex flex-wrap gap-3">
                 <Knopf art="haupt" onClick={vorschauFestschreiben}>
-                  Hier einsetzen
+                  {t("editor.hierEinsetzen")}
                 </Knopf>
                 <Knopf
                   art="neben"
@@ -654,156 +643,212 @@ export function MusterAnsehen() {
                     setMeldung(null);
                   }}
                 >
-                  Abbrechen
+                  {t("allgemein.abbrechen")}
                 </Knopf>
               </div>
             </section>
           ) : (
-            <>
-              <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
+            <Bereichswahl
+              bereiche={[
+                { schluessel: "werkzeug", titel: t("bereich.werkzeug") },
+                { schluessel: "farbe", titel: t("bereich.farbe") },
+                { schluessel: "muster", titel: t("bereich.muster") },
+                { schluessel: "merken", titel: t("bereich.merken") },
+              ]}
+              gewaehlt={bereich}
+              onWaehlen={setBereich}
+            >
+              {bereich === "werkzeug" ? (
+                <>
+                  <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
 
-              <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-                <h2 className="text-[1.3rem] font-bold">
-                  {auswahl && hatAuswahl
-                    ? `${auswahl.anzahl.toLocaleString("de-DE")} Stiche ausgewählt`
-                    : "Noch nichts ausgewählt"}
-                </h2>
-                {hatAuswahl ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Knopf art="neben" onClick={auswahlFaerben}>
-                      Auswahl färben
-                    </Knopf>
-                    <Knopf art="neben" onClick={auswahlKopieren}>
-                      Auswahl kopieren
-                    </Knopf>
-                    <Knopf
-                      art="neben"
-                      onClick={() => {
-                        setMotivName("");
-                        setMotivNameOffen(true);
-                      }}
-                    >
-                      Als Motiv merken
-                    </Knopf>
-                    <Knopf art="neben" onClick={() => setAuswahl(null)}>
-                      Auswahl aufheben
-                    </Knopf>
-                  </div>
-                ) : (
-                  <p className="text-[1.05rem] text-gedaempft">
-                    Tippen Sie mit dem gewählten Werkzeug ins Muster, dann erscheinen hier die
-                    passenden Knöpfe.
-                  </p>
-                )}
+                  <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
+                    <h2 className="text-[1.2rem] font-bold">
+                      {auswahl && hatAuswahl
+                        ? t("editor.ausgewaehlt", { anzahl: zahl(auswahl.anzahl) })
+                        : t("editor.nichtsAusgewaehlt")}
+                    </h2>
+                    {hatAuswahl ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Knopf art="neben" onClick={auswahlFaerben}>
+                          {t("editor.auswahlFaerben")}
+                        </Knopf>
+                        <Knopf art="neben" onClick={auswahlKopieren}>
+                          {t("editor.auswahlKopieren")}
+                        </Knopf>
+                        <Knopf
+                          art="neben"
+                          onClick={() => {
+                            setMotivName("");
+                            setMotivNameOffen(true);
+                          }}
+                        >
+                          {t("editor.alsMotivMerken")}
+                        </Knopf>
+                        <Knopf art="neben" onClick={() => setAuswahl(null)}>
+                          {t("editor.auswahlAufheben")}
+                        </Knopf>
+                      </div>
+                    ) : (
+                      <p className="text-[1.05rem] text-gedaempft">{t("editor.tippenHinweis")}</p>
+                    )}
 
-                {zwischenablage ? (
-                  <div className="mt-2 flex flex-col gap-2 rounded-xl bg-hinweis p-4">
-                    <p className="text-[1.05rem]">
-                      Sie haben ein Stück von {zwischenablage.w} × {zwischenablage.h} Stichen
-                      kopiert.
+                    {zwischenablage ? (
+                      <div className="mt-2 flex flex-col gap-2 rounded-xl bg-hinweis p-4">
+                        <p className="text-[1.05rem]">
+                          {t("editor.kopiertHinweis", {
+                            w: String(zwischenablage.w),
+                            h: String(zwischenablage.h),
+                          })}
+                        </p>
+                        <Knopf art="neben" onClick={() => einfuegenStarten(zwischenablage)}>
+                          {t("editor.kopieEinfuegen")}
+                        </Knopf>
+                      </div>
+                    ) : null}
+                  </section>
+                </>
+              ) : null}
+
+              {bereich === "farbe" ? (
+                <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
+                  <h2 className="text-[1.2rem] font-bold">
+                    {t("editor.ihreGarne", { anzahl: String(muster.palette.length) })}
+                  </h2>
+                  <p className="text-[1rem] text-gedaempft">{t("editor.farbeHinweis")}</p>
+                  <Legende
+                    palette={muster.palette}
+                    gewaehlt={farbeSicher}
+                    onWaehlen={setFarbe}
+                    onGarnAendern={alleGarne.length > 0 ? setGarnwechsel : undefined}
+                  />
+                </section>
+              ) : null}
+
+              {bereich === "muster" ? (
+                <>
+                  {/* Die Maße stehen hier und nicht mehr in der Titelzeile –
+                      so passen die Lupenknöpfe neben die Überschrift und das
+                      Muster bekommt eine ganze Zeile Höhe mehr. */}
+                  <section className="flex flex-col gap-1 rounded-2xl border-2 border-tinte bg-white p-5">
+                    <p className="text-[1.5rem] font-bold leading-tight text-hauptaktion">
+                      {cmText(breiteCm, landeskennung)} cm × {cmText(hoeheCm, landeskennung)} cm
                     </p>
-                    <Knopf art="neben" onClick={() => einfuegenStarten(zwischenablage)}>
-                      Kopie einfügen
-                    </Knopf>
-                  </div>
-                ) : null}
-              </section>
+                    <p className="text-[1.05rem] text-gedaempft">
+                      {muster.breite} × {muster.hoehe} {t("allgemein.stiche")}, Aida{" "}
+                      {einstellungen.stoffzaehlung}
+                    </p>
+                  </section>
+                  <Farbmeldung
+                    vorher={muster.farbenVorher}
+                    nachher={muster.farbenNachher}
+                    zusammengelegt={muster.garneZusammengelegt}
+                  />
+                  <Glaettungsregler
+                    stufe={einstellungen.glaettung}
+                    kennzahlen={muster.kennzahlen}
+                    laeuft={laeuft}
+                    onAendern={glaettungSetzen}
+                  />
+                </>
+              ) : null}
 
-              <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-                <h2 className="text-[1.3rem] font-bold">
-                  Ihre Garne ({muster.palette.length})
-                </h2>
-                <p className="text-[1rem] text-gedaempft">
-                  Die angetippte Farbe wird zum Malen und Färben verwendet.
-                </p>
-                <Legende
-                  palette={muster.palette}
-                  gewaehlt={farbeSicher}
-                  onWaehlen={setFarbe}
-                  onGarnAendern={alleGarne.length > 0 ? setGarnwechsel : undefined}
-                />
-              </section>
-
-              <Glaettungsregler
-                stufe={einstellungen.glaettung}
-                kennzahlen={muster.kennzahlen}
-                laeuft={laeuft}
-                onAendern={glaettungSetzen}
-              />
-
-              <Motivliste
-                motive={motive}
-                laedt={motiveLaufen}
-                onEinsetzen={motivEinsetzen}
-                onLoeschen={setMotivZumLoeschen}
-              />
-
-              <Staendeleiste
-                musterId={musterId}
-                aktuelleVersion={versionId}
-                neuLaden={standZaehler}
-                onWiederherstellen={standWiederherstellen}
-                onMerken={standGemerkt}
-              />
-            </>
+              {bereich === "merken" ? (
+                <>
+                  <Staendeleiste
+                    musterId={musterId}
+                    aktuelleVersion={versionId}
+                    neuLaden={standZaehler}
+                    onWiederherstellen={standWiederherstellen}
+                    onMerken={standGemerkt}
+                  />
+                  <Motivliste
+                    motive={motive}
+                    laedt={motiveLaufen}
+                    onEinsetzen={motivEinsetzen}
+                    onLoeschen={setMotivZumLoeschen}
+                  />
+                </>
+              ) : null}
+            </Bereichswahl>
           )}
         </div>
       </div>
 
       <Dialog
-        offen={motivNameOffen}
-        titel="Motiv merken"
-        text="Geben Sie dem Motiv einen Namen, damit Sie es später wiederfinden."
-        bestaetigenText="Motiv merken"
-        onBestaetigen={motivMerken}
-        onAbbrechen={() => setMotivNameOffen(false)}
-      >
-        <label htmlFor="motivname" className="mb-2 block text-[1.1rem] font-semibold">
-          Name des Motivs
-        </label>
-        <input
-          id="motivname"
-          value={motivName}
-          onChange={(e) => setMotivName(e.target.value)}
-          placeholder="Zum Beispiel: Blütenblatt"
-          className="min-h-[60px] w-full rounded-xl border-2 border-tinte bg-white px-4 text-[1.15rem]"
-        />
-      </Dialog>
-
-      <Dialog
         offen={garnwechsel !== null}
-        titel="Ein anderes Garn für diese Farbe"
-        text="Die Farbwerte der Hersteller sind Näherungen. Wenn Sie Ihre Garnkarte vor sich haben und ein anderer Ton besser passt, wählen Sie ihn hier aus."
-        bestaetigenText="Fenster schließen"
+        titel={t("editor.anderesGarnTitel")}
+        text={t("editor.anderesGarnText")}
+        bestaetigenText={t("allgemein.fensterSchliessen")}
         nurSchliessen
         onBestaetigen={() => setGarnwechsel(null)}
         onAbbrechen={() => setGarnwechsel(null)}
       >
         <Garnwahl
           garne={alleGarne}
-          markiert={(g) =>
-            garnwechsel !== null && muster.palette[garnwechsel]?.garn?.id === g.id
-          }
-          markierungText="Jetzt gewählt"
+          markiert={(g) => garnwechsel !== null && muster.palette[garnwechsel]?.garn?.id === g.id}
+          markierungText={t("garne.jetztGewaehlt")}
           onWaehlen={garnSetzen}
           hoehe="max-h-[40vh]"
         />
       </Dialog>
 
       <Dialog
+        offen={motivNameOffen}
+        titel={t("editor.motivMerkenTitel")}
+        text={t("editor.motivMerkenText")}
+        bestaetigenText={t("editor.motivMerken")}
+        onBestaetigen={motivMerken}
+        onAbbrechen={() => setMotivNameOffen(false)}
+      >
+        <label htmlFor="motivname" className="mb-2 block text-[1.1rem] font-semibold">
+          {t("editor.motivName")}
+        </label>
+        <input
+          id="motivname"
+          value={motivName}
+          onChange={(e) => setMotivName(e.target.value)}
+          placeholder={t("editor.motivNamePlatzhalter")}
+          className="min-h-[60px] w-full rounded-xl border-2 border-tinte bg-white px-4 text-[1.15rem]"
+        />
+      </Dialog>
+
+      <Dialog
         offen={motivZumLoeschen !== null}
-        titel="Motiv wirklich löschen?"
-        text={
-          motivZumLoeschen
-            ? `Das Motiv „${motivZumLoeschen.name}“ wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.`
-            : ""
-        }
-        bestaetigenText="Ja, löschen"
+        titel={t("editor.motivLoeschenTitel")}
+        text={motivZumLoeschen ? t("editor.motivLoeschenText", { name: motivZumLoeschen.name }) : ""}
+        bestaetigenText={t("allgemein.jaLoeschen")}
         bestaetigenArt="gefahr"
-        abbrechenText="Behalten"
+        abbrechenText={t("allgemein.behalten")}
         onBestaetigen={motivWirklichLoeschen}
         onAbbrechen={() => setMotivZumLoeschen(null)}
       />
     </Seite>
+  );
+}
+
+/**
+ * Wenn Farben verschwunden sind, wird das in einem ganzen Satz gesagt – die
+ * Nutzerin soll nicht selbst nachzählen müssen.
+ */
+function Farbmeldung({
+  vorher,
+  nachher,
+  zusammengelegt,
+}: {
+  vorher: number;
+  nachher: number;
+  zusammengelegt: number;
+}) {
+  const { t } = useSprache();
+  if (nachher >= vorher) return null;
+
+  return (
+    <Hinweis>
+      {t(zusammengelegt > 0 ? "editor.farbenZusammengelegt" : "editor.farbenWeggefallen", {
+        vorher: String(vorher),
+        nachher: String(nachher),
+      })}
+    </Hinweis>
   );
 }

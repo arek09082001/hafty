@@ -14,12 +14,19 @@ export function Seite({
   erklaerung,
   children,
   fuss,
+  kopfEnde,
   dicht = false,
 }: {
   titel: string;
   erklaerung?: string;
   children: ReactNode;
   fuss?: ReactNode;
+  /**
+   * Steuerung, die in dieselbe Zeile wie die Überschrift gehört. Auf den
+   * Arbeitsseiten sparen die Knöpfe dort eine ganze Zeile – und jede
+   * gesparte Zeile kommt dem Muster zugute.
+   */
+  kopfEnde?: ReactNode;
   dicht?: boolean;
 }) {
   return (
@@ -28,17 +35,22 @@ export function Seite({
         dicht ? "h-full gap-3 py-3" : "flex-1 gap-6 py-6"
       }`}
     >
-      <header className={dicht ? "flex flex-wrap items-baseline gap-x-5 gap-y-1" : ""}>
-        <h1 className={`font-bold leading-tight ${dicht ? "text-[1.5rem]" : "text-[1.9rem]"}`}>
-          {titel}
-        </h1>
-        {erklaerung ? (
-          <p
-            className={`text-[1.05rem] text-gedaempft ${dicht ? "" : "mt-2 max-w-[60ch]"}`}
-          >
-            {erklaerung}
-          </p>
-        ) : null}
+      <header
+        className={
+          dicht ? "flex shrink-0 flex-wrap items-center justify-between gap-x-5 gap-y-2" : ""
+        }
+      >
+        <div className={dicht ? "flex flex-wrap items-baseline gap-x-4 gap-y-1" : ""}>
+          <h1 className={`font-bold leading-tight ${dicht ? "text-[1.4rem]" : "text-[1.9rem]"}`}>
+            {titel}
+          </h1>
+          {erklaerung ? (
+            <p className={`text-[1.05rem] text-gedaempft ${dicht ? "" : "mt-2 max-w-[60ch]"}`}>
+              {erklaerung}
+            </p>
+          ) : null}
+        </div>
+        {kopfEnde}
       </header>
 
       <div className={`flex-1 ${dicht ? "min-h-0" : ""}`}>{children}</div>

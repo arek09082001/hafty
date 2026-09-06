@@ -10,12 +10,17 @@ import { useMuster } from "@/lib/zustand/MusterProvider";
 import { cmText, sticheInCm } from "@/lib/muster/typen";
 import { blattanzahl, musterAlsPdf } from "@/lib/druck/pdf";
 import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
+import { useSprache } from "@/lib/sprache/SprachProvider";
+import type { Textschluessel } from "@/lib/sprache/texte";
 
 export function MusterDrucken() {
   const { muster, raster, einstellungen, bild } = useMuster();
   const [laeuft, setLaeuft] = useState(false);
-  const [fortschritt, setFortschritt] = useState<{ text: string; anteil: number } | null>(null);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const [fortschritt, setFortschritt] = useState<{ text: Textschluessel; anteil: number } | null>(
+    null,
+  );
+  const { t, zahl, landeskennung } = useSprache();
+  const [fehler, setFehler] = useState<Textschluessel | null>(null);
   const [datei, setDatei] = useState<{ url: string; name: string } | null>(null);
   const zoom = useZoom(4);
   const flaeche = useRef<HTMLDivElement>(null);
@@ -44,18 +49,15 @@ export function MusterDrucken() {
   if (!muster || !raster) {
     return (
       <Seite
-        titel="Muster drucken"
-        erklaerung="Hier ist noch kein Muster."
+        titel={t("druck.titel")}
+        erklaerung={t("editor.keinMuster")}
         fuss={
           <KnopfLink art="haupt" gross href="/schritt/bild">
-            Zurück zum Bild aussuchen
+            {t("einst.zurueckBildAussuchen")}
           </KnopfLink>
         }
       >
-        <Hinweis>
-          Es wurde noch kein Muster erstellt. Gehen Sie zurück zum ersten Schritt, suchen Sie ein
-          Bild aus und tippen Sie dann auf „Muster erstellen“.
-        </Hinweis>
+        <Hinweis>{t("editor.keinMusterText")}</Hinweis>
       </Seite>
     );
   }
@@ -73,30 +75,34 @@ export function MusterDrucken() {
     if (!muster || !raster) return;
     setFehler(null);
     setLaeuft(true);
-    setFortschritt({ text: "Das Muster wird vorbereitet.", anteil: 0.02 });
+    setFortschritt({ text: "arbeit.vorbereiten", anteil: 0.02 });
 
     try {
       const blob = await musterAlsPdf({
-        name: bild?.name?.replace(/\.[a-z0-9]+$/i, "") || "Mein Muster",
+        name: bild?.name?.replace(/\.[a-z0-9]+$/i, "") || t("druck.meinMuster"),
         breite: muster.breite,
         hoehe: muster.hoehe,
         raster,
         palette: muster.palette,
         stoffzaehlung: einstellungen.stoffzaehlung,
+        t,
+        zahl,
+        landeskennung,
         melden: (text, anteil) => setFortschritt({ text, anteil }),
       });
 
       const url = URL.createObjectURL(blob);
-      const name = `${(bild?.name?.replace(/\.[a-z0-9]+$/i, "") || "Muster").replace(/[^\wäöüÄÖÜß -]/g, "")}.pdf`;
+      const name = `${(bild?.name?.replace(/\.[a-z0-9]+$/i, "") || t("druck.meinMuster")).replace(
+        /[^\wäöüÄÖÜßąćęłńóśźżĄĆĘŁŃÓŚŹŻ -]/g,
+        "",
+      )}.pdf`;
       setDatei({ url, name });
 
       // Das Fenster zum Drucken öffnet sich von selbst – so muss die
       // Nutzerin die Datei nicht erst suchen.
       window.open(url, "_blank", "noopener");
     } catch {
-      setFehler(
-        "Das Muster konnte nicht zum Drucken vorbereitet werden. Bitte versuchen Sie es noch einmal, und wenn es wieder nicht geht, mit weniger Stichen in der Breite.",
-      );
+      setFehler("druck.fehler");
     } finally {
       setLaeuft(false);
       setFortschritt(null);
@@ -106,22 +112,22 @@ export function MusterDrucken() {
   return (
     <Seite
       dicht
-      titel="Muster drucken"
-      erklaerung={`${muster.breite} × ${muster.hoehe} Stiche – ${cmText(breiteCm)} cm × ${cmText(hoeheCm)} cm auf Aida ${einstellungen.stoffzaehlung}`}
+      titel={t("druck.titel")}
+      erklaerung={`${muster.breite} × ${muster.hoehe} ${t("allgemein.stiche")} – ${cmText(breiteCm, landeskennung)} cm × ${cmText(hoeheCm, landeskennung)} cm, Aida ${einstellungen.stoffzaehlung}`}
       fuss={
         <>
           <KnopfLink art="neben" href="/schritt/muster">
-            Zurück zum Muster
+            {t("druck.zurueckMuster")}
           </KnopfLink>
           <Knopf art="haupt" gross onClick={drucken} disabled={laeuft}>
-            {laeuft ? "Wird vorbereitet …" : "Muster drucken"}
+            {laeuft ? t("druck.wirdVorbereitet") : t("druck.knopf")}
           </Knopf>
         </>
       }
     >
       <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
         <div className="flex min-h-0 flex-col gap-3">
-          <h2 className="text-[1.2rem] font-bold">So sieht die fertige Stickerei aus</h2>
+          <h2 className="text-[1.2rem] font-bold">{t("druck.soSiehtAus")}</h2>
           <div
             ref={flaeche}
             className="grid min-h-0 flex-1 place-items-center overflow-auto rounded-2xl border-2 border-tinte bg-white p-3"
@@ -133,7 +139,7 @@ export function MusterDrucken() {
               palette={muster.palette}
               zoom={zoom.zoom}
               mitLinien={false}
-              beschriftung="Vorschau der fertigen Stickerei"
+              beschriftung={t("druck.vorschauBeschriftung")}
             />
           </div>
         </div>
@@ -141,16 +147,16 @@ export function MusterDrucken() {
         <div className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
           {fehler ? (
             <div className="flex flex-col gap-3">
-              <Hinweis art="fehler">{fehler}</Hinweis>
+              <Hinweis art="fehler">{t(fehler)}</Hinweis>
               <Knopf art="neben" onClick={() => setFehler(null)}>
-                Meldung schließen
+                {t("allgemein.meldungSchliessen")}
               </Knopf>
             </div>
           ) : null}
 
           {laeuft && fortschritt ? (
             <div className="rounded-2xl border-2 border-hauptaktion bg-white p-5">
-              <p className="text-[1.1rem] font-semibold">{fortschritt.text}</p>
+              <p className="text-[1.1rem] font-semibold">{t(fortschritt.text)}</p>
               <div className="mt-3 h-5 w-full overflow-hidden rounded-full border-2 border-linie bg-hinweis">
                 <div
                   className="h-full bg-hauptaktion transition-[width] duration-300"
@@ -162,74 +168,64 @@ export function MusterDrucken() {
 
           {datei ? (
             <div className="flex flex-col gap-3 rounded-2xl border-2 border-hauptaktion bg-white p-5">
-              <Hinweis art="erfolg">
-                Das Muster ist fertig. Es hat sich ein neues Fenster geöffnet, aus dem Sie es
-                ausdrucken können.
-              </Hinweis>
+              <Hinweis art="erfolg">{t("druck.fertig")}</Hinweis>
               <a
                 href={datei.url}
                 download={datei.name}
                 className="inline-flex min-h-[56px] items-center justify-center rounded-xl border-2 border-tinte bg-white px-6 py-3 text-[1.05rem] font-semibold hover:bg-hinweis"
               >
-                Muster auf dem Gerät sichern
+                {t("druck.sichern")}
               </a>
-              <p className="text-[1rem] text-gedaempft">
-                Hat sich kein Fenster geöffnet, hat Ihr Browser es zurückgehalten. Tippen Sie dann
-                auf den Knopf darüber.
-              </p>
+              <p className="text-[1rem] text-gedaempft">{t("druck.keinFenster")}</p>
             </div>
           ) : null}
 
           <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-            <h2 className="text-[1.3rem] font-bold">Das kommt aus dem Drucker</h2>
+            <h2 className="text-[1.3rem] font-bold">{t("druck.ausDrucker")}</h2>
             <ul className="flex flex-col gap-2 text-[1.05rem]">
-              <li>Eine Seite mit der Vorschau der fertigen Stickerei</li>
-              <li>Die Garnliste mit Symbol, Nummer, Farbname, Stichzahl und Garnbedarf</li>
-              <li>
-                Das Muster auf {blaetter} {blaetter === 1 ? "Blatt" : "Blättern"} in Schwarzweiß
-              </li>
-              <li>
-                Dasselbe noch einmal in Farbe, also {blaetter * 2 + 2}{" "}
-                {blaetter * 2 + 2 === 1 ? "Blatt" : "Blätter"} zusammen
-              </li>
+              <li>{t("druck.seiteVorschau")}</li>
+              <li>{t("druck.seiteGarnliste")}</li>
+              <li>{t("druck.seitenSchwarzweiss", { anzahl: zahl(blaetter) })}</li>
+              <li>{t("druck.seitenFarbe", { anzahl: zahl(blaetter * 2 + 2) })}</li>
             </ul>
-            <p className="text-[1rem] text-gedaempft">
-              Die Blätter überlappen sich um zwei Reihen. Jede zehnte Linie ist dicker, und an den
-              Rändern stehen die Reihennummern.
-            </p>
+            <p className="text-[1rem] text-gedaempft">{t("druck.blaetterHinweis")}</p>
           </section>
 
           <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-            <h2 className="text-[1.3rem] font-bold">Das brauchen Sie dafür</h2>
+            <h2 className="text-[1.3rem] font-bold">{t("druck.brauchenSie")}</h2>
             <dl className="flex flex-col gap-2 text-[1.05rem]">
               <div className="flex justify-between gap-4">
-                <dt>Stoff</dt>
+                <dt>{t("druck.stoff")}</dt>
                 <dd className="text-right font-semibold">
-                  Aida {einstellungen.stoffzaehlung}, mindestens{" "}
-                  {cmText(breiteCm + 10)} cm × {cmText(hoeheCm + 10)} cm
+                  {t("druck.stoffMasse", {
+                    zaehlung: String(einstellungen.stoffzaehlung),
+                    breite: cmText(breiteCm + 10, landeskennung),
+                    hoehe: cmText(hoeheCm + 10, landeskennung),
+                  })}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt>Farben</dt>
+                <dt>{t("druck.farben")}</dt>
                 <dd className="font-semibold">{muster.palette.length}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt>Stiche</dt>
-                <dd className="font-semibold">{gesamtStiche.toLocaleString("de-DE")}</dd>
+                <dt>{t("druck.stiche")}</dt>
+                <dd className="font-semibold">{zahl(gesamtStiche)}</dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt>Garn zusammen</dt>
-                <dd className="font-semibold">ungefähr {meterText(gesamtGarn)}</dd>
+                <dt>{t("druck.garnZusammen")}</dt>
+                <dd className="font-semibold">
+                  {t("druck.ungefaehr", { menge: meterText(gesamtGarn, landeskennung) })}
+                </dd>
               </div>
             </dl>
-            <p className="text-[1rem] text-gedaempft">
-              Der Stoff ist an jeder Seite 5 cm größer gerechnet, damit Sie die Arbeit einspannen
-              können. Der Garnbedarf gilt für zwei Fäden eines Stranges.
-            </p>
+            <p className="text-[1rem] text-gedaempft">{t("druck.stoffHinweis")}</p>
           </section>
 
           <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-            <h2 className="text-[1.3rem] font-bold">Ihre Garne ({muster.palette.length})</h2>
+            <h2 className="text-[1.3rem] font-bold">
+              {t("editor.ihreGarne", { anzahl: String(muster.palette.length) })}
+            </h2>
             <Legende palette={muster.palette} />
           </section>
         </div>

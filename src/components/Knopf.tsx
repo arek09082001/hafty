@@ -26,15 +26,30 @@ const GRUNDSTIL =
 type KnopfProps = ComponentProps<"button"> & {
   art?: KnopfArt;
   gross?: boolean;
+  /**
+   * Schmalere Fassung für Werkzeugleisten. Die Mindesthöhe von 56px bleibt,
+   * nur die Innenabstände und die Schrift werden kleiner – daran wird nicht
+   * gerüttelt, sonst trifft man die Knöpfe auf dem Tablet nicht mehr.
+   */
+  klein?: boolean;
   children: ReactNode;
 };
 
-export function Knopf({ art = "neben", gross, className = "", children, ...rest }: KnopfProps) {
+export function Knopf({
+  art = "neben",
+  gross,
+  klein,
+  className = "",
+  children,
+  ...rest
+}: KnopfProps) {
   return (
     <button
       type="button"
       {...rest}
-      className={`${GRUNDSTIL} ${ARTEN[art]} ${gross ? "min-h-[72px] px-10 text-[1.3rem]" : ""} ${className}`}
+      className={`${GRUNDSTIL} ${ARTEN[art]} ${gross ? "min-h-[72px] px-10 text-[1.3rem]" : ""} ${
+        klein ? "px-4 text-[0.95rem]" : ""
+      } ${className}`}
     >
       {children}
     </button>

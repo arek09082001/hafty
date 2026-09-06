@@ -12,6 +12,8 @@ import {
   type GarnMitVorrat,
 } from "@/lib/speicher/garne";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
+import { useSprache } from "@/lib/sprache/SprachProvider";
+import type { Textschluessel } from "@/lib/sprache/texte";
 
 /**
  * Der eigene Garnvorrat: welche Garne die Nutzerin zu Hause hat.
@@ -23,7 +25,8 @@ export function MeineGarne() {
   const [garne, setGarne] = useState<GarnMitVorrat[]>([]);
   const [geladen, setGeladen] = useState(false);
   const [gingSchief, setGingSchief] = useState(false);
-  const [fehler, setFehler] = useState<string | null>(null);
+  const { t, zahl } = useSprache();
+  const [fehler, setFehler] = useState<Textschluessel | null>(null);
 
   useEffect(() => {
     let abgebrochen = false;
@@ -34,9 +37,7 @@ export function MeineGarne() {
       .catch(() => {
         if (!abgebrochen) {
           setGingSchief(true);
-          setFehler(
-            "Die Garnliste konnte nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite noch einmal.",
-          );
+          setFehler("garne.fehlerLaden");
         }
       })
       .finally(() => {
@@ -54,9 +55,7 @@ export function MeineGarne() {
     const geklappt = neu ? await vorratAufnehmen(garn.id) : await vorratEntfernen(garn.id);
     if (!geklappt) {
       setGarne((liste) => liste.map((g) => (g.id === garn.id ? { ...g, imVorrat: !neu } : g)));
-      setFehler(
-        "Diese Änderung konnte nicht gespeichert werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und tippen Sie noch einmal darauf.",
-      );
+      setFehler("garne.fehlerAendern");
     }
   }
 
@@ -64,17 +63,17 @@ export function MeineGarne() {
 
   return (
     <Seite
-      titel="Meine Garne"
-      erklaerung="Tragen Sie hier ein, welche Garne Sie zu Hause haben. Beim Erstellen eines Musters können Sie dann einstellen, dass nur diese Garne verwendet werden."
+      titel={t("garne.titel")}
+      erklaerung={t("garne.erklaerung")}
       fuss={
         <>
           <KnopfLink art="neben" href="/schritt/muster">
-            Zurück zum Muster
+            {t("garne.zurueckMuster")}
           </KnopfLink>
           <span className="text-[1.1rem] font-semibold">
             {meine.length === 0
-              ? "Noch kein Garn eingetragen."
-              : `${meine.length} ${meine.length === 1 ? "Garn" : "Garne"} eingetragen.`}
+              ? t("garne.keinsEingetragen")
+              : t("garne.eingetragen", { anzahl: zahl(meine.length) })}
           </span>
         </>
       }
@@ -82,16 +81,16 @@ export function MeineGarne() {
       <div className="flex flex-col gap-8">
         {fehler ? (
           <div className="flex flex-col gap-3">
-            <Hinweis art="fehler">{fehler}</Hinweis>
+            <Hinweis art="fehler">{t(fehler)}</Hinweis>
             <Knopf art="neben" onClick={() => setFehler(null)}>
-              Meldung schließen
+              {t("allgemein.meldungSchliessen")}
             </Knopf>
           </div>
         ) : null}
 
         {meine.length > 0 ? (
           <section className="flex flex-col gap-4">
-            <h2 className="text-[1.4rem] font-bold">Das haben Sie zu Hause</h2>
+            <h2 className="text-[1.4rem] font-bold">{t("garne.zuHause")}</h2>
             <ul className="flex flex-wrap gap-3">
               {meine.map((garn) => {
                 const rgb = hexNachRgb(garn.hex);
@@ -112,7 +111,7 @@ export function MeineGarne() {
                           {garn.marke} {garn.code}
                         </span>
                         <span className="text-[0.9rem] text-gedaempft">
-                          {garn.name} · antippen zum Entfernen
+                          {t("garne.zumEntfernen", { name: garn.name })}
                         </span>
                       </span>
                       <span
@@ -129,30 +128,20 @@ export function MeineGarne() {
         ) : null}
 
         <section className="flex flex-col gap-4">
-          <h2 className="text-[1.4rem] font-bold">Garn hinzufügen</h2>
+          <h2 className="text-[1.4rem] font-bold">{t("garne.hinzufuegen")}</h2>
           {!geladen ? (
-            <p className="text-[1.05rem] text-gedaempft">Die Garnliste wird geholt …</p>
+            <p className="text-[1.05rem] text-gedaempft">{t("garne.wirdGeholt")}</p>
           ) : gingSchief ? (
-            <Hinweis art="fehler">
-              Die Garnliste konnte nicht geholt werden. Bitte prüfen Sie Ihre
-              Internetverbindung und laden Sie die Seite noch einmal.
-            </Hinweis>
+            <Hinweis art="fehler">{t("garne.fehlerLaden")}</Hinweis>
           ) : garne.length === 0 ? (
-            <Hinweis>
-              In der Garnliste steht noch nichts. Die Garnfarben werden einmalig mit dem
-              Importskript eingelesen; solange das nicht geschehen ist, rechnet die App mit den
-              Farben aus Ihrem Bild statt mit Herstellergarnen.
-            </Hinweis>
+            <Hinweis>{t("garne.listeLeer")}</Hinweis>
           ) : (
             <>
-              <p className="max-w-[70ch] text-[1.05rem]">
-                Tippen Sie ein Garn an, dann steht es oben in Ihrer Liste. Ein zweites Antippen
-                nimmt es wieder heraus.
-              </p>
+              <p className="max-w-[70ch] text-[1.05rem]">{t("garne.antippenText")}</p>
               <Garnwahl
                 garne={garne}
                 markiert={(g) => g.imVorrat}
-                markierungText="Habe ich"
+                markierungText={t("garne.habeIch")}
                 onWaehlen={umschalten}
                 hoehe="max-h-[46vh]"
               />

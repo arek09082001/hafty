@@ -1,5 +1,8 @@
 "use client";
 
+import { useSprache } from "@/lib/sprache/SprachProvider";
+import type { Textschluessel } from "@/lib/sprache/texte";
+
 export type Werkzeug = "flaeche" | "rechteck" | "freihand" | "malen" | "fuellen";
 
 /**
@@ -10,33 +13,17 @@ export type Werkzeug = "flaeche" | "rechteck" | "freihand" | "malen" | "fuellen"
  * „Gleiche Fläche auswählen" steht bewusst an erster Stelle und ist
  * voreingestellt: damit ist ein Blütenblatt mit einem einzigen Tipp erfasst.
  */
-export const WERKZEUGE: Array<{ art: Werkzeug; titel: string; erklaerung: string }> = [
-  {
-    art: "flaeche",
-    titel: "Gleiche Fläche auswählen",
-    erklaerung: "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, wird ausgewählt.",
-  },
-  {
-    art: "rechteck",
-    titel: "Rechteck auswählen",
-    erklaerung: "Ziehen Sie mit dem Finger ein Rechteck über den Bereich, den Sie auswählen möchten.",
-  },
-  {
-    art: "freihand",
-    titel: "Freihand auswählen",
-    erklaerung: "Fahren Sie einmal um den Bereich herum. Beim Loslassen wird alles darin ausgewählt.",
-  },
-  {
-    art: "malen",
-    titel: "Einzelne Stiche malen",
-    erklaerung: "Tippen oder fahren Sie über die Felder. Sie bekommen die gewählte Farbe.",
-  },
-  {
-    art: "fuellen",
-    titel: "Fläche färben",
-    erklaerung: "Tippen Sie in eine Fläche. Die ganze Fläche bekommt die gewählte Farbe.",
-  },
-];
+export const WERKZEUGE = [
+  { art: "flaeche", titel: "werkzeug.flaeche", erklaerung: "werkzeug.flaecheText" },
+  { art: "rechteck", titel: "werkzeug.rechteck", erklaerung: "werkzeug.rechteckText" },
+  { art: "freihand", titel: "werkzeug.freihand", erklaerung: "werkzeug.freihandText" },
+  { art: "malen", titel: "werkzeug.malen", erklaerung: "werkzeug.malenText" },
+  { art: "fuellen", titel: "werkzeug.fuellen", erklaerung: "werkzeug.fuellenText" },
+] as const satisfies ReadonlyArray<{
+  art: Werkzeug;
+  titel: Textschluessel;
+  erklaerung: Textschluessel;
+}>;
 
 export function Werkzeugwahl({
   gewaehlt,
@@ -45,11 +32,12 @@ export function Werkzeugwahl({
   gewaehlt: Werkzeug;
   onWaehlen: (w: Werkzeug) => void;
 }) {
+  const { t } = useSprache();
   const aktuell = WERKZEUGE.find((w) => w.art === gewaehlt);
 
   return (
     <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-      <h2 className="text-[1.3rem] font-bold">Womit möchten Sie arbeiten?</h2>
+      <h2 className="text-[1.2rem] font-bold">{t("werkzeug.frage")}</h2>
       <ul className="flex flex-col gap-2">
         {WERKZEUGE.map((werkzeug) => {
           const ist = werkzeug.art === gewaehlt;
@@ -71,14 +59,14 @@ export function Werkzeugwahl({
                 >
                   {ist ? <span className="h-2.5 w-2.5 rounded-full bg-white" /> : null}
                 </span>
-                {werkzeug.titel}
+                {t(werkzeug.titel)}
               </button>
             </li>
           );
         })}
       </ul>
       {aktuell ? (
-        <p className="rounded-xl bg-hinweis p-4 text-[1rem]">{aktuell.erklaerung}</p>
+        <p className="rounded-xl bg-hinweis p-4 text-[1rem]">{t(aktuell.erklaerung)}</p>
       ) : null}
     </section>
   );
