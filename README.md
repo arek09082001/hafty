@@ -72,6 +72,30 @@ mit demselben Kopf dazu und werden mit demselben Skript eingelesen. Die
 Hexwerte der Hersteller sind Näherungen; deshalb lässt sich in der App
 jede Farbe der Legende von Hand auf ein anderes Garn ändern.
 
+### Row Level Security prüfen
+
+Die Regeln lassen sich ohne Supabase-Projekt auf einem gewöhnlichen
+PostgreSQL nachprüfen. `supabase/tests/00_supabase_nachbau.sql` baut die
+paar Supabase-Teile nach, die die Migrationen brauchen (`auth.users`,
+`auth.uid()`, `storage.objects`, die Rollen), `01_rls.sql` lässt dann zwei
+Nutzerinnen aufeinander los:
+
+```bash
+createdb stickmuster_test
+psql -d stickmuster_test -c 'create extension if not exists pgcrypto;'
+psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/tests/00_supabase_nachbau.sql
+psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/migrations/0001_schema.sql
+psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/migrations/0002_storage.sql
+psql -d stickmuster_test -f supabase/tests/01_rls.sql
+```
+
+Erwartet wird: Anna sieht überall 1, Berta überall 0 (nur den Garnkatalog
+sieht sie, der ist gemeinsam), und jeder ihrer Änderungsversuche endet mit
+`violates row-level security policy` oder trifft null Zeilen.
+
+Wichtig: die Ausgabe nicht durch `head` schicken. psql bricht dann mitten
+in der Migration ab und es fehlen stillschweigend die letzten Regeln.
+
 ## Aufbau des Projekts
 
 ```
@@ -82,6 +106,7 @@ src/app/garne           Der eigene Garnvorrat
 src/components          Schaltflächen, Fortschrittsleiste, Fenster
 src/lib/supabase        Supabase-Clients für Browser, Server und Proxy
 supabase/migrations     SQL-Migrationen
+supabase/tests          Nachbau und Prüfung der Row Level Security
 scripts                 Importskript für Garnfarben, Beispielbilder
 ```
 
