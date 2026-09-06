@@ -302,3 +302,154 @@ export function spiegelnSenkrecht(a: Ausschnitt): Ausschnitt {
   }
   return { w, h, daten, maske, palette: a.palette };
 }
+
+// ---------------------------------------------------------------------------
+// Hilfen für die Werkzeuge
+// ---------------------------------------------------------------------------
+
+/**
+ * Alle Felder auf der Verbindungslinie zweier Punkte (Bresenham).
+ *
+ * Ein Finger auf dem Tablet erzeugt nur alle paar Millisekunden ein
+ * Ereignis. Ohne diese Linie hätte ein zügiger Strich Lücken, und die
+ * Nutzerin müsste nachbessern.
+ */
+export function linieFelder(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+): Array<{ x: number; y: number }> {
+  const felder: Array<{ x: number; y: number }> = [];
+  let x = x0;
+  let y = y0;
+  const dx = Math.abs(x1 - x0);
+  const dy = -Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let fehler = dx + dy;
+
+  for (;;) {
+    felder.push({ x, y });
+    if (x === x1 && y === y1) break;
+    const e2 = 2 * fehler;
+    if (e2 >= dy) {
+      fehler += dy;
+      x += sx;
+    }
+    if (e2 <= dx) {
+      fehler += dx;
+      y += sy;
+    }
+  }
+
+  return felder;
+}
+
+/**
+ * Freihandauswahl.
+ *
+ * Die Nutzerin fährt mit dem Finger eine Umrandung. Beim Loslassen wird die
+ * Linie geschlossen und alles, was innerhalb liegt, mit ausgewählt – sonst
+ * müsste sie jede einzelne Reihe der Fläche einzeln abfahren.
+ *
+ * Das Innere wird bestimmt, indem vom Rand des Rasters aus geflutet wird:
+ * was von außen nicht erreichbar ist und nicht selbst auf der Linie liegt,
+ * liegt innen. Umschließt die Linie nichts (ein offener Strich), bleibt
+ * einfach die gezogene Spur als Auswahl stehen.
+ */
+export function freihandAuswahl(
+  breite: number,
+  hoehe: number,
+  spur: Array<{ x: number; y: number }>,
+): Auswahl {
+  const maske = new Uint8Array(breite * hoehe);
+  if (spur.length === 0) return leereAuswahl(breite, hoehe);
+
+  const setzen = (x: number, y: number) => {
+    if (x < 0 || y < 0 || x >= breite || y >= hoehe) return;
+    maske[y * breite + x] = 1;
+  };
+
+  for (let i = 0; i < spur.length; i++) {
+    const a = spur[i];
+    const b = spur[(i + 1) % spur.length]; // schließt die Linie zum Anfang
+    for (const feld of linieFelder(a.x, a.y, b.x, b.y)) setzen(feld.x, feld.y);
+  }
+
+  // Vom Rand aus fluten: alles Erreichbare liegt außen.
+  const aussen = new Uint8Array(breite * hoehe);
+  const stapel = new Int32Array(breite * hoehe);
+  let spitze = 0;
+
+  const anstossen = (i: number) => {
+    if (aussen[i] || maske[i]) return;
+    aussen[i] = 1;
+    stapel[spitze++] = i;
+  };
+
+  for (let x = 0; x < breite; x++) {
+    anstossen(x);
+    anstossen((hoehe - 1) * breite + x);
+  }
+  for (let y = 0; y < hoehe; y++) {
+    anstossen(y * breite);
+    anstossen(y * breite + breite - 1);
+  }
+
+  while (spitze > 0) {
+    const i = stapel[--spitze];
+    const x = i % breite;
+    const y = (i / breite) | 0;
+    if (x > 0) anstossen(i - 1);
+    if (x < breite - 1) anstossen(i + 1);
+    if (y > 0) anstossen(i - breite);
+    if (y < hoehe - 1) anstossen(i + breite);
+  }
+
+  for (let i = 0; i < maske.length; i++) if (!aussen[i]) maske[i] = 1;
+
+  return auswahlAusMaske(maske, breite);
+}
+
+/**
+ * Einen Ausschnitt an einer Stelle einsetzen. Gibt die Felder zurück, die
+ * sich dabei ändern – daraus wird ein einzelner Rückgängig-Schritt.
+ */
+export function ausschnittEinsetzen(
+  ausschnitt: Ausschnitt,
+  breite: number,
+  hoehe: number,
+  zielX: number,
+  zielY: number,
+): { indizes: number[]; werte: number[] } {
+  const indizes: number[] = [];
+  const werte: number[] = [];
+
+  for (let y = 0; y < ausschnitt.h; y++) {
+    const zy = zielY + y;
+    if (zy < 0 || zy >= hoehe) continue;
+    for (let x = 0; x < ausschnitt.w; x++) {
+      const zx = zielX + x;
+      if (zx < 0 || zx >= breite) continue;
+      const q = y * ausschnitt.w + x;
+      if (!ausschnitt.maske[q]) continue;
+      indizes.push(zy * breite + zx);
+      werte.push(ausschnitt.daten[q]);
+    }
+  }
+
+  return { indizes, werte };
+}
+
+/** Aus einer Auswahl die Feldliste für eine Farbänderung machen. */
+export function auswahlFuellen(auswahl: Auswahl, farbe: number): { indizes: number[]; werte: number[] } {
+  const indizes: number[] = [];
+  const werte: number[] = [];
+  for (let i = 0; i < auswahl.maske.length; i++) {
+    if (!auswahl.maske[i]) continue;
+    indizes.push(i);
+    werte.push(farbe);
+  }
+  return { indizes, werte };
+}

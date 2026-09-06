@@ -231,6 +231,14 @@ export function Rasteransicht({
   }, [breite, hoehe, raster, palette, zoom, mitLinien, mitSymbolen, auswahl, vorschau]);
 
   // --- Zeigerbehandlung -----------------------------------------------------
+  /**
+   * Vom Bildschirmpunkt zum Rasterfeld.
+   *
+   * Rutscht der Finger während eines Zuges über den Rand des Musters hinaus,
+   * wird auf das äußerste Feld begrenzt statt das Ereignis zu verwerfen.
+   * Sonst risse eine Freihandauswahl ab, sobald jemand am Rand entlangfährt –
+   * und genau dort fährt man beim Umranden eines Motivs.
+   */
   const feldAus = useCallback(
     (e: React.PointerEvent<HTMLCanvasElement>) => {
       const canvas = leinwand.current;
@@ -238,8 +246,10 @@ export function Rasteransicht({
       const rahmen = canvas.getBoundingClientRect();
       const x = Math.floor(((e.clientX - rahmen.left) / rahmen.width) * breite);
       const y = Math.floor(((e.clientY - rahmen.top) / rahmen.height) * hoehe);
-      if (x < 0 || y < 0 || x >= breite || y >= hoehe) return null;
-      return { x, y };
+      return {
+        x: Math.max(0, Math.min(breite - 1, x)),
+        y: Math.max(0, Math.min(hoehe - 1, y)),
+      };
     },
     [breite, hoehe],
   );
