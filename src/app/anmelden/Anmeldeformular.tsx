@@ -66,7 +66,10 @@ export function Anmeldeformular() {
   }
 
   return (
-    <form onSubmit={absenden} className="flex flex-col gap-6">
+    // noValidate: sonst blockt der Browser das Abschicken mit seiner eigenen,
+    // knappen Meldung, und die Nutzerin bekommt unseren ganzen Satz nie zu
+    // sehen.
+    <form onSubmit={absenden} noValidate className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <label htmlFor="email" className="text-[1.15rem] font-semibold">
           Ihre E-Mail-Adresse
