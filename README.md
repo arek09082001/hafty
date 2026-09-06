@@ -85,6 +85,27 @@ supabase/migrations     SQL-Migrationen
 scripts                 Importskript für Garnfarben, Beispielbilder
 ```
 
+## Der Ausdruck
+
+„Muster drucken“ erzeugt das PDF vollständig im Browser (`pdf-lib`):
+
+1. Vorschau der fertigen Stickerei, dazu ein Blattplan, wenn es mehrere
+   Blätter werden
+2. Garnliste mit Symbol, Garnnummer, Farbname, Stichzahl und geschätztem
+   Garnverbrauch in Metern
+3. Das Muster in Schwarzweiß mit Symbolen, Blatt für Blatt
+4. Dasselbe noch einmal in Farbe
+
+Die Blätter überlappen sich um zwei Reihen, jede zehnte Rasterlinie ist
+dicker, und an den Rändern stehen die Reihen- und Spaltennummern. Die
+Zehnerlinien werden ab dem Ursprung des Musters gezählt, nicht ab dem
+Blattrand – sonst passten sie beim Zusammenlegen nicht zusammen.
+
+Der Garnverbrauch ist geschätzt: ein volles Kreuz zieht den Faden zweimal
+über die Diagonale und zweimal auf der Rückseite entlang, das sind rund
+`4,83 · Kästchenseite`, plus 15 % für Anfänge, Enden und Übergänge. Auf
+Aida 14 ergibt das etwa einen Meter je hundert Stiche.
+
 ## Datenhaltung
 
 Raster (die eigentlichen Stichdaten) liegen **nie** als JSONB in Postgres,
