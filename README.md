@@ -29,7 +29,7 @@ npm run dev
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Adresse des Supabase-Projekts (Project Settings → API) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Öffentlicher Schlüssel des Projekts |
-| `SUPABASE_SERVICE_ROLE_KEY` | Nur für `scripts/garne-importieren.mjs`. Gehört niemals in den Browser. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Nur für `npm run garne-importieren`. Gehört niemals in den Browser. |
 
 ### Supabase vorbereiten
 
@@ -45,6 +45,32 @@ npm run dev
 2. Unter *Authentication → URL Configuration* die Adresse
    `http://localhost:3000/auth/bestaetigen` (bzw. die Adresse der
    veröffentlichten App) als Redirect-URL eintragen.
+
+3. Die Garnfarben einlesen:
+
+   ```bash
+   npm run garne-importieren -- data/garne-dmc.csv
+   ```
+
+   Das Skript rechnet die Lab-Werte **einmal** aus und speichert sie mit;
+   zur Laufzeit werden dann nur noch Abstände berechnet. Ohne diesen
+   Schritt läuft die App weiter, rechnet dann aber mit den Farben aus dem
+   Bild statt mit Herstellergarnen.
+
+### Garnfarben nachliefern
+
+`data/garne-dmc.csv` enthält 44 gut verteilte DMC-Töne als Platzhalter –
+keine erfundenen 500 Farbnummern. Das Format ist:
+
+```
+brand,code,name,hex
+DMC,310,Schwarz,#000000
+```
+
+Weitere Hersteller (Anchor, Madeira, Ariadna) kommen als eigene CSV-Datei
+mit demselben Kopf dazu und werden mit demselben Skript eingelesen. Die
+Hexwerte der Hersteller sind Näherungen; deshalb lässt sich in der App
+jede Farbe der Legende von Hand auf ein anderes Garn ändern.
 
 ## Aufbau des Projekts
 

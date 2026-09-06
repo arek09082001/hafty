@@ -10,6 +10,9 @@
     "module": "esnext",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
+    // Die Skripte in scripts/ laufen direkt über Node mit Typentfernung und
+    // brauchen deshalb ausgeschriebene .ts-Endungen in ihren Importen.
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,

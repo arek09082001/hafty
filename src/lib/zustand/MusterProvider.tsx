@@ -24,6 +24,7 @@ import { bearbeitungUmschreiben, zusammenfuehren } from "@/lib/muster/raster";
 import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
 import { arbeitsstandLaden, arbeitsstandSichern } from "@/lib/speicher/browserspeicher";
 import { standSichern, type Stand } from "@/lib/speicher/staende";
+import { garneLaden, type GarnMitVorrat } from "@/lib/speicher/garne";
 import type { AnWorker, AntwortVomWorker, VomWorker } from "@/lib/worker/nachrichten";
 
 /**
@@ -213,8 +214,12 @@ type MusterKontext = {
   einstellungen: Einstellungen;
   einstellungenSetzen: (e: Partial<Einstellungen>) => void;
 
+  /** Der ganze Garnkatalog, mit Kennzeichnung des eigenen Vorrats. */
+  alleGarne: GarnMitVorrat[];
+  /** Die Garne, mit denen tatsächlich gerechnet wird (siehe nurEigeneGarne). */
   garne: Garn[];
-  garneSetzen: (g: Garn[]) => void;
+  /** Nach einer Änderung am Vorrat den Katalog neu holen. */
+  garneNeuLaden: () => Promise<void>;
 
   muster: Muster | null;
   /** Beide Ebenen zusammengeführt – das, was gezeigt und gedruckt wird. */
@@ -273,7 +278,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   });
   const [bild, setBild] = useState<Bildquelle | null>(null);
   const [einstellungen, setEinstellungen] = useState<Einstellungen>(STANDARD_EINSTELLUNGEN);
-  const [garne, setGarne] = useState<Garn[]>([]);
+  const [alleGarne, setAlleGarne] = useState<GarnMitVorrat[]>([]);
   const [laeuft, setLaeuft] = useState(false);
   const [fortschritt, setFortschritt] = useState<{ text: string; anteil: number } | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
@@ -317,6 +322,46 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       eigen.current = null;
     };
   }, []);
+
+  // --- Garnkatalog holen ----------------------------------------------------
+  const garneNeuLaden = useCallback(async () => {
+    const liste = await garneLaden();
+    setAlleGarne(liste);
+  }, []);
+
+  useEffect(() => {
+    let abgebrochen = false;
+    garneLaden()
+      .then((liste) => {
+        if (!abgebrochen) setAlleGarne(liste);
+      })
+      .catch(() => {
+        // Ohne Katalog rechnet die App mit den Farben aus dem Bild weiter.
+      });
+    return () => {
+      abgebrochen = true;
+    };
+  }, []);
+
+  /**
+   * Womit gerechnet wird. Der Schalter „nur meine Garne verwenden" schränkt
+   * die Palette auf den eigenen Vorrat ein – aber nur, wenn dort überhaupt
+   * etwas drin ist. Sonst käme ein Muster ohne jede Farbe heraus.
+   */
+  const garne = useMemo<Garn[]>(() => {
+    const eigene = alleGarne.filter((g) => g.imVorrat);
+    const quelle = einstellungen.nurEigeneGarne && eigene.length > 0 ? eigene : alleGarne;
+    return quelle.map(({ id, marke, code, name, hex, L, a, b }) => ({
+      id,
+      marke,
+      code,
+      name,
+      hex,
+      L,
+      a,
+      b,
+    }));
+  }, [alleGarne, einstellungen.nurEigeneGarne]);
 
   // --- Nach einem Absturz den letzten Arbeitsstand zurückholen --------------
   useEffect(() => {
@@ -601,8 +646,9 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bildEntfernen,
       einstellungen,
       einstellungenSetzen: (teil) => setEinstellungen((e) => ({ ...e, ...teil })),
+      alleGarne,
       garne,
-      garneSetzen: setGarne,
+      garneNeuLaden,
       muster,
       raster,
       laeuft,
@@ -636,7 +682,9 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bildWaehlen,
       bildEntfernen,
       einstellungen,
+      alleGarne,
       garne,
+      garneNeuLaden,
       muster,
       raster,
       laeuft,

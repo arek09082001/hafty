@@ -9,6 +9,7 @@ import { Glaettungsregler } from "@/components/Glaettungsregler";
 import { Legende } from "@/components/Legende";
 import { Motivliste } from "@/components/Motivliste";
 import { Staendeleiste } from "@/components/Staendeleiste";
+import { Garnwahl } from "@/components/Garnwahl";
 import { Rasteransicht, useZoom, type Zeigerereignis } from "@/components/Rasteransicht";
 import { Werkzeugwahl, type Werkzeug } from "@/components/Werkzeugwahl";
 import { useMuster } from "@/lib/zustand/MusterProvider";
@@ -35,6 +36,7 @@ import {
   type Motiv,
 } from "@/lib/speicher/motive";
 import { standHolen, type Stand } from "@/lib/speicher/staende";
+import { legendeGarnSetzen, type GarnMitVorrat } from "@/lib/speicher/garne";
 import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
 import { zusammenfuehren } from "@/lib/muster/raster";
 
@@ -59,6 +61,8 @@ export function MusterAnsehen() {
     standZaehler,
     standAnlegen,
     standUebernehmen,
+    alleGarne,
+    paletteErsetzen,
   } = useMuster();
 
   const [werkzeug, setWerkzeug] = useState<Werkzeug>("flaeche");
@@ -80,6 +84,8 @@ export function MusterAnsehen() {
   const [motivNameOffen, setMotivNameOffen] = useState(false);
   const [motivName, setMotivName] = useState("");
   const [motivZumLoeschen, setMotivZumLoeschen] = useState<Motiv | null>(null);
+  /** Für welchen Palettenindex gerade ein anderes Garn gesucht wird. */
+  const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
 
   const zoom = useZoom(6);
   const flaeche = useRef<HTMLDivElement>(null);
@@ -381,6 +387,59 @@ export function MusterAnsehen() {
     }
   };
 
+  /**
+   * Eine Farbe der Legende von Hand auf ein anderes Garn setzen.
+   *
+   * Die Hexwerte der Hersteller sind Näherungen. Wer die Garnkarte vor sich
+   * hat, sieht manchmal, dass ein anderer Ton besser passt – deshalb muss
+   * jede Farbe von Hand änderbar sein, und die Änderung bleibt erhalten.
+   */
+  const garnSetzen = async (garn: GarnMitVorrat) => {
+    if (!muster || garnwechsel === null) return;
+    const alt = muster.palette[garnwechsel];
+    if (!alt) return;
+
+    const neuePalette = muster.palette.map((eintrag) =>
+      eintrag.index === garnwechsel
+        ? {
+            ...eintrag,
+            hex: garn.hex,
+            L: garn.L,
+            a: garn.a,
+            b: garn.b,
+            garn: {
+              id: garn.id,
+              marke: garn.marke,
+              code: garn.code,
+              name: garn.name,
+              hex: garn.hex,
+              L: garn.L,
+              a: garn.a,
+              b: garn.b,
+            },
+          }
+        : eintrag,
+    );
+    paletteErsetzen(neuePalette);
+    setGarnwechsel(null);
+    setMeldung(`Diese Farbe ist jetzt ${garn.marke} ${garn.code} – ${garn.name}.`);
+
+    if (musterId) {
+      const gespeichert = await legendeGarnSetzen(
+        musterId,
+        garnwechsel,
+        garn.id,
+        alt.symbol,
+        alt.stiche,
+      );
+      if (!gespeichert) {
+        fehlerSetzen(
+          "Die neue Garnfarbe konnte nicht gespeichert werden. Sie sehen sie hier, aber beim nächsten Öffnen ist wieder die alte da.",
+        );
+      }
+    }
+  };
+
   const motivWirklichLoeschen = async () => {
     if (!motivZumLoeschen) return;
     const weg = await motivLoeschen(motivZumLoeschen);
@@ -639,7 +698,12 @@ export function MusterAnsehen() {
                 <p className="text-[1rem] text-gedaempft">
                   Die angetippte Farbe wird zum Malen und Färben verwendet.
                 </p>
-                <Legende palette={muster.palette} gewaehlt={farbeSicher} onWaehlen={setFarbe} />
+                <Legende
+                  palette={muster.palette}
+                  gewaehlt={farbeSicher}
+                  onWaehlen={setFarbe}
+                  onGarnAendern={alleGarne.length > 0 ? setGarnwechsel : undefined}
+                />
               </section>
 
               <Glaettungsregler
@@ -685,6 +749,26 @@ export function MusterAnsehen() {
           onChange={(e) => setMotivName(e.target.value)}
           placeholder="Zum Beispiel: Blütenblatt"
           className="min-h-[60px] w-full rounded-xl border-2 border-tinte bg-white px-4 text-[1.15rem]"
+        />
+      </Dialog>
+
+      <Dialog
+        offen={garnwechsel !== null}
+        titel="Ein anderes Garn für diese Farbe"
+        text="Die Farbwerte der Hersteller sind Näherungen. Wenn Sie Ihre Garnkarte vor sich haben und ein anderer Ton besser passt, wählen Sie ihn hier aus."
+        bestaetigenText="Farbe behalten"
+        onBestaetigen={() => setGarnwechsel(null)}
+        abbrechenText="Abbrechen"
+        onAbbrechen={() => setGarnwechsel(null)}
+      >
+        <Garnwahl
+          garne={alleGarne}
+          markiert={(g) =>
+            garnwechsel !== null && muster.palette[garnwechsel]?.garn?.id === g.id
+          }
+          markierungText="Jetzt gewählt"
+          onWaehlen={garnSetzen}
+          hoehe="max-h-[40vh]"
         />
       </Dialog>
 

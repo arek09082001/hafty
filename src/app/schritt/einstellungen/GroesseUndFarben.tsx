@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Seite } from "@/components/Seite";
@@ -19,7 +20,7 @@ import {
 } from "@/lib/muster/typen";
 
 export function GroesseUndFarben() {
-  const { bild, einstellungen, einstellungenSetzen, erzeugen, laeuft, fortschritt, fehler } =
+  const { bild, einstellungen, einstellungenSetzen, erzeugen, laeuft, fortschritt, fehler, alleGarne } =
     useMuster();
   const [eigenerFehler, setEigenerFehler] = useState<string | null>(null);
   const router = useRouter();
@@ -48,6 +49,7 @@ export function GroesseUndFarben() {
   const hoehe = Math.max(1, Math.round(breite * seitenverhaeltnis));
   const zuGross = breite * hoehe > MAX_FELDER;
 
+  const eigeneGarne = alleGarne.filter((g) => g.imVorrat).length;
   const breiteCm = sticheInCm(breite, einstellungen.stoffzaehlung);
   const hoeheCm = sticheInCm(hoehe, einstellungen.stoffzaehlung);
 
@@ -188,6 +190,53 @@ export function GroesseUndFarben() {
             ) : null}
           </aside>
         </div>
+
+        <section className="flex flex-col gap-4 rounded-2xl border-2 border-linie bg-white p-5">
+          <h2 className="text-[1.3rem] font-bold">Welche Garne sollen verwendet werden?</h2>
+          {eigeneGarne === 0 ? (
+            <p className="max-w-[70ch] text-[1.05rem]">
+              Sie haben noch nicht eingetragen, welche Garne Sie zu Hause haben. Das Muster wird
+              deshalb aus allen Farben zusammengestellt.{" "}
+              <Link href="/garne" className="font-semibold underline">
+                Jetzt meine Garne eintragen
+              </Link>
+            </p>
+          ) : (
+            <>
+              <p className="max-w-[70ch] text-[1.05rem]">
+                Sie haben {eigeneGarne} {eigeneGarne === 1 ? "Garn" : "Garne"} zu Hause. Wenn Sie
+                das einschalten, wird das Muster nur aus diesen Garnen zusammengestellt – dann
+                müssen Sie nichts nachkaufen.
+              </p>
+              <button
+                type="button"
+                onClick={() => einstellungenSetzen({ nurEigeneGarne: !einstellungen.nurEigeneGarne })}
+                aria-pressed={einstellungen.nurEigeneGarne}
+                className={`flex min-h-[56px] items-center gap-4 self-start rounded-xl border-2 px-5 py-3 text-[1.1rem] font-semibold ${
+                  einstellungen.nurEigeneGarne
+                    ? "border-hauptaktion bg-[#e8f3ee]"
+                    : "border-linie bg-white hover:bg-hinweis"
+                }`}
+              >
+                <span
+                  aria-hidden
+                  className={`flex h-8 w-14 shrink-0 items-center rounded-full border-2 p-1 ${
+                    einstellungen.nurEigeneGarne
+                      ? "border-hauptaktion bg-hauptaktion"
+                      : "border-linie bg-white"
+                  }`}
+                >
+                  <span
+                    className={`h-5 w-5 rounded-full ${
+                      einstellungen.nurEigeneGarne ? "ml-auto bg-white" : "bg-linie"
+                    }`}
+                  />
+                </span>
+                Nur meine Garne verwenden: {einstellungen.nurEigeneGarne ? "ein" : "aus"}
+              </button>
+            </>
+          )}
+        </section>
 
         <details className="rounded-2xl border-2 border-linie bg-white p-5">
           <summary className="min-h-[56px] cursor-pointer list-none text-[1.15rem] font-semibold">

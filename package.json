@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "garne-importieren": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/garne-importieren.ts",
+    "beispielbilder": "node scripts/beispielbilder-erzeugen.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
