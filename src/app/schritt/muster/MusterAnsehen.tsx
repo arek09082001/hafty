@@ -8,6 +8,7 @@ import { Dialog } from "@/components/Dialog";
 import { Glaettungsregler } from "@/components/Glaettungsregler";
 import { Legende } from "@/components/Legende";
 import { Motivliste } from "@/components/Motivliste";
+import { Staendeleiste } from "@/components/Staendeleiste";
 import { Rasteransicht, useZoom, type Zeigerereignis } from "@/components/Rasteransicht";
 import { Werkzeugwahl, type Werkzeug } from "@/components/Werkzeugwahl";
 import { useMuster } from "@/lib/zustand/MusterProvider";
@@ -33,6 +34,9 @@ import {
   motiveLaden,
   type Motiv,
 } from "@/lib/speicher/motive";
+import { standHolen, type Stand } from "@/lib/speicher/staende";
+import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
+import { zusammenfuehren } from "@/lib/muster/raster";
 
 export function MusterAnsehen() {
   const {
@@ -50,13 +54,24 @@ export function MusterAnsehen() {
     kannWiederholen,
     letzterSchrittTitel,
     naechsterSchrittTitel,
+    musterId,
+    versionId,
+    standZaehler,
+    standAnlegen,
+    standUebernehmen,
   } = useMuster();
 
   const [werkzeug, setWerkzeug] = useState<Werkzeug>("flaeche");
   const [farbe, setFarbe] = useState(0);
   const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
   const [zwischenablage, setZwischenablage] = useState<Ausschnitt | null>(null);
-  const [vorschau, setVorschau] = useState<{ stueck: Ausschnitt; x: number; y: number } | null>(null);
+  const [vorschau, setVorschau] = useState<{
+    stueck: Ausschnitt;
+    x: number;
+    y: number;
+    /** Motive lösen beim Einsetzen eine Sicherung aus, Kopien nicht. */
+    ausMotiv: boolean;
+  } | null>(null);
   const [mitSymbolen, setMitSymbolen] = useState(false);
   const [meldung, setMeldung] = useState<string | null>(null);
 
@@ -245,10 +260,11 @@ export function MusterAnsehen() {
     );
   };
 
-  const einfuegenStarten = (stueck: Ausschnitt) => {
+  const einfuegenStarten = (stueck: Ausschnitt, ausMotiv = false) => {
     if (!muster) return;
     setVorschau({
       stueck,
+      ausMotiv,
       x: Math.max(0, Math.floor((muster.breite - stueck.w) / 2)),
       y: Math.max(0, Math.floor((muster.hoehe - stueck.h) / 2)),
     });
@@ -270,8 +286,13 @@ export function MusterAnsehen() {
       vorschau.y,
     );
     if (indizes.length > 0) felderAendern("Stück eingesetzt", indizes, werte);
+    // Ein eingesetztes Motiv ist ein großer Schritt und wird gesichert.
+    const warMotiv = vorschau.ausMotiv;
     setVorschau(null);
     setMeldung(null);
+    if (warMotiv && indizes.length > 0) {
+      window.setTimeout(() => void standAnlegen("Motiv eingesetzt"), 0);
+    }
   };
 
   const vorschauVerschieben = (dx: number, dy: number) => {
@@ -313,7 +334,51 @@ export function MusterAnsehen() {
       );
       return;
     }
-    einfuegenStarten(stueck);
+    einfuegenStarten(stueck, true);
+  };
+
+  /**
+   * Einen früheren Stand wiederherstellen. Der alte Stand wird zum Elternteil
+   * des nächsten – die neuere Arbeit bleibt als eigener Zweig erhalten.
+   */
+  const standWiederherstellen = async (stand: Stand) => {
+    const inhalt = await standHolen(stand);
+    if (!inhalt) {
+      fehlerSetzen(
+        "Dieser Stand konnte nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es noch einmal.",
+      );
+      return;
+    }
+    standUebernehmen(stand, {
+      breite: inhalt.breite,
+      hoehe: inhalt.hoehe,
+      basis: inhalt.basis,
+      bearbeitung: inhalt.bearbeitung,
+      palette: inhalt.palette,
+      kennzahlen: kennzahlenBerechnen(
+        zusammenfuehren(inhalt.basis, inhalt.bearbeitung),
+        inhalt.breite,
+      ),
+      farbenVorher: inhalt.palette.length,
+      farbenNachher: inhalt.palette.length,
+      garneZusammengelegt: 0,
+    });
+    setAuswahl(null);
+    setMeldung("Der frühere Stand ist wieder da.");
+  };
+
+  const standGemerkt = async () => {
+    const geklappt = await standAnlegen("Von Hand gemerkt", true);
+    setMeldung(
+      geklappt
+        ? "Dieser Stand ist gemerkt. Er bleibt Ihnen erhalten, auch wenn Sie noch viel weiterarbeiten."
+        : null,
+    );
+    if (!geklappt) {
+      fehlerSetzen(
+        "Der Stand konnte nicht gemerkt werden. Bitte prüfen Sie, ob Sie noch angemeldet sind, und versuchen Sie es dann noch einmal.",
+      );
+    }
   };
 
   const motivWirklichLoeschen = async () => {
@@ -589,6 +654,14 @@ export function MusterAnsehen() {
                 laedt={motiveLaufen}
                 onEinsetzen={motivEinsetzen}
                 onLoeschen={setMotivZumLoeschen}
+              />
+
+              <Staendeleiste
+                musterId={musterId}
+                aktuelleVersion={versionId}
+                neuLaden={standZaehler}
+                onWiederherstellen={standWiederherstellen}
+                onMerken={standGemerkt}
               />
             </>
           )}

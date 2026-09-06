@@ -23,6 +23,7 @@ import {
 import { bearbeitungUmschreiben, zusammenfuehren } from "@/lib/muster/raster";
 import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
 import { arbeitsstandLaden, arbeitsstandSichern } from "@/lib/speicher/browserspeicher";
+import { standSichern, type Stand } from "@/lib/speicher/staende";
 import type { AnWorker, AntwortVomWorker, VomWorker } from "@/lib/worker/nachrichten";
 
 /**
@@ -234,6 +235,20 @@ type MusterKontext = {
   paletteErsetzen: (palette: PalettenEintrag[]) => void;
   musterErsetzen: (m: Muster) => void;
 
+  /** Das Muster in der Datenbank, sobald es einen gespeicherten Stand gibt. */
+  musterId: string | null;
+  /** Der Stand, auf dem gerade gearbeitet wird – der Elternteil des nächsten. */
+  versionId: string | null;
+  /** Wie oft gesichert wurde – die Ständeleiste lädt daraufhin neu. */
+  standZaehler: number;
+  /**
+   * Einen Stand sichern. Läuft bei jedem großen Schritt automatisch und
+   * zusätzlich von Hand über „Diesen Stand merken".
+   */
+  standAnlegen: (beschriftung: string, gemerkt?: boolean) => Promise<boolean>;
+  /** Nach dem Wiederherstellen: auf diesen Stand als Elternteil umschalten. */
+  standUebernehmen: (stand: Stand, muster: Muster) => void;
+
   rueckgaengig: () => void;
   wiederholen: () => void;
   kannRueckgaengig: boolean;
@@ -263,9 +278,17 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   const [fortschritt, setFortschritt] = useState<{ text: string; anteil: number } | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [wiederhergestellt, setWiederhergestellt] = useState(false);
+  const [musterId, setMusterId] = useState<string | null>(null);
+  const [versionId, setVersionId] = useState<string | null>(null);
+  const [standZaehler, setStandZaehler] = useState(0);
 
   const worker = useRef<Worker | null>(null);
   const wartend = useRef<((w: AntwortVomWorker) => void) | null>(null);
+  // `erzeugen` sichert den neuen Stand mit, darf aber nicht von `sichern`
+  // abhängen – sonst würde sich jede Sicherung selbst neu erzeugen lassen.
+  const sichernRef = useRef<
+    ((m: Muster, beschriftung: string, gemerkt: boolean) => Promise<boolean>) | null
+  >(null);
 
   const { muster } = zustand;
 
@@ -320,6 +343,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
           },
         });
         setEinstellungen(stand.einstellungen);
+        setMusterId(stand.musterId);
         if (stand.bild && stand.bildMasse) {
           setBild({
             name: stand.bildName,
@@ -344,7 +368,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     if (!wiederhergestellt || !muster) return;
     const zeitgeber = window.setTimeout(() => {
       void arbeitsstandSichern({
-        musterId: null,
+        musterId,
         name: bild?.name ?? "Muster",
         breite: muster.breite,
         hoehe: muster.hoehe,
@@ -359,7 +383,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       });
     }, 800);
     return () => window.clearTimeout(zeitgeber);
-  }, [muster, einstellungen, bild, wiederhergestellt]);
+  }, [muster, einstellungen, bild, wiederhergestellt, musterId]);
 
   // --- Bild auswählen -------------------------------------------------------
   const bildWaehlen = useCallback(
@@ -437,20 +461,21 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         ? bearbeitungUmschreiben(muster.bearbeitung, muster.palette, antwort.palette)
         : new Int16Array(antwort.raster.length).fill(-1);
 
-      ausloesen({
-        art: "erzeugt",
-        muster: {
-          breite: antwort.breite,
-          hoehe: antwort.hoehe,
-          basis: antwort.raster,
-          bearbeitung,
-          palette: antwort.palette,
-          kennzahlen: antwort.kennzahlen,
-          farbenVorher: antwort.farbenVorher,
-          farbenNachher: antwort.farbenNachher,
-          garneZusammengelegt: antwort.garneZusammengelegt,
-        },
-      });
+      const neu: Muster = {
+        breite: antwort.breite,
+        hoehe: antwort.hoehe,
+        basis: antwort.raster,
+        bearbeitung,
+        palette: antwort.palette,
+        kennzahlen: antwort.kennzahlen,
+        farbenVorher: antwort.farbenVorher,
+        farbenNachher: antwort.farbenNachher,
+        garneZusammengelegt: antwort.garneZusammengelegt,
+      };
+      ausloesen({ art: "erzeugt", muster: neu });
+
+      // Ein großer Schritt – der Stand wird von selbst gesichert.
+      void sichernRef.current?.(neu, passt ? "Farbanzahl geändert" : "Neu erzeugt", false);
       return true;
     } catch {
       setFehler(
@@ -515,6 +540,60 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     [muster],
   );
 
+  /**
+   * Einen Stand sichern. Nimmt das Muster ausdrücklich entgegen, damit auch
+   * direkt nach dem Erzeugen gesichert werden kann – dort steht der neue
+   * Stand noch nicht im Zustand des Hooks.
+   */
+  const sichern = useCallback(
+    async (zuSichern: Muster, beschriftung: string, gemerkt: boolean) => {
+      const ergebnis = await standSichern({
+        musterId,
+        elternId: versionId,
+        name: bild?.name ?? "Muster",
+        beschriftung,
+        gemerkt,
+        breite: zuSichern.breite,
+        hoehe: zuSichern.hoehe,
+        basis: zuSichern.basis,
+        bearbeitung: zuSichern.bearbeitung,
+        raster: zusammenfuehren(zuSichern.basis, zuSichern.bearbeitung),
+        palette: zuSichern.palette,
+        einstellungen,
+        quellbild: musterId ? null : (bild?.blob ?? null),
+      });
+      if (!ergebnis) return false;
+      setMusterId(ergebnis.musterId);
+      setVersionId(ergebnis.standId);
+      setStandZaehler((z) => z + 1);
+      return true;
+    },
+    [musterId, versionId, bild, einstellungen],
+  );
+
+  useEffect(() => {
+    sichernRef.current = sichern;
+  }, [sichern]);
+
+  const standAnlegen = useCallback(
+    async (beschriftung: string, gemerkt = false) => {
+      if (!muster) return false;
+      return sichern(muster, beschriftung, gemerkt);
+    },
+    [muster, sichern],
+  );
+
+  /**
+   * Ein alter Stand wird wieder eingesetzt. Er wird zum Elternteil des
+   * nächsten Standes – so entsteht der Baum, statt dass die Nutzerin den
+   * neueren Stand verliert.
+   */
+  const standUebernehmen = useCallback((stand: Stand, neuesMuster: Muster) => {
+    setMusterId(stand.musterId);
+    setVersionId(stand.id);
+    ausloesen({ art: "ersetzen", muster: neuesMuster });
+  }, []);
+
   const wert = useMemo<MusterKontext>(
     () => ({
       bild,
@@ -538,6 +617,11 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         ausloesen({ art: "bearbeitungErsetzen", titel, neue }),
       paletteErsetzen: (palette) => ausloesen({ art: "paletteErsetzen", palette }),
       musterErsetzen: (m) => ausloesen({ art: "ersetzen", muster: m }),
+      musterId,
+      versionId,
+      standZaehler,
+      standAnlegen,
+      standUebernehmen,
       rueckgaengig: () => ausloesen({ art: "rueckgaengig" }),
       wiederholen: () => ausloesen({ art: "wiederholen" }),
       kannRueckgaengig: zustand.rueckgaengigStapel.length > 0,
@@ -560,6 +644,11 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       fehler,
       erzeugen,
       glaettungSetzen,
+      musterId,
+      versionId,
+      standZaehler,
+      standAnlegen,
+      standUebernehmen,
       zustand.rueckgaengigStapel,
       zustand.wiederholenStapel,
     ],
