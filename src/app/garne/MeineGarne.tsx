@@ -22,6 +22,7 @@ import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
 export function MeineGarne() {
   const [garne, setGarne] = useState<GarnMitVorrat[]>([]);
   const [geladen, setGeladen] = useState(false);
+  const [gingSchief, setGingSchief] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export function MeineGarne() {
       })
       .catch(() => {
         if (!abgebrochen) {
+          setGingSchief(true);
           setFehler(
             "Die Garnliste konnte nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite noch einmal.",
           );
@@ -53,7 +55,7 @@ export function MeineGarne() {
     if (!geklappt) {
       setGarne((liste) => liste.map((g) => (g.id === garn.id ? { ...g, imVorrat: !neu } : g)));
       setFehler(
-        "Diese Änderung konnte nicht gespeichert werden. Bitte prüfen Sie, ob Sie noch angemeldet sind, und tippen Sie noch einmal darauf.",
+        "Diese Änderung konnte nicht gespeichert werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und tippen Sie noch einmal darauf.",
       );
     }
   }
@@ -130,6 +132,11 @@ export function MeineGarne() {
           <h2 className="text-[1.4rem] font-bold">Garn hinzufügen</h2>
           {!geladen ? (
             <p className="text-[1.05rem] text-gedaempft">Die Garnliste wird geholt …</p>
+          ) : gingSchief ? (
+            <Hinweis art="fehler">
+              Die Garnliste konnte nicht geholt werden. Bitte prüfen Sie Ihre
+              Internetverbindung und laden Sie die Seite noch einmal.
+            </Hinweis>
           ) : garne.length === 0 ? (
             <Hinweis>
               In der Garnliste steht noch nichts. Die Garnfarben werden einmalig mit dem

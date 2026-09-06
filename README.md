@@ -8,11 +8,16 @@ Die Oberfläche ist vollständig deutsch und für eine Nutzerin ohne
 Computererfahrung gebaut: Grundschrift 20px, Schaltflächen mindestens 56px hoch,
 pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
 
+**Es gibt keine Anmeldung.** Die App ist für eine einzige Person gedacht, die
+ihre Muster wiederfinden will, ohne sich etwas merken zu müssen: Seite
+aufrufen und loslegen. Was das für die Sicherheit bedeutet, steht weiter
+unten unter „Keine Anmeldung – was das heißt".
+
 ## Stack
 
 - Next.js (App Router, TypeScript)
 - Tailwind CSS
-- Supabase (Anmeldung per Magic Link, Postgres, Storage)
+- Supabase (Postgres und Storage, ohne Auth)
 - `pdf-lib` für den Ausdruck, `idb` für die Sicherung im Browser
 
 ## Einrichten
@@ -29,7 +34,7 @@ npm run dev
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Adresse des Supabase-Projekts (Project Settings → API) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Öffentlicher Schlüssel des Projekts |
-| `SUPABASE_SERVICE_ROLE_KEY` | Nur für `npm run garne-importieren`. Gehört niemals in den Browser. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Nur für `npm run garne-importieren`. Gehört niemals in den Browser und nicht zum Hoster. |
 
 ### Supabase vorbereiten
 
@@ -42,11 +47,7 @@ npm run dev
    | `0001_schema.sql` | Tabellen, Fremdschlüssel und Row Level Security |
    | `0002_storage.sql` | Die vier privaten Storage-Buckets und ihre Regeln |
 
-2. Unter *Authentication → URL Configuration* die Adresse
-   `http://localhost:3000/auth/bestaetigen` (bzw. die Adresse der
-   veröffentlichten App) als Redirect-URL eintragen.
-
-3. Die Garnfarben einlesen:
+2. Die Garnfarben einlesen:
 
    ```bash
    npm run garne-importieren -- data/garne-dmc.csv
@@ -72,13 +73,36 @@ mit demselben Kopf dazu und werden mit demselben Skript eingelesen. Die
 Hexwerte der Hersteller sind Näherungen; deshalb lässt sich in der App
 jede Farbe der Legende von Hand auf ein anderes Garn ändern.
 
-### Row Level Security prüfen
+## Keine Anmeldung – was das heißt
+
+Die App fragt niemanden nach irgendetwas: kein Passwort, kein Magic Link,
+kein Konto. Wer die Seite aufruft, arbeitet sofort an den Mustern.
+
+Der Preis dafür gehört benannt: **wer die Adresse der App kennt, kann die
+Muster lesen, ändern und löschen.** Der öffentliche Schlüssel steht im
+Quelltext der ausgelieferten Seite, daran führt kein Weg vorbei. Der
+Schutz besteht allein darin, die Adresse nicht herumzureichen.
+
+Für ein Muster-Programm auf einem Familientablet ist das in Ordnung. Wenn
+es doch einmal enger werden soll, ohne dass sich für die Nutzerin etwas
+ändert, gibt es zwei Wege, die nichts mit der App zu tun haben:
+
+- beim Hoster einen Zugangsschutz einschalten (bei Vercel z. B.
+  *Deployment Protection*), oder
+- die App gar nicht veröffentlichen und mit `npm run dev` auf dem Gerät
+  laufen lassen, auf dem gestickt wird.
+
+Die einzige Ausnahme von „alles erlaubt" ist der Garnkatalog: er ist aus
+der App heraus nur lesbar. Geschrieben wird er ausschließlich vom
+Importskript über den Dienstschlüssel, damit ein Versehen ihn nicht
+zerstören kann.
+
+### Zugriffsregeln prüfen
 
 Die Regeln lassen sich ohne Supabase-Projekt auf einem gewöhnlichen
 PostgreSQL nachprüfen. `supabase/tests/00_supabase_nachbau.sql` baut die
-paar Supabase-Teile nach, die die Migrationen brauchen (`auth.users`,
-`auth.uid()`, `storage.objects`, die Rollen), `01_rls.sql` lässt dann zwei
-Nutzerinnen aufeinander los:
+paar Supabase-Teile nach, die die Migrationen brauchen (`storage.objects`,
+die Rollen), `01_zugriff.sql` prüft dann, was die App darf:
 
 ```bash
 createdb stickmuster_test
@@ -86,12 +110,12 @@ psql -d stickmuster_test -c 'create extension if not exists pgcrypto;'
 psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/tests/00_supabase_nachbau.sql
 psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/migrations/0001_schema.sql
 psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/migrations/0002_storage.sql
-psql -d stickmuster_test -f supabase/tests/01_rls.sql
+psql -d stickmuster_test -f supabase/tests/01_zugriff.sql
 ```
 
-Erwartet wird: Anna sieht überall 1, Berta überall 0 (nur den Garnkatalog
-sieht sie, der ist gemeinsam), und jeder ihrer Änderungsversuche endet mit
-`violates row-level security policy` oder trifft null Zeilen.
+Erwartet wird: die App darf Muster, Stände, Legende, Motive, Garnvorrat und
+Dateien anlegen und wieder löschen, und jeder Schreibversuch am Garnkatalog
+endet mit `violates row-level security policy` oder trifft null Zeilen.
 
 Wichtig: die Ausgabe nicht durch `head` schicken. psql bricht dann mitten
 in der Migration ab und es fehlen stillschweigend die letzten Regeln.
@@ -99,14 +123,12 @@ in der Migration ab und es fehlen stillschweigend die letzten Regeln.
 ## Aufbau des Projekts
 
 ```
-src/app/anmelden        Anmeldung per Magic Link
-src/app/auth/bestaetigen  Ziel des Links aus der E-Mail
 src/app/schritt/…       Die vier Schritte des geführten Weges
 src/app/garne           Der eigene Garnvorrat
 src/components          Schaltflächen, Fortschrittsleiste, Fenster
-src/lib/supabase        Supabase-Clients für Browser, Server und Proxy
+src/lib/supabase        Zugang zur Datenbank
 supabase/migrations     SQL-Migrationen
-supabase/tests          Nachbau und Prüfung der Row Level Security
+supabase/tests          Nachbau und Prüfung der Zugriffsregeln
 scripts                 Importskript für Garnfarben, Beispielbilder
 ```
 
@@ -135,5 +157,10 @@ Aida 14 ergibt das etwa einen Meter je hundert Stiche.
 
 Raster (die eigentlichen Stichdaten) liegen **nie** als JSONB in Postgres,
 sondern immer lauflängenkodiert als Datei im Storage. In der Datenbank stehen
-nur Verweise und Metadaten. Alle Buckets sind privat, alle Tabellen mit
-Nutzerbezug haben Row Level Security.
+nur Verweise und Metadaten.
+
+Die Buckets sind nicht öffentlich; die App holt sich zeitlich begrenzte Links
+(signed URLs). Row Level Security ist auf allen Tabellen eingeschaltet, damit
+der Zugriff eine bewusst gesetzte Regel ist und nicht ein vergessener
+Schalter – ohne Anmeldung lautet diese Regel für die Musterdaten allerdings
+schlicht „alles erlaubt".

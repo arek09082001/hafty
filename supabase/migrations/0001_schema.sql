@@ -1,19 +1,31 @@
 -- ---------------------------------------------------------------------------
 -- Stickmuster – Grundschema
 --
--- Grundsatz: Raster (die eigentlichen Stichdaten) liegen NIEMALS als JSONB in
--- Postgres, sondern immer als lauflaengenkodierte Datei im Supabase Storage.
+-- Diese App hat bewusst **keine Anmeldung**. Sie ist für eine einzige Person
+-- gedacht, die ihre Muster wiederfinden will, ohne sich etwas merken zu
+-- müssen. Es gibt deshalb keine Nutzerkennung: die Datenbank gehört dieser
+-- einen Person, und alle Tabellen sind über den öffentlichen Schlüssel les-
+-- und schreibbar.
+--
+-- Was das heisst, steht in der README und soll hier nicht verschwiegen
+-- werden: Wer die Adresse der App kennt, kann die Muster lesen und ändern.
+-- Der Schutz besteht allein darin, die Adresse nicht herumzureichen.
+--
+-- Der Garnkatalog (thread_brands / thread_colors) ist die Ausnahme: er wird
+-- nur gelesen. Geschrieben wird er ausschliesslich vom Importskript über den
+-- Dienstschluessel, damit ein Versehen in der App ihn nicht zerstören kann.
+--
+-- Grundsatz bleibt: Raster (die eigentlichen Stichdaten) liegen NIEMALS als
+-- JSONB in Postgres, sondern immer als lauflaengenkodierte Datei im Storage.
 -- In der Datenbank stehen nur Verweise (…_path) und Metadaten.
 --
--- Row Level Security ist von Anfang an auf jeder Tabelle mit Nutzerbezug
--- aktiv. Die Garnkataloge (thread_brands / thread_colors) sind oeffentlich
--- lesbar, aber nur ueber den service_role-Schluessel beschreibbar.
+-- Die Datei darf mehrfach laufen.
 -- ---------------------------------------------------------------------------
 
 create extension if not exists "pgcrypto";
 
 -- --------------------------------------------------------------------------
--- Garnhersteller und Garnfarben (gemeinsamer Katalog fuer alle Nutzerinnen)
+-- Garnhersteller und Garnfarben
 -- --------------------------------------------------------------------------
 
 create table if not exists public.thread_brands (
@@ -46,7 +58,6 @@ create index if not exists thread_colors_brand_idx on public.thread_colors (bran
 
 create table if not exists public.patterns (
   id                  uuid primary key default gen_random_uuid(),
-  user_id             uuid not null references auth.users (id) on delete cascade,
   name                text not null default 'Neues Muster',
   width               integer not null check (width  between 10 and 800),
   height              integer not null check (height between 10 and 800),
@@ -57,7 +68,7 @@ create table if not exists public.patterns (
   updated_at          timestamptz not null default now()
 );
 
-create index if not exists patterns_user_idx on public.patterns (user_id, updated_at desc);
+create index if not exists patterns_zuletzt_idx on public.patterns (updated_at desc);
 
 -- --------------------------------------------------------------------------
 -- Gespeicherte Staende. Ueber parent_version_id entsteht ein Baum: von einem
@@ -83,9 +94,7 @@ create index if not exists pattern_versions_parent_idx
   on public.pattern_versions (parent_version_id);
 
 -- Der Verweis auf den aktuellen Stand kann erst hier gesetzt werden, weil
--- sich die beiden Tabellen gegenseitig referenzieren. In einen DO-Block
--- gepackt, damit die ganze Datei ein zweites Mal laufen darf, ohne
--- abzubrechen – im SQL-Editor passiert das schnell.
+-- sich die beiden Tabellen gegenseitig referenzieren.
 do $$
 begin
   if not exists (
@@ -113,14 +122,13 @@ create table if not exists public.pattern_colors (
 );
 
 -- --------------------------------------------------------------------------
--- Der Garnvorrat: welche Garne die Nutzerin zu Hause hat
+-- Der Garnvorrat: welche Garne zu Hause liegen. Ohne Anmeldung gibt es genau
+-- eine solche Liste.
 -- --------------------------------------------------------------------------
 
 create table if not exists public.user_threads (
-  user_id          uuid not null references auth.users (id) on delete cascade,
-  thread_color_id  uuid not null references public.thread_colors (id) on delete cascade,
-  created_at       timestamptz not null default now(),
-  primary key (user_id, thread_color_id)
+  thread_color_id  uuid primary key references public.thread_colors (id) on delete cascade,
+  created_at       timestamptz not null default now()
 );
 
 -- --------------------------------------------------------------------------
@@ -129,7 +137,6 @@ create table if not exists public.user_threads (
 
 create table if not exists public.motifs (
   id              uuid primary key default gen_random_uuid(),
-  user_id         uuid not null references auth.users (id) on delete cascade,
   name            text not null default 'Motiv',
   w               integer not null check (w > 0),
   h               integer not null check (h > 0),
@@ -139,10 +146,15 @@ create table if not exists public.motifs (
   created_at      timestamptz not null default now()
 );
 
-create index if not exists motifs_user_idx on public.motifs (user_id, created_at desc);
+create index if not exists motifs_zuletzt_idx on public.motifs (created_at desc);
 
 -- --------------------------------------------------------------------------
--- Row Level Security
+-- Zugriffsregeln
+--
+-- Row Level Security bleibt eingeschaltet, damit der Zugriff eine bewusst
+-- gesetzte Regel ist und nicht ein vergessener Schalter. Ohne Anmeldung gibt
+-- es aber niemanden zu unterscheiden, deshalb ist die Regel schlicht "alles
+-- erlaubt" – ausser beim Garnkatalog, der nur gelesen wird.
 -- --------------------------------------------------------------------------
 
 alter table public.patterns          enable row level security;
@@ -153,88 +165,29 @@ alter table public.motifs            enable row level security;
 alter table public.thread_brands     enable row level security;
 alter table public.thread_colors     enable row level security;
 
--- patterns: nur die eigenen
-drop policy if exists "eigene muster lesen"    on public.patterns;
-drop policy if exists "eigene muster anlegen"  on public.patterns;
-drop policy if exists "eigene muster aendern"  on public.patterns;
-drop policy if exists "eigene muster loeschen" on public.patterns;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['patterns', 'pattern_versions', 'pattern_colors',
+                           'user_threads', 'motifs'] loop
+    execute format('drop policy if exists %I on public.%I', 'ohne anmeldung alles', t);
+    execute format(
+      'create policy %I on public.%I for all to anon, authenticated using (true) with check (true)',
+      'ohne anmeldung alles', t);
+  end loop;
+end
+$$;
 
-create policy "eigene muster lesen"    on public.patterns for select using  (auth.uid() = user_id);
-create policy "eigene muster anlegen"  on public.patterns for insert with check (auth.uid() = user_id);
-create policy "eigene muster aendern"  on public.patterns for update using  (auth.uid() = user_id)
-                                                              with check (auth.uid() = user_id);
-create policy "eigene muster loeschen" on public.patterns for delete using  (auth.uid() = user_id);
+-- Garnkatalog: lesen ja, schreiben nur ueber den Dienstschluessel
+-- (das Importskript) – dafuer gibt es bewusst keine Policy.
+drop policy if exists "garnkatalog lesen" on public.thread_brands;
+drop policy if exists "garnfarben lesen"  on public.thread_colors;
 
--- pattern_versions: ueber das zugehoerige Muster
-drop policy if exists "eigene staende lesen"    on public.pattern_versions;
-drop policy if exists "eigene staende anlegen"  on public.pattern_versions;
-drop policy if exists "eigene staende aendern"  on public.pattern_versions;
-drop policy if exists "eigene staende loeschen" on public.pattern_versions;
-
-create policy "eigene staende lesen" on public.pattern_versions for select
-  using (exists (select 1 from public.patterns p
-                  where p.id = pattern_versions.pattern_id and p.user_id = auth.uid()));
-create policy "eigene staende anlegen" on public.pattern_versions for insert
-  with check (exists (select 1 from public.patterns p
-                       where p.id = pattern_versions.pattern_id and p.user_id = auth.uid()));
-create policy "eigene staende aendern" on public.pattern_versions for update
-  using (exists (select 1 from public.patterns p
-                  where p.id = pattern_versions.pattern_id and p.user_id = auth.uid()))
-  with check (exists (select 1 from public.patterns p
-                       where p.id = pattern_versions.pattern_id and p.user_id = auth.uid()));
-create policy "eigene staende loeschen" on public.pattern_versions for delete
-  using (exists (select 1 from public.patterns p
-                  where p.id = pattern_versions.pattern_id and p.user_id = auth.uid()));
-
--- pattern_colors: ueber das zugehoerige Muster
-drop policy if exists "eigene legende lesen"    on public.pattern_colors;
-drop policy if exists "eigene legende schreiben" on public.pattern_colors;
-drop policy if exists "eigene legende aendern"  on public.pattern_colors;
-drop policy if exists "eigene legende loeschen" on public.pattern_colors;
-
-create policy "eigene legende lesen" on public.pattern_colors for select
-  using (exists (select 1 from public.patterns p
-                  where p.id = pattern_colors.pattern_id and p.user_id = auth.uid()));
-create policy "eigene legende schreiben" on public.pattern_colors for insert
-  with check (exists (select 1 from public.patterns p
-                       where p.id = pattern_colors.pattern_id and p.user_id = auth.uid()));
-create policy "eigene legende aendern" on public.pattern_colors for update
-  using (exists (select 1 from public.patterns p
-                  where p.id = pattern_colors.pattern_id and p.user_id = auth.uid()))
-  with check (exists (select 1 from public.patterns p
-                       where p.id = pattern_colors.pattern_id and p.user_id = auth.uid()));
-create policy "eigene legende loeschen" on public.pattern_colors for delete
-  using (exists (select 1 from public.patterns p
-                  where p.id = pattern_colors.pattern_id and p.user_id = auth.uid()));
-
--- user_threads: nur der eigene Garnvorrat
-drop policy if exists "eigener vorrat lesen"    on public.user_threads;
-drop policy if exists "eigener vorrat anlegen"  on public.user_threads;
-drop policy if exists "eigener vorrat loeschen" on public.user_threads;
-
-create policy "eigener vorrat lesen"    on public.user_threads for select using (auth.uid() = user_id);
-create policy "eigener vorrat anlegen"  on public.user_threads for insert with check (auth.uid() = user_id);
-create policy "eigener vorrat loeschen" on public.user_threads for delete using (auth.uid() = user_id);
-
--- motifs: nur die eigenen
-drop policy if exists "eigene motive lesen"    on public.motifs;
-drop policy if exists "eigene motive anlegen"  on public.motifs;
-drop policy if exists "eigene motive aendern"  on public.motifs;
-drop policy if exists "eigene motive loeschen" on public.motifs;
-
-create policy "eigene motive lesen"    on public.motifs for select using  (auth.uid() = user_id);
-create policy "eigene motive anlegen"  on public.motifs for insert with check (auth.uid() = user_id);
-create policy "eigene motive aendern"  on public.motifs for update using  (auth.uid() = user_id)
-                                                             with check (auth.uid() = user_id);
-create policy "eigene motive loeschen" on public.motifs for delete using  (auth.uid() = user_id);
-
--- Garnkatalog: fuer angemeldete Nutzerinnen lesbar, Schreiben nur ueber
--- service_role (das Importskript) – dafuer gibt es bewusst keine Policy.
-drop policy if exists "garnkatalog lesen"  on public.thread_brands;
-drop policy if exists "garnfarben lesen"   on public.thread_colors;
-
-create policy "garnkatalog lesen" on public.thread_brands for select to authenticated using (true);
-create policy "garnfarben lesen"  on public.thread_colors for select to authenticated using (true);
+create policy "garnkatalog lesen" on public.thread_brands
+  for select to anon, authenticated using (true);
+create policy "garnfarben lesen" on public.thread_colors
+  for select to anon, authenticated using (true);
 
 -- updated_at automatisch mitfuehren
 create or replace function public.touch_updated_at()

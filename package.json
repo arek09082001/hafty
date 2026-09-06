@@ -11,7 +11,6 @@
     "beispielbilder": "node scripts/beispielbilder-erzeugen.mjs"
   },
   "dependencies": {
-    "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.115.0",
     "idb": "^8.0.3",
     "next": "16.3.4",

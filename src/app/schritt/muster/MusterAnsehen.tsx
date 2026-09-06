@@ -84,6 +84,8 @@ export function MusterAnsehen() {
   const [motivNameOffen, setMotivNameOffen] = useState(false);
   const [motivName, setMotivName] = useState("");
   const [motivZumLoeschen, setMotivZumLoeschen] = useState<Motiv | null>(null);
+  /** Eigene Meldung dieser Seite, unabhängig vom Fehler aus dem Provider. */
+  const [eigenerFehler, setFehler] = useState<string | null>(null);
   /** Für welchen Palettenindex gerade ein anderes Garn gesucht wird. */
   const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
 
@@ -126,6 +128,13 @@ export function MusterAnsehen() {
     motiveLaden()
       .then((liste) => {
         if (!abgebrochen) setMotive(liste);
+      })
+      .catch(() => {
+        if (!abgebrochen) {
+          setFehler(
+            "Die Motive konnten nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite noch einmal.",
+          );
+        }
       })
       .finally(() => {
         if (!abgebrochen) setMotiveLaufen(false);
@@ -327,7 +336,7 @@ export function MusterAnsehen() {
       setMeldung(`Das Motiv „${gespeichert.name}“ ist gemerkt. Sie finden es rechts in der Liste.`);
     } else {
       fehlerSetzen(
-        "Das Motiv konnte nicht gemerkt werden. Bitte prüfen Sie, ob Sie noch angemeldet sind, und versuchen Sie es dann noch einmal.",
+        "Das Motiv konnte nicht gemerkt werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und versuchen Sie es dann noch einmal.",
       );
     }
   };
@@ -385,7 +394,7 @@ export function MusterAnsehen() {
     );
     if (!geklappt) {
       fehlerSetzen(
-        "Der Stand konnte nicht gemerkt werden. Bitte prüfen Sie, ob Sie noch angemeldet sind, und versuchen Sie es dann noch einmal.",
+        "Der Stand konnte nicht gemerkt werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und versuchen Sie es dann noch einmal.",
       );
     }
   };
@@ -566,10 +575,16 @@ export function MusterAnsehen() {
 
         {/* Rechts: alles zum Arbeiten, für sich scrollbar */}
         <div ref={rechteSpalte} className="flex min-h-0 flex-col gap-4 overflow-y-auto pr-1">
-          {fehler ? (
+          {fehler || eigenerFehler ? (
             <div className="flex flex-col gap-3">
-              <Hinweis art="fehler">{fehler}</Hinweis>
-              <Knopf art="neben" onClick={() => fehlerSetzen(null)}>
+              <Hinweis art="fehler">{fehler ?? eigenerFehler}</Hinweis>
+              <Knopf
+                art="neben"
+                onClick={() => {
+                  fehlerSetzen(null);
+                  setFehler(null);
+                }}
+              >
                 Meldung schließen
               </Knopf>
             </div>

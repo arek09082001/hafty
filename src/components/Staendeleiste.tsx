@@ -38,23 +38,28 @@ export function Staendeleiste({
   // zum gewünschten passt, wird noch geladen – so braucht es kein eigenes
   // Ladekennzeichen, das im Effekt gesetzt werden müsste.
   const schluessel = `${musterId ?? ""}#${neuLaden}`;
-  const [geladen, setGeladen] = useState<{ schluessel: string; staende: Stand[] } | null>(null);
+  const [geladen, setGeladen] = useState<{
+    schluessel: string;
+    staende: Stand[];
+    ging: boolean;
+  } | null>(null);
   const [vorschau, setVorschau] = useState<Stand | null>(null);
   const [stelltWiederHer, setStelltWiederHer] = useState(false);
   const [merktGerade, setMerktGerade] = useState(false);
 
   const staende = geladen?.staende ?? [];
   const laedt = geladen?.schluessel !== schluessel;
+  const gingSchief = geladen?.schluessel === schluessel && !geladen.ging;
 
   useEffect(() => {
     let abgebrochen = false;
     const holen = musterId ? staendeLaden(musterId) : Promise.resolve<Stand[]>([]);
     holen
       .then((liste) => {
-        if (!abgebrochen) setGeladen({ schluessel, staende: liste });
+        if (!abgebrochen) setGeladen({ schluessel, staende: liste, ging: true });
       })
       .catch(() => {
-        if (!abgebrochen) setGeladen({ schluessel, staende: [] });
+        if (!abgebrochen) setGeladen({ schluessel, staende: [], ging: false });
       });
     return () => {
       abgebrochen = true;
@@ -102,6 +107,11 @@ export function Staendeleiste({
         </p>
       ) : laedt ? (
         <p className="text-[1.05rem] text-gedaempft">Die Stände werden geholt …</p>
+      ) : gingSchief ? (
+        <Hinweis art="fehler">
+          Die früheren Stände konnten nicht geholt werden. Bitte prüfen Sie Ihre
+          Internetverbindung. Ihre Arbeit auf dem Bildschirm bleibt davon unberührt.
+        </Hinweis>
       ) : staende.length === 0 ? (
         <p className="text-[1.05rem] text-gedaempft">Noch keine früheren Stände.</p>
       ) : (

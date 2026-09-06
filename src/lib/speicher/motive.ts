@@ -4,12 +4,15 @@
  * Motive: gespeicherte Ausschnitte, die über Muster hinweg erhalten bleiben.
  *
  * Sie liegen in der Tabelle `motifs` und – wie alle Raster – als
- * lauflängenkodierte Datei im privaten Storage-Bucket `motive`. Zusätzlich
- * wird ein kleines Vorschaubild abgelegt, damit die Liste nicht erst alle
- * Daten laden muss, um etwas zeigen zu können.
+ * lauflängenkodierte Datei im Storage-Bucket `motive`. Zusätzlich wird ein
+ * kleines Vorschaubild abgelegt, damit die Liste nicht erst alle Daten laden
+ * muss, um etwas zeigen zu können.
+ *
+ * Die App hat keine Anmeldung, deshalb hängen Motive an niemandem: der Pfad
+ * ist schlicht `<motiv-id>.rle`.
  */
 
-import { browserClient } from "@/lib/supabase/client";
+import { browserClient, datenbankEingerichtet, hoechstens } from "@/lib/supabase/client";
 import { entpacken, packen } from "./browserspeicher";
 import type { Ausschnitt } from "@/lib/muster/raster";
 import type { PalettenEintrag } from "@/lib/muster/typen";
@@ -116,18 +119,20 @@ async function vorschauBauen(a: Ausschnitt): Promise<Blob | null> {
   return new Promise((aufloesen) => leinwand.toBlob((b) => aufloesen(b), "image/png"));
 }
 
-/** Alle Motive der angemeldeten Nutzerin holen. */
+/** Alle Motive holen. Wirft, wenn die Datenbank nicht erreichbar ist. */
 export async function motiveLaden(): Promise<Motiv[]> {
+  if (!datenbankEingerichtet()) return [];
   const supabase = browserClient();
-  const { data: sitzung } = await supabase.auth.getUser();
-  if (!sitzung.user) return [];
 
-  const { data, error } = await supabase
-    .from("motifs")
-    .select("id, name, w, h, data_path, thumbnail_path, palette")
-    .order("created_at", { ascending: false });
+  const { data, error } = await hoechstens(
+    supabase
+      .from("motifs")
+      .select("id, name, w, h, data_path, thumbnail_path, palette")
+      .order("created_at", { ascending: false }),
+  );
 
-  if (error || !data) return [];
+  if (error) throw new Error(error.message);
+  if (!data) return [];
 
   return Promise.all(
     data.map(async (zeile) => {
@@ -153,14 +158,12 @@ export async function motiveLaden(): Promise<Motiv[]> {
 
 /** Ein Motiv anlegen. Gibt null zurück, wenn es nicht gespeichert werden konnte. */
 export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv | null> {
+  if (!datenbankEingerichtet()) return null;
   const supabase = browserClient();
-  const { data: sitzung } = await supabase.auth.getUser();
-  if (!sitzung.user) return null;
 
   const id = crypto.randomUUID();
-  const ordner = `${sitzung.user.id}`;
-  const dataPath = `${ordner}/${id}.rle`;
-  const bildPath = `${ordner}/${id}.png`;
+  const dataPath = `${id}.rle`;
+  const bildPath = `${id}.png`;
 
   const gepackt = await packen(ausschnittPacken(a));
   const hoch = await supabase.storage
@@ -179,7 +182,6 @@ export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv
 
   const { error } = await supabase.from("motifs").insert({
     id,
-    user_id: sitzung.user.id,
     name,
     w: a.w,
     h: a.h,
@@ -202,6 +204,7 @@ export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv
 
 /** Die Daten eines Motivs nachladen, um es einzusetzen. */
 export async function motivHolen(motiv: Motiv): Promise<Ausschnitt | null> {
+  if (!datenbankEingerichtet()) return null;
   const supabase = browserClient();
   const { data, error } = await supabase.storage.from(BUCKET).download(motiv.dataPath);
   if (error || !data) return null;
@@ -211,6 +214,7 @@ export async function motivHolen(motiv: Motiv): Promise<Ausschnitt | null> {
 
 /** Ein Motiv endgültig löschen. */
 export async function motivLoeschen(motiv: Motiv): Promise<boolean> {
+  if (!datenbankEingerichtet()) return false;
   const supabase = browserClient();
   const { error } = await supabase.from("motifs").delete().eq("id", motiv.id);
   if (error) return false;

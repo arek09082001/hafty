@@ -9,16 +9,19 @@
  * Nutzerin auch Wochen später zurückkann.
  *
  * Jeder Stand ist ein vollständiger, lauflängenkodierter und zusätzlich
- * gezippter Schnappschuss beider Ebenen als Datei im privaten Bucket
- * `raster`. In Postgres steht nur der Verweis darauf, dazu die Palette und
- * das Vorschaubildchen.
+ * gezippter Schnappschuss beider Ebenen als Datei im Bucket `raster`. In
+ * Postgres steht nur der Verweis darauf, dazu die Palette und das
+ * Vorschaubildchen.
+ *
+ * Die App hat keine Anmeldung; die Dateien liegen deshalb unter
+ * `<muster-id>/<stand-id>.rle` und hängen an keiner Nutzerkennung.
  *
  * Über `parent_version_id` entsteht ein Baum: von einem alten Stand aus kann
  * die Nutzerin in eine andere Richtung weiterarbeiten, ohne den neueren zu
  * verlieren.
  */
 
-import { browserClient } from "@/lib/supabase/client";
+import { browserClient, datenbankEingerichtet, hoechstens } from "@/lib/supabase/client";
 import { entpacken, packen } from "./browserspeicher";
 import { rasterEntpacken, rasterPacken } from "./rle";
 import { hexNachRgb } from "@/lib/farbe/lab";
@@ -109,11 +112,8 @@ export async function standSichern(argumente: {
   einstellungen: Einstellungen;
   quellbild: Blob | null;
 }): Promise<{ musterId: string; standId: string } | null> {
+  if (!datenbankEingerichtet()) return null;
   const supabase = browserClient();
-  const { data: sitzung } = await supabase.auth.getUser();
-  if (!sitzung.user) return null;
-
-  const nutzer = sitzung.user.id;
   let musterId = argumente.musterId;
 
   // --- Muster anlegen, falls es noch keins gibt --------------------------
@@ -123,7 +123,7 @@ export async function standSichern(argumente: {
     let bildPfad: string | null = null;
     if (argumente.quellbild) {
       const endung = argumente.quellbild.type.includes("png") ? "png" : "jpg";
-      const pfad = `${nutzer}/${musterId}.${endung}`;
+      const pfad = `${musterId}.${endung}`;
       const hoch = await supabase.storage
         .from(BILD_BUCKET)
         .upload(pfad, argumente.quellbild, { upsert: true });
@@ -132,7 +132,6 @@ export async function standSichern(argumente: {
 
     const { error } = await supabase.from("patterns").insert({
       id: musterId,
-      user_id: nutzer,
       name: argumente.name,
       width: argumente.breite,
       height: argumente.hoehe,
@@ -144,8 +143,8 @@ export async function standSichern(argumente: {
 
   // --- Raster und Vorschaubild hochladen ---------------------------------
   const standId = crypto.randomUUID();
-  const rasterPfad = `${nutzer}/${musterId}/${standId}.rle`;
-  const vorschauPfad = `${nutzer}/${musterId}/${standId}.png`;
+  const rasterPfad = `${musterId}/${standId}.rle`;
+  const vorschauPfad = `${musterId}/${standId}.png`;
 
   const gepackt = await packen(
     rasterPacken({
@@ -220,17 +219,26 @@ export async function standSichern(argumente: {
   return { musterId, standId };
 }
 
-/** Alle Stände eines Musters, neueste zuerst. */
+/**
+ * Alle Stände eines Musters, neueste zuerst. Wirft, wenn die Datenbank nicht
+ * erreichbar ist – eine leere Liste heisst dann wirklich "noch keine Stände".
+ */
 export async function staendeLaden(musterId: string): Promise<Stand[]> {
+  if (!datenbankEingerichtet()) return [];
   const supabase = browserClient();
 
-  const { data, error } = await supabase
-    .from("pattern_versions")
-    .select("id, pattern_id, parent_version_id, label, grid_path, thumbnail_path, palette, pinned, created_at")
-    .eq("pattern_id", musterId)
-    .order("created_at", { ascending: false });
+  const { data, error } = await hoechstens(
+    supabase
+      .from("pattern_versions")
+      .select(
+        "id, pattern_id, parent_version_id, label, grid_path, thumbnail_path, palette, pinned, created_at",
+      )
+      .eq("pattern_id", musterId)
+      .order("created_at", { ascending: false }),
+  );
 
-  if (error || !data) return [];
+  if (error) throw new Error(error.message);
+  if (!data) return [];
 
   return Promise.all(
     data.map(async (zeile) => {
@@ -260,6 +268,7 @@ export async function staendeLaden(musterId: string): Promise<Stand[]> {
 
 /** Den Inhalt eines Standes holen. */
 export async function standHolen(stand: Stand): Promise<StandInhalt | null> {
+  if (!datenbankEingerichtet()) return null;
   const supabase = browserClient();
   const { data, error } = await supabase.storage.from(RASTER_BUCKET).download(stand.rasterPfad);
   if (error || !data) return null;
@@ -271,6 +280,7 @@ export async function standHolen(stand: Stand): Promise<StandInhalt | null> {
 
 /** „Diesen Stand merken" – der Schnappschuss wird dauerhaft geschützt. */
 export async function standMerken(standId: string, gemerkt: boolean): Promise<boolean> {
+  if (!datenbankEingerichtet()) return false;
   const supabase = browserClient();
   const { error } = await supabase
     .from("pattern_versions")
@@ -285,6 +295,7 @@ export async function standMerken(standId: string, gemerkt: boolean): Promise<bo
  * hängt, bleibt stehen – sonst risse der Baum auseinander.
  */
 export async function aufraeumen(musterId: string): Promise<void> {
+  if (!datenbankEingerichtet()) return;
   const supabase = browserClient();
 
   const { data } = await supabase
