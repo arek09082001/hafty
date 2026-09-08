@@ -37,13 +37,17 @@ export function Garnwahl({
   const gefunden = useMemo(() => {
     const text = suche.trim().toLowerCase();
     if (text === "") return garne;
+    // Gesucht wird nach dem, was auf der Karte steht. Ariadna vergibt keine
+    // Farbnamen; dort steht die Beschreibung aus dem Hexwert. Wuerden wir nur
+    // das leere Herstellerfeld durchsuchen, faende "czerwony" nichts - und
+    // genau danach fragt das Suchfeld.
     return garne.filter(
       (g) =>
         g.code.toLowerCase().includes(text) ||
-        g.name.toLowerCase().includes(text) ||
-        g.marke.toLowerCase().includes(text),
+        g.marke.toLowerCase().includes(text) ||
+        garnname(g.name, g.hex, t).toLowerCase().includes(text),
     );
-  }, [garne, suche]);
+  }, [garne, suche, t]);
 
   return (
     <div className="flex flex-col gap-4">

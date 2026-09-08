@@ -43,7 +43,9 @@ export function GroesseUndFarben() {
     );
   }
 
-  const seitenverhaeltnis = bild.masse.hoehe / bild.masse.breite;
+  // Aus dem **Ausschnitt**, nicht aus dem ganzen Bild: gestickt wird nur der
+  // gewählte Teil, also richtet sich die Höhe des Musters auch danach.
+  const seitenverhaeltnis = bild.ausschnitt.hoehe / bild.ausschnitt.breite;
   const breite = einstellungen.breiteStiche;
   const hoehe = Math.max(1, Math.round(breite * seitenverhaeltnis));
   const zuGross = breite * hoehe > MAX_FELDER;

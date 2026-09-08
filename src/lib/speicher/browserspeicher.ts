@@ -44,6 +44,8 @@ export type Arbeitsstand = {
   bildName: string;
   /** Maße des Quellbildes, damit sie nach dem Laden nicht neu ermittelt werden müssen. */
   bildMasse: { breite: number; hoehe: number } | null;
+  /** Der gewaehlte Bildausschnitt, damit er beim Wiederkommen erhalten bleibt. */
+  bildAusschnitt: { x: number; y: number; breite: number; hoehe: number } | null;
   /** Kennung des Bildes – daran hängt, ob Handbearbeitungen weitergelten. */
   bildKennung: string;
   gespeichertAm: number;
@@ -93,6 +95,7 @@ export async function arbeitsstandSichern(stand: Arbeitsstand): Promise<void> {
       bild: stand.bild,
       bildName: stand.bildName,
       bildMasse: stand.bildMasse,
+      bildAusschnitt: stand.bildAusschnitt,
       bildKennung: stand.bildKennung,
       gespeichertAm: Date.now(),
       raster: rasterPacken({
@@ -128,6 +131,7 @@ export async function arbeitsstandLaden(): Promise<Arbeitsstand | null> {
       bild: abgelegt.bild,
       bildName: abgelegt.bildName,
       bildMasse: abgelegt.bildMasse ?? null,
+      bildAusschnitt: abgelegt.bildAusschnitt ?? null,
       bildKennung: abgelegt.bildKennung ?? crypto.randomUUID(),
       gespeichertAm: abgelegt.gespeichertAm,
     };

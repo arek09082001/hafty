@@ -15,6 +15,7 @@ import { Werkzeugwahl, type Werkzeug } from "@/components/Werkzeugwahl";
 import { Bereichswahl } from "@/components/Bereichswahl";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { garnname } from "@/lib/farbe/farbwort";
+import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
 import type { Textschluessel } from "@/lib/sprache/texte";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { cmText, sticheInCm } from "@/lib/muster/typen";
@@ -524,11 +525,21 @@ export function MusterAnsehen() {
         </>
       }
     >
-      <div className="grid h-full min-h-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
+      {/*
+        Ab einem breiten Bildschirm stehen Leinwand und Bedienung
+        nebeneinander und alles passt ohne Blättern auf den Schirm.
+
+        Darunter liegen sie übereinander – und dann darf die Höhe **nicht**
+        starr aufgeteilt werden: die Leinwand nahm sich die Hälfte, die vier
+        Reiter den Rest, und für die Garnliste blieb ein Streifen von wenigen
+        Pixeln übrig, in dem nichts mehr zu lesen war. Deshalb bekommt die
+        Leinwand hier eine feste Höhe und der ganze Bereich darf blättern.
+      */}
+      <div className="grid h-full min-h-0 gap-4 overflow-y-auto lg:overflow-y-visible lg:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
         {/* Die Leinwand bekommt so viel Platz wie irgend möglich. */}
         <div
           ref={flaeche}
-          className="grid min-h-0 place-items-center overflow-auto rounded-2xl border-2 border-tinte bg-white p-2"
+          className="grid h-[46vh] min-h-0 place-items-center overflow-auto rounded-2xl border-2 border-tinte bg-white p-2 lg:h-auto"
         >
           <Rasteransicht
             breite={muster.breite}
@@ -559,7 +570,7 @@ export function MusterAnsehen() {
         </div>
 
         {/* Rechts die Bedienung, in vier immer sichtbare Bereiche geteilt. */}
-        <div ref={rechteSpalte} className="flex min-h-0 flex-col gap-3">
+        <div ref={rechteSpalte} className="flex min-h-0 flex-col gap-3 lg:overflow-hidden">
           {fehler || eigenerFehler ? (
             <div className="flex shrink-0 flex-col gap-2">
               <Hinweis art="fehler">{t((fehler ?? eigenerFehler) as Textschluessel)}</Hinweis>
@@ -584,7 +595,7 @@ export function MusterAnsehen() {
           {vorschau ? (
             /* Solange ein Stück eingesetzt wird, verdrängt es alles andere –
                es gibt dann genau eine Sache zu tun. */
-            <section className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-2xl border-2 border-warnung bg-white p-5">
+            <section className="flex min-h-0 flex-col gap-4 rounded-2xl border-2 border-warnung bg-white p-5 lg:flex-1 lg:overflow-y-auto">
               <h2 className="text-[1.3rem] font-bold">{t("editor.stueckEinsetzen")}</h2>
               <p className="text-[1.05rem]">{t("editor.stueckSchieben")}</p>
 
@@ -719,7 +730,22 @@ export function MusterAnsehen() {
                     gewaehlt={farbeSicher}
                     onWaehlen={setFarbe}
                     onGarnAendern={alleGarne.length > 0 ? setGarnwechsel : undefined}
+                    stoffzaehlung={einstellungen.stoffzaehlung}
                   />
+                  {/* Was und wie viel gekauft werden muss, steht damit schon
+                      hier und nicht erst auf dem Ausdruck. */}
+                  <p className="text-[1rem] text-gedaempft">
+                    {t("editor.garnbedarf", {
+                      meter: meterText(
+                        muster.palette.reduce(
+                          (summe, e) =>
+                            summe + garnlaengeMeter(e.stiche, einstellungen.stoffzaehlung),
+                          0,
+                        ),
+                        landeskennung,
+                      ),
+                    })}
+                  </p>
                 </section>
               ) : null}
 

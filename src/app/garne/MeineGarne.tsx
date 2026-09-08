@@ -4,23 +4,27 @@ import { useEffect, useState } from "react";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
+import { Dialog } from "@/components/Dialog";
 import { Garnwahl } from "@/components/Garnwahl";
 import {
   garneLaden,
   vorratAufnehmen,
   vorratEntfernen,
+  vorratAlleAufnehmen,
+  vorratLeeren,
   type GarnMitVorrat,
 } from "@/lib/speicher/garne";
-import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
-import { garnname } from "@/lib/farbe/farbwort";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
 /**
  * Der eigene Garnvorrat: welche Garne die Nutzerin zu Hause hat.
  *
- * Eingetragen wird auf zwei Wegen – über die Suche nach der Nummer auf der
- * Banderole und über die Farbtafel zum Antippen.
+ * Die Liste steht **an einer Stelle**. Früher gab es oben noch einmal alles
+ * Angekreuzte als eigene Liste; beim Antippen wuchs die obere Liste und schob
+ * die untere weg, sodass unter dem Finger plötzlich eine andere Farbe lag.
+ * Jetzt ändert ein Antippen nur die Karte selbst – nichts springt. Wer sehen
+ * will, was schon eingetragen ist, schaltet auf „nur meine Garne zeigen“.
  */
 export function MeineGarne() {
   const [garne, setGarne] = useState<GarnMitVorrat[]>([]);
@@ -28,11 +32,9 @@ export function MeineGarne() {
   const [gingSchief, setGingSchief] = useState(false);
   const { t, zahl } = useSprache();
   const [fehler, setFehler] = useState<Textschluessel | null>(null);
-
-  // Einmal eingeblendet, bleibt der Einlese-Abschnitt stehen. Sonst
-  // verschwaende er im selben Augenblick, in dem er Erfolg meldet – die
-  // Liste ist dann ja nicht mehr leer – und niemand saehe, dass es
-  // geklappt hat.
+  const [nurMeine, setNurMeine] = useState(false);
+  const [leerenFragen, setLeerenFragen] = useState(false);
+  const [arbeitet, setArbeitet] = useState(false);
 
   useEffect(() => {
     let abgebrochen = false;
@@ -68,7 +70,34 @@ export function MeineGarne() {
     }
   }
 
+  async function alleAufnehmen() {
+    setArbeitet(true);
+    const vorher = garne;
+    setGarne((liste) => liste.map((g) => ({ ...g, imVorrat: true })));
+    const geklappt = await vorratAlleAufnehmen(garne.map((g) => g.id));
+    if (!geklappt) {
+      setGarne(vorher);
+      setFehler("garne.fehlerAendern");
+    }
+    setArbeitet(false);
+  }
+
+  async function alleEntfernen() {
+    setLeerenFragen(false);
+    setArbeitet(true);
+    const vorher = garne;
+    setGarne((liste) => liste.map((g) => ({ ...g, imVorrat: false })));
+    const geklappt = await vorratLeeren();
+    if (!geklappt) {
+      setGarne(vorher);
+      setFehler("garne.fehlerAendern");
+    }
+    setArbeitet(false);
+  }
+
   const meine = garne.filter((g) => g.imVorrat);
+  const gezeigt = nurMeine ? meine : garne;
+  const alleDrin = garne.length > 0 && meine.length === garne.length;
 
   return (
     <Seite
@@ -87,7 +116,7 @@ export function MeineGarne() {
         </>
       }
     >
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         {fehler ? (
           <div className="flex flex-col gap-3">
             <Hinweis art="fehler">{t(fehler)}</Hinweis>
@@ -97,47 +126,9 @@ export function MeineGarne() {
           </div>
         ) : null}
 
-        {meine.length > 0 ? (
-          <section className="flex flex-col gap-4">
-            <h2 className="text-[1.4rem] font-bold">{t("garne.zuHause")}</h2>
-            <ul className="flex flex-wrap gap-3">
-              {meine.map((garn) => {
-                const rgb = hexNachRgb(garn.hex);
-                return (
-                  <li key={garn.id}>
-                    <button
-                      type="button"
-                      onClick={() => umschalten(garn)}
-                      className="flex min-h-[56px] items-center gap-3 rounded-xl border-2 border-hauptaktion bg-white py-2 pr-4 pl-2 hover:bg-hinweis"
-                    >
-                      <span
-                        aria-hidden
-                        className="h-11 w-11 shrink-0 rounded-lg border-2 border-tinte"
-                        style={{ backgroundColor: garn.hex }}
-                      />
-                      <span className="flex flex-col text-left leading-tight">
-                        <span className="text-[1.05rem] font-bold">
-                          {garn.marke} {garn.code}
-                        </span>
-                        <span className="text-[0.9rem] text-gedaempft">
-                          {t("garne.zumEntfernen", { name: garnname(garn.name, garn.hex, t) })}
-                        </span>
-                      </span>
-                      <span
-                        aria-hidden
-                        className="sr-only"
-                        style={{ color: istDunkel(rgb[0], rgb[1], rgb[2]) ? "#fff" : "#000" }}
-                      />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ) : null}
-
         <section className="flex flex-col gap-4">
           <h2 className="text-[1.4rem] font-bold">{t("garne.hinzufuegen")}</h2>
+
           {!geladen ? (
             <p className="text-[1.05rem] text-gedaempft">{t("garne.wirdGeholt")}</p>
           ) : gingSchief ? (
@@ -147,17 +138,61 @@ export function MeineGarne() {
           ) : (
             <>
               <p className="max-w-[70ch] text-[1.05rem]">{t("garne.antippenText")}</p>
-              <Garnwahl
-                garne={garne}
-                markiert={(g) => g.imVorrat}
-                markierungText={t("garne.habeIch")}
-                onWaehlen={umschalten}
-                hoehe="max-h-[46vh]"
-              />
+
+              {/* Alles auf einmal – für alle, die die ganze Garnkarte haben. */}
+              <div className="flex flex-wrap items-center gap-3">
+                <Knopf
+                  art="neben"
+                  disabled={arbeitet || alleDrin}
+                  onClick={alleAufnehmen}
+                >
+                  {t("garne.alleEintragen", { anzahl: zahl(garne.length) })}
+                </Knopf>
+                {meine.length > 0 ? (
+                  <Knopf art="neben" disabled={arbeitet} onClick={() => setLeerenFragen(true)}>
+                    {t("garne.alleEntfernen")}
+                  </Knopf>
+                ) : null}
+                {meine.length > 0 ? (
+                  <Knopf
+                    art="neben"
+                    aria-pressed={nurMeine}
+                    onClick={() => setNurMeine((n) => !n)}
+                    className={nurMeine ? "border-hauptaktion bg-[#e8f3ee]" : ""}
+                  >
+                    {nurMeine
+                      ? t("garne.alleZeigen", { anzahl: zahl(garne.length) })
+                      : t("garne.nurMeineZeigen", { anzahl: zahl(meine.length) })}
+                  </Knopf>
+                ) : null}
+              </div>
+
+              {gezeigt.length === 0 ? (
+                <Hinweis>{t("garne.keinsEingetragen")}</Hinweis>
+              ) : (
+                <Garnwahl
+                  garne={gezeigt}
+                  markiert={(g) => g.imVorrat}
+                  markierungText={t("garne.habeIch")}
+                  onWaehlen={umschalten}
+                  hoehe="max-h-none"
+                />
+              )}
             </>
           )}
         </section>
       </div>
+
+      <Dialog
+        offen={leerenFragen}
+        titel={t("garne.alleEntfernenFrage")}
+        text={t("garne.alleEntfernenText", { anzahl: zahl(meine.length) })}
+        bestaetigenText={t("garne.alleEntfernenJa")}
+        bestaetigenArt="gefahr"
+        abbrechenText={t("allgemein.abbrechen")}
+        onBestaetigen={alleEntfernen}
+        onAbbrechen={() => setLeerenFragen(false)}
+      />
     </Seite>
   );
 }

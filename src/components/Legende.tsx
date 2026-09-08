@@ -4,6 +4,7 @@ import { istDunkel, hexNachRgb } from "@/lib/farbe/lab";
 import { garnname } from "@/lib/farbe/farbwort";
 import type { PalettenEintrag } from "@/lib/muster/typen";
 import { useSprache } from "@/lib/sprache/SprachProvider";
+import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
 
 /**
  * Die Legende: welches Symbol steht für welches Garn, und wie oft kommt es
@@ -15,13 +16,20 @@ export function Legende({
   gewaehlt,
   onWaehlen,
   onGarnAendern,
+  stoffzaehlung,
 }: {
   palette: PalettenEintrag[];
   gewaehlt?: number | null;
   onWaehlen?: (index: number) => void;
   onGarnAendern?: (index: number) => void;
+  /**
+   * Ist sie gesetzt, steht neben jeder Farbe auch, wie viel Garn davon
+   * gebraucht wird. Ohne die Stoffzaehlung laesst sich das nicht rechnen,
+   * denn die Fadenlaenge haengt an der Groesse eines Kaestchens.
+   */
+  stoffzaehlung?: number;
 }) {
-  const { t, zahl } = useSprache();
+  const { t, zahl, landeskennung } = useSprache();
 
   return (
     <ul className="flex flex-col gap-2">
@@ -50,8 +58,14 @@ export function Legende({
               </span>
             </span>
             <span className="shrink-0 text-right text-[1rem]">
-              {zahl(eintrag.stiche)}
-              <span className="block text-[0.85rem] text-gedaempft">{t("legende.stiche")}</span>
+              {stoffzaehlung
+                ? meterText(garnlaengeMeter(eintrag.stiche, stoffzaehlung), landeskennung)
+                : zahl(eintrag.stiche)}
+              <span className="block text-[0.85rem] text-gedaempft">
+                {stoffzaehlung
+                  ? t("legende.sticheUndGarn", { stiche: zahl(eintrag.stiche) })
+                  : t("legende.stiche")}
+              </span>
             </span>
           </>
         );
