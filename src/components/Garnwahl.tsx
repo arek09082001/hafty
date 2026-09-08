@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Knopf } from "./Knopf";
 import { istDunkel, hexNachRgb } from "@/lib/farbe/lab";
+import { garnname } from "@/lib/farbe/farbwort";
 import type { GarnMitVorrat } from "@/lib/speicher/garne";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
@@ -99,7 +100,9 @@ export function Garnwahl({
                     <span className="text-[1.05rem] font-bold">
                       {garn.marke} {garn.code}
                     </span>
-                    <span className="text-[0.9rem] text-gedaempft">{garn.name}</span>
+                    <span className="text-[0.9rem] text-gedaempft">
+                      {garnname(garn.name, garn.hex, t)}
+                    </span>
                   </span>
                 </button>
               </li>

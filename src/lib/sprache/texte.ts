@@ -219,6 +219,30 @@ export const DE = {
   "glaettung.farbwechselText": "So oft wechselt in einer Reihe im Schnitt die Farbe.",
 
   // --- Legende ------------------------------------------------------------
+  // --- Farben in Worten ----------------------------------------------------
+  // Nur fuer Garne, denen der Hersteller keinen Namen gegeben hat
+  // (Ariadna zum Beispiel vergibt nur Nummern). Siehe lib/farbe/farbwort.ts.
+  "farbwort.zusammen": "{stufe} {ton}",
+  "farbton.rot": "Rot",
+  "farbton.orange": "Orange",
+  "farbton.braun": "Braun",
+  "farbton.gelb": "Gelb",
+  "farbton.oliv": "Oliv",
+  "farbton.gruen": "Grün",
+  "farbton.tuerkis": "Türkis",
+  "farbton.blau": "Blau",
+  "farbton.violett": "Violett",
+  "farbton.rosa": "Rosa",
+  "farbton.weinrot": "Weinrot",
+  "farbton.beige": "Beige",
+  "farbton.weiss": "Weiß",
+  "farbton.grau": "Grau",
+  "farbton.schwarz": "Schwarz",
+  "farbstufe.sehrHell": "sehr helles",
+  "farbstufe.hell": "helles",
+  "farbstufe.dunkel": "dunkles",
+  "farbstufe.sehrDunkel": "sehr dunkles",
+
   "legende.eigeneFarbe": "Eigene Farbe",
   "legende.stiche": "Stiche",
   "legende.anderesGarn": "Anderes Garn",
@@ -521,7 +545,7 @@ export const PL: Record<Textschluessel, string> = {
   "editor.spiegelnWaagerecht": "Odbij w poziomie",
   "editor.spiegelnSenkrecht": "Odbij w pionie",
   "editor.hierEinsetzen": "Wstaw tutaj",
-  "editor.ihreGarne": "Pani nici ({anzahl})",
+  "editor.ihreGarne": "Moje nici ({anzahl})",
   "editor.farbeHinweis": "Dotknięty kolor będzie używany do malowania i kolorowania.",
   "editor.farbenZusammengelegt":
     "Z {vorher} kolorów zostało {nachher} – kilka leżało tak blisko siebie, że przypada na nie ta sama nitka.",
@@ -584,6 +608,30 @@ export const PL: Record<Textschluessel, string> = {
     "Tyle razy trzeba będzie nawlekać igłę dla jednego lub dwóch krzyżyków.",
   "glaettung.farbwechsel": "Zmian koloru na rząd",
   "glaettung.farbwechselText": "Tyle razy średnio zmienia się kolor w jednym rzędzie.",
+
+  // --- Farben in Worten ----------------------------------------------------
+  // Im Polnischen steht die Stufe vor dem Farbwort und beide sind
+  // Eigenschaftswoerter in maennlicher Form: "ciemny czerwony".
+  "farbwort.zusammen": "{stufe} {ton}",
+  "farbton.rot": "czerwony",
+  "farbton.orange": "pomarańczowy",
+  "farbton.braun": "brązowy",
+  "farbton.gelb": "żółty",
+  "farbton.oliv": "oliwkowy",
+  "farbton.gruen": "zielony",
+  "farbton.tuerkis": "turkusowy",
+  "farbton.blau": "niebieski",
+  "farbton.violett": "fioletowy",
+  "farbton.rosa": "różowy",
+  "farbton.weinrot": "bordowy",
+  "farbton.beige": "beżowy",
+  "farbton.weiss": "biały",
+  "farbton.grau": "szary",
+  "farbton.schwarz": "czarny",
+  "farbstufe.sehrHell": "bardzo jasny",
+  "farbstufe.hell": "jasny",
+  "farbstufe.dunkel": "ciemny",
+  "farbstufe.sehrDunkel": "bardzo ciemny",
 
   "legende.eigeneFarbe": "Własny kolor",
   "legende.stiche": "ściegów",
@@ -703,7 +751,7 @@ export const PL: Record<Textschluessel, string> = {
   "pdf.blaetterHinweis":
     "Kartek: {anzahl}, każda z zakładką {ueberlappung} rzędów. Oznaczenie stoi na dole każdej kartki.",
   "pdf.einBlatt": "Cały wzór mieści się na jednej kartce.",
-  "pdf.garnliste": "Pani nici",
+  "pdf.garnliste": "Moje nici",
   "pdf.garnlisteKopf": "{anzahl} kolorów · {name}",
   "pdf.garnlisteHinweis":
     "Zużycie nici jest szacunkowe i dotyczy dwóch nitek z jednej muliny.",

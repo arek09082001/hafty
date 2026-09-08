@@ -28,6 +28,7 @@
 import { PDFDocument, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
+import { garnname } from "@/lib/farbe/farbwort";
 import { cmText, sticheInCm, type PalettenEintrag } from "@/lib/muster/typen";
 import { garnlaengeMeter, meterText } from "./garnverbrauch";
 import type { Textschluessel } from "@/lib/sprache/texte";
@@ -358,7 +359,9 @@ function legendeZeichnen(
     const garnText = eintrag.garn
       ? `${eintrag.garn.marke} ${eintrag.garn.code}`
       : t("pdf.eigeneFarbe");
-    const farbName = eintrag.garn ? eintrag.garn.name : eintrag.hex;
+    const farbName = eintrag.garn
+      ? garnname(eintrag.garn.name, eintrag.garn.hex, t)
+      : eintrag.hex;
 
     seite.drawText(garnText, { x: RAND + 78, y: y + 2, size: 11, font: fett, color: SCHWARZ });
     seite.drawText(kuerzen(farbName, normal, 10, 175), {

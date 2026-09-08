@@ -12,6 +12,7 @@ import {
   type GarnMitVorrat,
 } from "@/lib/speicher/garne";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
+import { garnname } from "@/lib/farbe/farbwort";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
@@ -111,7 +112,7 @@ export function MeineGarne() {
                           {garn.marke} {garn.code}
                         </span>
                         <span className="text-[0.9rem] text-gedaempft">
-                          {t("garne.zumEntfernen", { name: garn.name })}
+                          {t("garne.zumEntfernen", { name: garnname(garn.name, garn.hex, t) })}
                         </span>
                       </span>
                       <span

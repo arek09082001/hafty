@@ -1,6 +1,7 @@
 "use client";
 
 import { istDunkel, hexNachRgb } from "@/lib/farbe/lab";
+import { garnname } from "@/lib/farbe/farbwort";
 import type { PalettenEintrag } from "@/lib/muster/typen";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
@@ -45,7 +46,7 @@ export function Legende({
                 {eintrag.garn ? `${eintrag.garn.marke} ${eintrag.garn.code}` : t("legende.eigeneFarbe")}
               </span>
               <span className="truncate text-[0.95rem] text-gedaempft">
-                {eintrag.garn ? eintrag.garn.name : eintrag.hex}
+                {eintrag.garn ? garnname(eintrag.garn.name, eintrag.garn.hex, t) : eintrag.hex}
               </span>
             </span>
             <span className="shrink-0 text-right text-[1rem]">
