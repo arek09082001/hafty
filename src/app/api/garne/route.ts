@@ -74,9 +74,14 @@ export async function GET() {
   if (!supabase) {
     return NextResponse.json({ stand: "kein-schluessel", inDerDatei }, { status: 200 });
   }
+  // Bewusst ohne head: true. Bei einer HEAD-Anfrage gibt es keinen
+  // Antwortkoerper, und genau darin steht der Grund – ohne ihn kaeme ein
+  // fehlendes Recht als "irgendwas ging schief" an, statt zu sagen, was zu
+  // tun ist. Die eine Zeile, die wir dabei mitlesen, kostet nichts.
   const { count, error } = await supabase
     .from("thread_colors")
-    .select("id", { count: "exact", head: true });
+    .select("id", { count: "exact" })
+    .limit(1);
   if (error) {
     console.error("Garnkatalog: zählen ging schief", error);
     return NextResponse.json(

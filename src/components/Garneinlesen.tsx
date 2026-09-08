@@ -54,9 +54,14 @@ export function Garneinlesen({ onFertig }: { onFertig: () => void }) {
 
   if (!stand) return null;
 
-  // Ohne Dienstschlüssel hilft kein Knopf – dann steht hier, was zu tun ist.
+  // Wenn schon die Nachfrage scheitert, hilft kein Knopf: dann fehlt der
+  // Dienstschlüssel oder der Datenbank die Rechte. Statt zu einem Antippen
+  // einzuladen, das nicht klappen kann, steht hier gleich, was zu tun ist.
   if (stand.stand === "kein-schluessel") {
     return <Hinweis art="fehler">{t("einlesen.keinSchluessel")}</Hinweis>;
+  }
+  if (stand.stand === "keine-rechte") {
+    return <Hinweis art="fehler">{t("einlesen.keineRechte")}</Hinweis>;
   }
 
   // Nach erfolgreichem Einlesen zaehlt das Ergebnis, nicht mehr der Stand
