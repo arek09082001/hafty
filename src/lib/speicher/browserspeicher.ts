@@ -8,8 +8,12 @@
  *  - Hier liegt das **Arbeitsraster**, laufend mitgeschrieben, damit ein
  *    Browserabsturz oder ein versehentlich geschlossener Reiter nichts
  *    kostet. Das ist kein Archiv: es gibt immer nur den aktuellen Stand.
- *  - Die **gespeicherten Stände**, zu denen die Nutzerin auch Wochen später
- *    zurückkann, liegen im Supabase Storage (siehe lib/speicher/staende.ts).
+ *  - Die **gespeicherten Stände** und die **Motive**, zu denen die Nutzerin
+ *    auch Wochen später zurückkann. Die liegen in eigenen Läden derselben
+ *    Datenbank (siehe lib/speicher/staende.ts und motive.ts).
+ *
+ * Alles liegt im Browser. Die App braucht dafür kein Netz und keinen Dienst:
+ * sie funktioniert auf einem Laptop ohne Verbindung genauso wie mit.
  */
 
 import { openDB, type IDBPDatabase } from "idb";
@@ -17,9 +21,14 @@ import { rasterPacken, rasterEntpacken } from "./rle";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
 
 const DATENBANK = "stickmuster";
-const AUSGABE = 1;
+const AUSGABE = 2;
 const LADEN = "arbeit";
 const SCHLUESSEL = "aktuell";
+
+/** Die weiteren Läden derselben Datenbank. */
+export const LADEN_VORRAT = "garnvorrat";
+export const LADEN_STAENDE = "staende";
+export const LADEN_MOTIVE = "motive";
 
 export type Arbeitsstand = {
   musterId: string | null;
@@ -49,11 +58,26 @@ function datenbank() {
   if (!verbindung) {
     verbindung = openDB(DATENBANK, AUSGABE, {
       upgrade(db) {
+        // Jeder Laden einzeln geprüft: so kommt auch eine ältere Datenbank
+        // mit, ohne dass etwas verloren geht.
         if (!db.objectStoreNames.contains(LADEN)) db.createObjectStore(LADEN);
+        if (!db.objectStoreNames.contains(LADEN_VORRAT)) db.createObjectStore(LADEN_VORRAT);
+        if (!db.objectStoreNames.contains(LADEN_STAENDE)) {
+          const laden = db.createObjectStore(LADEN_STAENDE, { keyPath: "id" });
+          laden.createIndex("musterId", "musterId");
+        }
+        if (!db.objectStoreNames.contains(LADEN_MOTIVE)) {
+          db.createObjectStore(LADEN_MOTIVE, { keyPath: "id" });
+        }
       },
     });
   }
   return verbindung;
+}
+
+/** Die geöffnete Datenbank – auch für die anderen Speicher dieses Ordners. */
+export function browserdatenbank(): Promise<IDBPDatabase> {
+  return datenbank();
 }
 
 export async function arbeitsstandSichern(stand: Arbeitsstand): Promise<void> {

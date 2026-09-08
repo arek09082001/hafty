@@ -308,25 +308,8 @@ export const DE = {
   "garne.zumEntfernen": "{name} · antippen zum Entfernen",
   "garne.hinzufuegen": "Garn hinzufügen",
   "garne.wirdGeholt": "Die Garnliste wird geholt …",
-  // --- Garnfarben einlesen (Knopf auf der Garnseite) ------------------------
   "garne.fehlerRechte":
     "Die Datenbank lässt die App noch nicht an die Garnliste. Führen Sie im SQL-Editor von Supabase die Datei 0001_schema.sql noch einmal aus – darin stehen die Rechte.",
-  "einlesen.titel": "Garnfarben einlesen",
-  "einlesen.erklaerung":
-    "In der Garnliste steht noch nichts. Die {anzahl} Ariadna-Farben gehören einmalig in die Datenbank – danach können Sie ankreuzen, was Sie zu Hause haben.",
-  "einlesen.knopf": "Ariadna-Farben jetzt einlesen",
-  "einlesen.laeuft": "Die Farben werden eingelesen. Das dauert einen Moment.",
-  "einlesen.fertig":
-    "Fertig: {anzahl} Ariadna-Farben stehen jetzt in der Garnliste. Sie können sie gleich unten antippen.",
-  "einlesen.nochmal": "Farben noch einmal einlesen",
-  "einlesen.schonDa":
-    "In der Garnliste stehen {anzahl} Farben. Ein zweites Einlesen ändert nichts daran, es schadet aber auch nicht.",
-  "einlesen.keinSchluessel":
-    "Zum Einlesen fehlt der Dienstschlüssel. Er muss beim Hoster unter dem Namen SUPABASE_SERVICE_ROLE_KEY eingetragen werden; danach muss die Seite einmal neu veröffentlicht werden.",
-  "einlesen.keineRechte":
-    "Die Datenbank lässt das Einlesen noch nicht zu. Führen Sie im SQL-Editor von Supabase die Datei 0001_schema.sql noch einmal aus – darin stehen die Rechte.",
-  "einlesen.schiefgegangen":
-    "Das Einlesen hat nicht geklappt. Bitte prüfen Sie die Verbindung und versuchen Sie es noch einmal.",
 
   "garne.listeLeer":
     "In der Garnliste steht noch nichts. Lesen Sie die Garnfarben mit dem Knopf weiter oben einmalig ein; solange das nicht geschehen ist, rechnet die App mit den Farben aus Ihrem Bild statt mit Herstellergarnen.",
@@ -715,25 +698,8 @@ export const PL: Record<Textschluessel, string> = {
   "garne.zumEntfernen": "{name} · dotknij, aby usunąć",
   "garne.hinzufuegen": "Dodaj nitkę",
   "garne.wirdGeholt": "Pobieranie listy nici …",
-  // --- Garnfarben einlesen (Knopf auf der Garnseite) ------------------------
   "garne.fehlerRechte":
     "Baza danych jeszcze nie wpuszcza aplikacji do listy nici. Proszę wykonać w edytorze SQL Supabase plik 0001_schema.sql jeszcze raz – są w nim uprawnienia.",
-  "einlesen.titel": "Wczytanie kolorów nici",
-  "einlesen.erklaerung":
-    "Lista nici jest jeszcze pusta. {anzahl} kolorów Ariadny trzeba raz wczytać do bazy – potem można zaznaczać te, które ma Pani w domu.",
-  "einlesen.knopf": "Wczytaj teraz kolory Ariadny",
-  "einlesen.laeuft": "Kolory są wczytywane. To chwilę potrwa.",
-  "einlesen.fertig":
-    "Gotowe: na liście jest teraz {anzahl} kolorów Ariadny. Można je od razu zaznaczać poniżej.",
-  "einlesen.nochmal": "Wczytaj kolory jeszcze raz",
-  "einlesen.schonDa":
-    "Na liście nici jest {anzahl} kolorów. Ponowne wczytanie niczego nie zmieni, ale też nie zaszkodzi.",
-  "einlesen.keinSchluessel":
-    "Do wczytania brakuje klucza serwisowego. Trzeba go wpisać u dostawcy hostingu pod nazwą SUPABASE_SERVICE_ROLE_KEY, a potem raz opublikować stronę na nowo.",
-  "einlesen.keineRechte":
-    "Baza danych jeszcze nie pozwala na wczytanie. Proszę wykonać w edytorze SQL Supabase plik 0001_schema.sql jeszcze raz – są w nim uprawnienia.",
-  "einlesen.schiefgegangen":
-    "Wczytanie się nie udało. Proszę sprawdzić połączenie i spróbować jeszcze raz.",
 
   "garne.listeLeer":
     "Na liście nici nie ma jeszcze nic. Proszę raz wczytać kolory przyciskiem powyżej; dopóki to nie nastąpi, program liczy kolorami ze zdjęcia zamiast nićmi producenta.",

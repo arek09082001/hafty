@@ -40,7 +40,7 @@ import {
   type Motiv,
 } from "@/lib/speicher/motive";
 import { standHolen, type Stand } from "@/lib/speicher/staende";
-import { legendeGarnSetzen, type GarnMitVorrat } from "@/lib/speicher/garne";
+import type { GarnMitVorrat } from "@/lib/speicher/garne";
 import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
 import { zusammenfuehren } from "@/lib/muster/raster";
 
@@ -429,16 +429,9 @@ export function MusterAnsehen() {
       }),
     );
 
-    if (musterId) {
-      const gespeichert = await legendeGarnSetzen(
-        musterId,
-        garnwechsel,
-        garn.id,
-        alt.symbol,
-        alt.stiche,
-      );
-      if (!gespeichert) fehlerSetzen("garne.fehlerGarnSetzen");
-    }
+    // Früher ging das gewechselte Garn zusätzlich in eine eigene Tabelle.
+    // Das ist nicht mehr nötig: die Palette gehört zum Muster, wird laufend
+    // mitgeschrieben und liegt in jedem gespeicherten Stand mit drin.
   };
 
   const motivWirklichLoeschen = async () => {
