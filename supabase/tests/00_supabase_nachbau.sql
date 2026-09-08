@@ -37,4 +37,18 @@ alter table storage.objects enable row level security;
 
 grant usage on schema public, storage to anon, authenticated, service_role;
 grant all on all tables in schema storage to anon, authenticated;
-alter default privileges in schema public grant all on tables to anon, authenticated;
+
+-- Achtung: hier steht bewusst KEIN
+--   alter default privileges in schema public grant all on tables to anon…
+--
+-- Genau das stand hier einmal, und es hat einen echten Fehler verdeckt: die
+-- Migration vergab keine Rechte auf ihre Tabellen, der Nachbau schenkte sie
+-- aber jeder neuen Tabelle automatisch. Der Test war gruen, die laufende App
+-- bekam "permission denied for table thread_colors".
+--
+-- Ein Supabase-Projekt verteilt diese Rechte nicht von allein. Rechte und
+-- RLS sind zwei Tore hintereinander: der GRANT entscheidet, ob eine Rolle
+-- die Tabelle ueberhaupt anfassen darf, die Policy entscheidet, welche
+-- Zeilen sie dann sieht. Nur mit Policy und ohne GRANT kommt niemand durch.
+-- Deshalb muss die Migration ihre Rechte selbst vergeben, und dieser
+-- Nachbau muss so streng sein wie das Original.

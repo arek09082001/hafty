@@ -179,6 +179,36 @@ begin
 end
 $$;
 
+-- --------------------------------------------------------------------------
+-- Rechte
+-- --------------------------------------------------------------------------
+--
+-- Rechte und RLS sind zwei Tore hintereinander, und beide muessen offen
+-- sein: der GRANT entscheidet, ob eine Rolle die Tabelle ueberhaupt
+-- anfassen darf, die Policy darunter entscheidet, welche Zeilen sie dabei
+-- sieht. Eine Tabelle mit Policy, aber ohne GRANT, antwortet jedem
+-- Zugriff mit "permission denied for table …" – auch wenn die Policy
+-- alles erlauben wuerde.
+--
+-- Ein Supabase-Projekt vergibt diese Rechte nicht von allein, wenn hier
+-- eine Tabelle entsteht. Also vergibt die Migration sie selbst.
+
+grant usage on schema public to anon, authenticated;
+
+-- Die Daten der Nutzerin: alles erlaubt, es gibt ja keine Anmeldung.
+grant select, insert, update, delete on
+  public.patterns,
+  public.pattern_versions,
+  public.pattern_colors,
+  public.user_threads,
+  public.motifs
+  to anon, authenticated;
+
+-- Der Garnkatalog wird nur gelesen. Geschrieben wird er allein vom
+-- Importskript, und das arbeitet mit dem Dienstschluessel, der an Rechten
+-- und RLS ohnehin vorbeigeht.
+grant select on public.thread_brands, public.thread_colors to anon, authenticated;
+
 -- Garnkatalog: lesen ja, schreiben nur ueber den Dienstschluessel
 -- (das Importskript) – dafuer gibt es bewusst keine Policy.
 drop policy if exists "garnkatalog lesen" on public.thread_brands;
