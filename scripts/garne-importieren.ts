@@ -2,6 +2,10 @@
  * Garnfarben aus einer CSV-Datei in die Datenbank laden.
  * ---------------------------------------------------------------------------
  *
+ * Dasselbe geht auch ohne Kommandozeile: in der App unter "Meine Garne"
+ * steht der Knopf "Ariadna-Farben jetzt einlesen". Beide Wege benutzen
+ * dieselbe Logik aus src/lib/garne/katalog.ts.
+ *
  * Aufruf aus dem Projektverzeichnis:
  *
  *   npm run garne-importieren -- data/garne-ariadna.csv
@@ -12,10 +16,9 @@
  *
  * Spaltenformat: brand,code,name,hex
  *
- * Die Lab-Werte werden hier **einmal** vorberechnet und mitgespeichert.
- * Zur Laufzeit müssen dann nur noch Abstände gerechnet werden und nie mehr
- * eine Farbraumumrechnung – bei 500 Garnen und 24 Clustern spart das pro
- * Musterlauf eine halbe Million Umrechnungen.
+ * Die Lab-Werte werden **einmal** vorberechnet und mitgespeichert. Zur
+ * Laufzeit müssen dann nur noch Abstände gerechnet werden und nie mehr eine
+ * Farbraumumrechnung.
  *
  * Die Hexwerte der Hersteller sind Näherungen. Sie geben die Richtung an,
  * ersetzen aber keine Garnkarte; deshalb kann jede Farbe der Legende in der
@@ -24,37 +27,7 @@
 
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
-import { hexNachLab } from "../src/lib/farbe/lab.ts";
-
-type Zeile = { brand: string; code: string; name: string; hex: string };
-
-function csvLesen(pfad: string): Zeile[] {
-  const text = readFileSync(pfad, "utf8").replace(/^﻿/, "");
-  const zeilen = text.split(/\r?\n/).filter((z) => z.trim() !== "");
-  if (zeilen.length < 2) throw new Error("Die CSV-Datei enthält keine Daten.");
-
-  const kopf = zeilen[0].split(",").map((s) => s.trim().toLowerCase());
-  const erwartet = ["brand", "code", "name", "hex"];
-  for (const spalte of erwartet) {
-    if (!kopf.includes(spalte)) {
-      throw new Error(`In der Kopfzeile fehlt die Spalte "${spalte}". Erwartet: ${erwartet.join(",")}`);
-    }
-  }
-
-  return zeilen.slice(1).map((zeile, nummer) => {
-    const teile = zeile.split(",").map((s) => s.trim());
-    if (teile.length < 4) {
-      throw new Error(`Zeile ${nummer + 2} hat weniger als vier Spalten: ${zeile}`);
-    }
-    const wert = (spalte: string) => teile[kopf.indexOf(spalte)];
-    return {
-      brand: wert("brand"),
-      code: wert("code"),
-      name: wert("name"),
-      hex: wert("hex"),
-    };
-  });
-}
+import { csvLesen, markenAnlegen, saetzeBauen } from "../src/lib/garne/katalog.ts";
 
 async function main() {
   const pfad = process.argv[2] ?? "data/garne-ariadna.csv";
@@ -69,49 +42,22 @@ async function main() {
     process.exit(1);
   }
 
-  const zeilen = csvLesen(pfad);
+  const zeilen = csvLesen(readFileSync(pfad, "utf8"));
   const supabase = createClient(url, schluessel, { auth: { persistSession: false } });
 
-  // --- Hersteller anlegen, soweit nötig ------------------------------------
-  const marken = [...new Set(zeilen.map((z) => z.brand))];
-  const markeZuId = new Map<string, string>();
+  const markeZuId = await markenAnlegen(supabase, zeilen);
+  const saetze = saetzeBauen(zeilen, markeZuId);
 
-  for (const marke of marken) {
-    const vorhanden = await supabase.from("thread_brands").select("id").eq("name", marke).maybeSingle();
-    if (vorhanden.data?.id) {
-      markeZuId.set(marke, vorhanden.data.id as string);
-      continue;
-    }
-    const angelegt = await supabase.from("thread_brands").insert({ name: marke }).select("id").single();
-    if (angelegt.error) throw new Error(`Hersteller ${marke}: ${angelegt.error.message}`);
-    markeZuId.set(marke, angelegt.data.id as string);
+  for (let i = 0; i < saetze.length; i += 200) {
+    const { error } = await supabase
+      .from("thread_colors")
+      .upsert(saetze.slice(i, i + 200), { onConflict: "brand_id,code" });
+    if (error) throw new Error(`Farben schreiben: ${error.message}`);
   }
 
-  // --- Farben mit vorberechnetem Lab-Wert ----------------------------------
-  const saetze = zeilen.map((zeile) => {
-    const lab = hexNachLab(zeile.hex);
-    return {
-      brand_id: markeZuId.get(zeile.brand)!,
-      code: zeile.code,
-      name: zeile.name,
-      hex: zeile.hex.toUpperCase(),
-      lab_l: lab.L,
-      lab_a: lab.a,
-      lab_b: lab.b,
-      discontinued: false,
-    };
-  });
-
-  const { error } = await supabase
-    .from("thread_colors")
-    .upsert(saetze, { onConflict: "brand_id,code" });
-
-  if (error) throw new Error(`Farben schreiben: ${error.message}`);
-
   console.log(`${saetze.length} Garnfarben aus ${pfad} übernommen.`);
-  for (const marke of marken) {
-    const anzahl = zeilen.filter((z) => z.brand === marke).length;
-    console.log(`  ${marke}: ${anzahl}`);
+  for (const marke of markeZuId.keys()) {
+    console.log(`  ${marke}: ${zeilen.filter((z) => z.brand === marke).length}`);
   }
 }
 

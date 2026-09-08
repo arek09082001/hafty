@@ -193,7 +193,7 @@ $$;
 -- Ein Supabase-Projekt vergibt diese Rechte nicht von allein, wenn hier
 -- eine Tabelle entsteht. Also vergibt die Migration sie selbst.
 
-grant usage on schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
 
 -- Die Daten der Nutzerin: alles erlaubt, es gibt ja keine Anmeldung.
 grant select, insert, update, delete on
@@ -204,10 +204,14 @@ grant select, insert, update, delete on
   public.motifs
   to anon, authenticated;
 
--- Der Garnkatalog wird nur gelesen. Geschrieben wird er allein vom
--- Importskript, und das arbeitet mit dem Dienstschluessel, der an Rechten
--- und RLS ohnehin vorbeigeht.
+-- Der Garnkatalog wird von der App nur gelesen.
 grant select on public.thread_brands, public.thread_colors to anon, authenticated;
+
+-- Geschrieben wird der Katalog allein ueber den Dienstschluessel (Rolle
+-- service_role), also vom Einlesen der Garnfarben. Der Dienstschluessel geht
+-- zwar an RLS vorbei, nicht aber an den Rechten: ohne die naechste Zeile
+-- scheitert auch das Einlesen an "permission denied".
+grant select, insert, update, delete on all tables in schema public to service_role;
 
 -- Garnkatalog: lesen ja, schreiben nur ueber den Dienstschluessel
 -- (das Importskript) – dafuer gibt es bewusst keine Policy.

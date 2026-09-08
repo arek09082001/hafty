@@ -54,7 +54,7 @@ npm run dev
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Adresse des Supabase-Projekts (Project Settings → API) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Öffentlicher Schlüssel des Projekts |
-| `SUPABASE_SERVICE_ROLE_KEY` | Nur für `npm run garne-importieren`. Gehört niemals in den Browser und nicht zum Hoster. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Zum Einlesen der Garnfarben – für `npm run garne-importieren` und für den Knopf „Garnfarben einlesen" in der App. Gehört niemals in den Browser, aber sehr wohl zum Hoster, sonst fehlt er der Server-Route. |
 
 ### Supabase vorbereiten
 
@@ -76,11 +76,20 @@ npm run dev
    vergibt diese Rechte nicht von allein. Die Datei lässt sich gefahrlos
    noch einmal ausführen.
 
-2. Die Garnfarben einlesen:
+2. Die Garnfarben einlesen. Am einfachsten geht das in der App selbst:
+   unter **Meine Garne** steht der Knopf „Ariadna-Farben jetzt einlesen",
+   solange die Liste leer ist. Dafuer muss `SUPABASE_SERVICE_ROLE_KEY`
+   beim Hoster gesetzt sein - der Knopf laeuft ueber die Server-Route
+   `/api/garne`, weil der Katalog nur mit dem Dienstschluessel beschrieben
+   werden darf und der nie in den Browser gehoert.
+
+   Ohne Hoster geht es auch von Hand:
 
    ```bash
    npm run garne-importieren -- data/garne-ariadna.csv
    ```
+
+   Beide Wege benutzen dieselbe Logik aus `src/lib/garne/katalog.ts`.
 
    Das Skript rechnet die Lab-Werte **einmal** aus und speichert sie mit;
    zur Laufzeit werden dann nur noch Abstände berechnet. Ohne diesen
@@ -195,6 +204,14 @@ endet mit `violates row-level security policy` oder trifft null Zeilen.
 
 Wichtig: die Ausgabe nicht durch `head` schicken. psql bricht dann mitten
 in der Migration ab und es fehlen stillschweigend die letzten Regeln.
+
+Die Route `/api/garne` hinter dem Knopf „Garnfarben einlesen" ist derselbe
+Fall: sie läuft mit dem Dienstschlüssel, also ohne jede Beschränkung. Sie
+nimmt deshalb **nichts** entgegen – keinen Dateinamen, keine Farben, keine
+Parameter – und liest genau die Datei, die im Projekt liegt. Wer die Adresse
+der App kennt, kann den Knopf drücken; das Schlimmste dabei ist, dass
+dieselben 375 Farben noch einmal geschrieben werden. Etwas Eigenes lässt
+sich darüber nicht in den Katalog bringen.
 
 ## Aufbau des Projekts
 
