@@ -151,6 +151,8 @@ export const DE = {
   "editor.spiegelnSenkrecht": "Senkrecht spiegeln",
   "editor.hierEinsetzen": "Hier einsetzen",
   "editor.ihreGarne": "Ihre Garne ({anzahl})",
+  "editor.garnbedarf":
+    "Zusammen brauchen Sie etwa {meter} Garn. Geschätzt für zwei Fäden aus einem Strang – kaufen Sie lieber etwas mehr.",
   "editor.farbeHinweis": "Die angetippte Farbe wird zum Malen und Färben verwendet.",
   "editor.farbenZusammengelegt":
     "Aus {vorher} Farben sind {nachher} geworden – einige lagen so dicht beieinander, dass es dafür dasselbe Garn gibt.",
@@ -245,6 +247,7 @@ export const DE = {
 
   "legende.eigeneFarbe": "Eigene Farbe",
   "legende.stiche": "Stiche",
+  "legende.sticheUndGarn": "Garn · {stiche} Stiche",
   "legende.anderesGarn": "Anderes Garn",
 
   // --- Motive -------------------------------------------------------------
@@ -330,6 +333,14 @@ export const DE = {
 
   "garne.listeLeer":
     "In der Garnliste steht noch nichts. Lesen Sie die Garnfarben mit dem Knopf weiter oben einmalig ein; solange das nicht geschehen ist, rechnet die App mit den Farben aus Ihrem Bild statt mit Herstellergarnen.",
+  "garne.alleEintragen": "Alle {anzahl} Farben eintragen",
+  "garne.alleEntfernen": "Alle wieder entfernen",
+  "garne.nurMeineZeigen": "Nur meine {anzahl} zeigen",
+  "garne.alleZeigen": "Wieder alle {anzahl} zeigen",
+  "garne.alleEntfernenFrage": "Alle Garne aus Ihrer Liste entfernen?",
+  "garne.alleEntfernenText":
+    "Ihre {anzahl} eingetragenen Garne werden aus der Liste genommen. Die Farbtafel bleibt vollständig, Sie können jederzeit wieder eintragen.",
+  "garne.alleEntfernenJa": "Ja, alle entfernen",
   "garne.antippenText":
     "Tippen Sie ein Garn an, dann steht es oben in Ihrer Liste. Ein zweites Antippen nimmt es wieder heraus.",
   "garne.suche": "Nach Nummer oder Farbnamen suchen",
@@ -566,6 +577,8 @@ export const PL: Record<Textschluessel, string> = {
   "editor.spiegelnSenkrecht": "Odbij w pionie",
   "editor.hierEinsetzen": "Wstaw tutaj",
   "editor.ihreGarne": "Moje nici ({anzahl})",
+  "editor.garnbedarf":
+    "Razem potrzeba około {meter} nici. Szacunek dla dwóch nitek z jednej muliny – lepiej kupić trochę więcej.",
   "editor.farbeHinweis": "Dotknięty kolor będzie używany do malowania i kolorowania.",
   "editor.farbenZusammengelegt":
     "Z {vorher} kolorów zostało {nachher} – kilka leżało tak blisko siebie, że przypada na nie ta sama nitka.",
@@ -655,6 +668,7 @@ export const PL: Record<Textschluessel, string> = {
 
   "legende.eigeneFarbe": "Własny kolor",
   "legende.stiche": "ściegów",
+  "legende.sticheUndGarn": "nici · {stiche} ściegów",
   "legende.anderesGarn": "Inna nitka",
 
   "motive.titel": "Moje motywy",
@@ -737,6 +751,14 @@ export const PL: Record<Textschluessel, string> = {
 
   "garne.listeLeer":
     "Na liście nici nie ma jeszcze nic. Proszę raz wczytać kolory przyciskiem powyżej; dopóki to nie nastąpi, program liczy kolorami ze zdjęcia zamiast nićmi producenta.",
+  "garne.alleEintragen": "Dodaj wszystkie {anzahl} kolorów",
+  "garne.alleEntfernen": "Usuń wszystkie",
+  "garne.nurMeineZeigen": "Pokaż tylko moje ({anzahl})",
+  "garne.alleZeigen": "Pokaż znowu wszystkie ({anzahl})",
+  "garne.alleEntfernenFrage": "Usunąć wszystkie nici z Pani listy?",
+  "garne.alleEntfernenText":
+    "Wpisane {anzahl} nici zostaną usunięte z listy. Paleta kolorów zostaje w całości, można je w każdej chwili dodać z powrotem.",
+  "garne.alleEntfernenJa": "Tak, usuń wszystkie",
   "garne.antippenText":
     "Proszę dotknąć nitki, wtedy pojawi się na liście u góry. Drugie dotknięcie usuwa ją z powrotem.",
   "garne.suche": "Szukaj po numerze albo nazwie koloru",
