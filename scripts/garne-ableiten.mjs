@@ -6,9 +6,12 @@
  *
  *   npm run garne-ableiten
  *
- * Das Ergebnis sind data/garne-ariadna.csv und data/garne-dmc.csv. Beide
- * liegen fertig im Projekt; dieses Skript ist dafür da, dass jeder
- * nachrechnen kann, wo die Zahlen herkommen.
+ * Das Ergebnis ist data/garne-ariadna.csv. Die Datei liegt fertig im
+ * Projekt; dieses Skript ist dafür da, dass jeder nachrechnen kann, wo die
+ * Zahlen herkommen.
+ *
+ * DMC kommt hier nur als Maßstab vor, nicht als Garn: die App kennt allein
+ * Ariadna, weil allein das zu Hause liegt.
  *
  *
  * Woher die Zahlen kommen
@@ -317,7 +320,8 @@ async function bildHolen(name) {
       const daten = Buffer.from(await a.arrayBuffer());
       writeFileSync(ziel, daten);
       return daten;
-    } catch (fehler) {
+    } catch {
+      // Netz zuckt gelegentlich; zweimal nachfassen, dann aufgeben.
       if (versuch === 2) return null;
       await new Promise((f) => setTimeout(f, 1500 * (versuch + 1)));
     }
@@ -438,19 +442,12 @@ async function main() {
   streuung("unsere Werte", abstand);
 
   // --- Schreiben ----------------------------------------------------------
-  const ariadnaZeilen = ["brand,code,name,hex"];
+  const zeilen = ["brand,code,name,hex"];
   for (const z of zuordnung) {
-    if (ariadna.has(z.ariadna)) ariadnaZeilen.push(`Ariadna,${z.ariadna},,${ariadna.get(z.ariadna)}`);
+    if (ariadna.has(z.ariadna)) zeilen.push(`Ariadna,${z.ariadna},,${ariadna.get(z.ariadna)}`);
   }
-  writeFileSync(path.join(WURZEL, "data/garne-ariadna.csv"), ariadnaZeilen.join("\n") + "\n");
-
-  // DMC braucht keine Eichung: dort gibt es die veröffentlichten Werte.
-  const dmcZeilen = ["brand,code,name,hex"];
-  for (const z of tafel.values()) dmcZeilen.push(`DMC,${z.code},${z.name},${z.hex}`);
-  writeFileSync(path.join(WURZEL, "data/garne-dmc.csv"), dmcZeilen.join("\n") + "\n");
-
-  console.log(`\nGeschrieben: data/garne-ariadna.csv (${ariadnaZeilen.length - 1} Farben), ` +
-    `data/garne-dmc.csv (${dmcZeilen.length - 1} Farben)`);
+  writeFileSync(path.join(WURZEL, "data/garne-ariadna.csv"), zeilen.join("\n") + "\n");
+  console.log(`\nGeschrieben: data/garne-ariadna.csv (${zeilen.length - 1} Farben)`);
 }
 
 main().catch((fehler) => { console.error(fehler); process.exit(1); });

@@ -4,7 +4,7 @@
  *
  * Aufruf aus dem Projektverzeichnis:
  *
- *   npm run garne-importieren -- data/garne-dmc.csv
+ *   npm run garne-importieren -- data/garne-ariadna.csv
  *
  * Erwartet werden die Umgebungsvariablen NEXT_PUBLIC_SUPABASE_URL und
  * SUPABASE_SERVICE_ROLE_KEY (der Dienstschlüssel, weil die Kataloge nur
@@ -57,7 +57,7 @@ function csvLesen(pfad: string): Zeile[] {
 }
 
 async function main() {
-  const pfad = process.argv[2] ?? "data/garne-dmc.csv";
+  const pfad = process.argv[2] ?? "data/garne-ariadna.csv";
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const schluessel = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

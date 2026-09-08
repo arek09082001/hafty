@@ -67,11 +67,10 @@ npm run dev
    | `0001_schema.sql` | Tabellen, Fremdschlüssel und Row Level Security |
    | `0002_storage.sql` | Die vier privaten Storage-Buckets und ihre Regeln |
 
-2. Die Garnfarben einlesen – erst Ariadna, dann DMC:
+2. Die Garnfarben einlesen:
 
    ```bash
    npm run garne-importieren -- data/garne-ariadna.csv
-   npm run garne-importieren -- data/garne-dmc.csv
    ```
 
    Das Skript rechnet die Lab-Werte **einmal** aus und speichert sie mit;
@@ -81,18 +80,17 @@ npm run dev
 
 ### Die Garnfarben
 
-Im Projekt liegen zwei Farblisten, beide im Format `brand,code,name,hex`:
+Die App kennt genau einen Hersteller: **Ariadna**, weil allein diese Garne
+zu Hause liegen. `data/garne-ariadna.csv` enthält alle 375 Farben
+(1500–1819 und die Nummern mit Buchstaben) im Format `brand,code,name,hex`.
 
-| Datei | Inhalt |
-| --- | --- |
-| `data/garne-ariadna.csv` | 375 Ariadna-Farben (1500–1819 und die Nummern mit Buchstaben) |
-| `data/garne-dmc.csv` | 489 DMC-Farben mit den Namen des Herstellers |
-
-Ariadna steht vorn, weil das die Garne sind, die zu Hause liegen. Die
-Spalte `name` ist dort leer: Ariadna vergibt keine Farbnamen, nur Nummern.
+Die Spalte `name` ist leer: Ariadna vergibt keine Farbnamen, nur Nummern.
 Statt welche zu erfinden, beschreibt die App die Farbe selbst – aus dem
 Hexwert wird „dunkles Rot" beziehungsweise „ciemny czerwony", je nach
 eingestellter Sprache (`src/lib/farbe/farbwort.ts`).
+
+Ein weiterer Hersteller käme als eigene CSV mit demselben Kopf dazu und
+würde mit demselben Skript eingelesen.
 
 Das Importskript legt neue Farben an und aktualisiert vorhandene, löscht
 aber nie welche. Wer eine ältere Liste eingelesen hatte, wird alte Zeilen
@@ -107,14 +105,15 @@ nachbearbeitet und deutlich übersättigt, bei roten Garnen liegt der
 Grünkanal auf 0. Roh übernommen wäre die Palette zu bunt und zu dunkel.
 
 Für DMC gibt es im selben Laden dieselbe Art Foto **und** eine
-veröffentlichte Farbtafel (`data/dmc-farbtafel.csv`). Aus diesen 488 Paaren
+veröffentlichte Farbtafel (`data/dmc-farbtafel.csv`). DMC dient dabei nur
+als Maßstab und wird nicht als Garn eingelesen. Aus diesen 488 Paaren
 lernt `scripts/garne-ableiten.mjs`, wie die Bildbearbeitung des Ladens die
 Farben verschiebt, und rechnet das bei den Ariadna-Fotos wieder heraus.
 Gerechnet wird in Lab, damit jeder Fehler so schwer wiegt, wie das Auge ihn
 sieht; in RGB kam Ariadna 1819 (Schwarz) als Dunkelgrau heraus.
 
 ```bash
-npm run garne-ableiten     # lädt die Garnfotos und schreibt beide CSV neu
+npm run garne-ableiten     # lädt die Garnfotos und schreibt die CSV neu
 ```
 
 Wie genau das ist, misst das Skript selbst, indem es ein Fünftel der
