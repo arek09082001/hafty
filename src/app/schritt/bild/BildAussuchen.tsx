@@ -5,6 +5,8 @@ import { useRef, useState } from "react";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
+import { Zuschnitt } from "@/components/Zuschnitt";
+import { istGanzesBild } from "@/lib/muster/ausschnitt";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
@@ -19,7 +21,7 @@ const BEISPIELE = [
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export function BildAussuchen() {
-  const { bild, bildWaehlen, bildEntfernen } = useMuster();
+  const { bild, bildWaehlen, bildEntfernen, ausschnittSetzen } = useMuster();
   const { t } = useSprache();
   const [fehler, setFehler] = useState<Textschluessel | null>(null);
   const [laedt, setLaedt] = useState<string | null>(null);
@@ -86,16 +88,15 @@ export function BildAussuchen() {
         {fehler ? <Hinweis art="fehler">{t(fehler)}</Hinweis> : null}
 
         {bild ? (
-          <section className="flex flex-wrap items-center gap-6 rounded-2xl border-2 border-hauptaktion bg-white p-5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={bild.vorschauUrl}
-              alt={t("bild.ausgewaehlt", { name: bild.name })}
-              className="h-[180px] w-[180px] rounded-xl border-2 border-linie object-cover"
-            />
-            <div className="flex flex-col gap-3">
-              <p className="text-[1.2rem] font-bold">{t("bild.wirdVerwendet")}</p>
-              <p className="text-[1.05rem] text-gedaempft">{bild.name}</p>
+          /* Das gewählte Bild und gleich darunter der Ausschnitt. Er steht
+             offen da und nicht hinter einem Knopf: versteckte Einstellungen
+             findet hier niemand. Wer nichts anrührt, bekommt das ganze Bild. */
+          <section className="flex flex-col gap-5 rounded-2xl border-2 border-hauptaktion bg-white p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex flex-col gap-1">
+                <p className="text-[1.2rem] font-bold">{t("bild.wirdVerwendet")}</p>
+                <p className="text-[1.05rem] text-gedaempft">{bild.name}</p>
+              </div>
               <Knopf
                 art="neben"
                 onClick={() => {
@@ -106,6 +107,23 @@ export function BildAussuchen() {
                 {t("bild.anderesWaehlen")}
               </Knopf>
             </div>
+
+            <div className="flex flex-col gap-2">
+              <h2 className="text-[1.4rem] font-bold">{t("zuschnitt.titel")}</h2>
+              <p className="max-w-[70ch] text-[1.05rem]">{t("zuschnitt.erklaerung")}</p>
+            </div>
+
+            <Zuschnitt
+              bildUrl={bild.vorschauUrl}
+              bildBreite={bild.masse.breite}
+              bildHoehe={bild.masse.hoehe}
+              ausschnitt={bild.ausschnitt}
+              onAendern={ausschnittSetzen}
+            />
+
+            {!istGanzesBild(bild.ausschnitt, bild.masse.breite, bild.masse.hoehe) ? (
+              <Hinweis>{t("zuschnitt.hinweisGewaehlt")}</Hinweis>
+            ) : null}
           </section>
         ) : null}
 

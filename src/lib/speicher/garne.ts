@@ -111,6 +111,35 @@ export async function vorratEntfernen(garnId: string): Promise<boolean> {
 }
 
 /**
+ * Viele Garne auf einmal in den Vorrat aufnehmen.
+ *
+ * Wer die ganze Garnkarte besitzt, soll nicht 375-mal tippen muessen. In
+ * Haeppchen, damit auch die volle Liste in eine Anfrage passt.
+ */
+export async function vorratAlleAufnehmen(garnIds: string[]): Promise<boolean> {
+  if (!datenbankEingerichtet() || garnIds.length === 0) return false;
+  const client = browserClient();
+  for (let i = 0; i < garnIds.length; i += 200) {
+    const { error } = await client
+      .from("user_threads")
+      .upsert(garnIds.slice(i, i + 200).map((id) => ({ thread_color_id: id })));
+    if (error) return false;
+  }
+  return true;
+}
+
+/** Den ganzen Vorrat leeren. */
+export async function vorratLeeren(): Promise<boolean> {
+  if (!datenbankEingerichtet()) return false;
+  // Ohne Bedingung loescht PostgREST nichts; "ist nicht null" trifft alles.
+  const { error } = await browserClient()
+    .from("user_threads")
+    .delete()
+    .not("thread_color_id", "is", null);
+  return !error;
+}
+
+/**
  * Eine Farbe der Legende von Hand auf ein anderes Garn setzen.
  *
  * Die Hexwerte der Hersteller sind Näherungen; wer die Garnkarte vor sich

@@ -29,7 +29,7 @@ export function Bereichswahl({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-col gap-3 lg:flex-1">
       {/* Zwei Spalten, nicht vier: „Zapamiętane" passt sonst nicht in den
           Knopf, und abgeschnittene Wörter sind schlimmer als eine Zeile mehr. */}
       <div role="tablist" className="grid shrink-0 grid-cols-2 gap-2">
@@ -54,7 +54,12 @@ export function Bereichswahl({
         })}
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">{children}</div>
+      {/*
+        Auf breiten Schirmen blättert dieser Bereich für sich, damit Leinwand
+        und Reiter stehen bleiben. Schmaler blättert die ganze Seite – sonst
+        bliebe hier ein Streifen von wenigen Pixeln übrig.
+      */}
+      <div className="flex min-h-0 flex-col gap-4 pr-1 lg:flex-1 lg:overflow-y-auto">{children}</div>
     </div>
   );
 }
