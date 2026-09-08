@@ -64,8 +64,17 @@ npm run dev
 
    | Datei | Inhalt |
    | --- | --- |
-   | `0001_schema.sql` | Tabellen, Fremdschlüssel und Row Level Security |
+   | `0001_schema.sql` | Tabellen, Fremdschlüssel, Rechte und Row Level Security |
    | `0002_storage.sql` | Die vier privaten Storage-Buckets und ihre Regeln |
+
+   Wenn die App später „Die Garnliste konnte nicht geholt werden" zeigt und
+   die Datenbank `permission denied for table …` antwortet, ist
+   `0001_schema.sql` nicht (oder in einer alten Fassung) gelaufen: dort
+   stehen die `grant`-Zeilen. Rechte und RLS sind zwei Tore hintereinander –
+   der `grant` entscheidet, ob eine Rolle die Tabelle überhaupt anfassen
+   darf, die Policy erst, welche Zeilen sie sieht. Ein Supabase-Projekt
+   vergibt diese Rechte nicht von allein. Die Datei lässt sich gefahrlos
+   noch einmal ausführen.
 
 2. Die Garnfarben einlesen:
 
