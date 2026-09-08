@@ -5,8 +5,10 @@ import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Garnwahl } from "@/components/Garnwahl";
+import { Garneinlesen } from "@/components/Garneinlesen";
 import {
   garneLaden,
+  Ladefehler,
   vorratAufnehmen,
   vorratEntfernen,
   type GarnMitVorrat,
@@ -28,17 +30,32 @@ export function MeineGarne() {
   const [gingSchief, setGingSchief] = useState(false);
   const { t, zahl } = useSprache();
   const [fehler, setFehler] = useState<Textschluessel | null>(null);
+  const [ladefehler, setLadefehler] = useState<Textschluessel>("garne.fehlerLaden");
+
+  const [nachladen, setNachladen] = useState(0);
+  // Einmal eingeblendet, bleibt der Einlese-Abschnitt stehen. Sonst
+  // verschwaende er im selben Augenblick, in dem er Erfolg meldet – die
+  // Liste ist dann ja nicht mehr leer – und niemand saehe, dass es
+  // geklappt hat.
+  const [einlesenZeigen, setEinlesenZeigen] = useState(false);
 
   useEffect(() => {
     let abgebrochen = false;
     garneLaden()
       .then((liste) => {
-        if (!abgebrochen) setGarne(liste);
-      })
-      .catch(() => {
         if (!abgebrochen) {
+          setGarne(liste);
+          setGingSchief(false);
+          if (liste.length === 0) setEinlesenZeigen(true);
+        }
+      })
+      .catch((fehler: unknown) => {
+        if (!abgebrochen) {
+          const rechte = fehler instanceof Ladefehler && fehler.grund === "rechte";
           setGingSchief(true);
-          setFehler("garne.fehlerLaden");
+          setEinlesenZeigen(true);
+          setLadefehler(rechte ? "garne.fehlerRechte" : "garne.fehlerLaden");
+          setFehler(rechte ? "garne.fehlerRechte" : "garne.fehlerLaden");
         }
       })
       .finally(() => {
@@ -47,7 +64,8 @@ export function MeineGarne() {
     return () => {
       abgebrochen = true;
     };
-  }, []);
+    // nachladen zaehlt hoch, wenn der Einlese-Knopf fertig ist.
+  }, [nachladen]);
 
   async function umschalten(garn: GarnMitVorrat) {
     const neu = !garn.imVorrat;
@@ -128,12 +146,16 @@ export function MeineGarne() {
           </section>
         ) : null}
 
+        {einlesenZeigen ? (
+          <Garneinlesen onFertig={() => setNachladen((n) => n + 1)} />
+        ) : null}
+
         <section className="flex flex-col gap-4">
           <h2 className="text-[1.4rem] font-bold">{t("garne.hinzufuegen")}</h2>
           {!geladen ? (
             <p className="text-[1.05rem] text-gedaempft">{t("garne.wirdGeholt")}</p>
           ) : gingSchief ? (
-            <Hinweis art="fehler">{t("garne.fehlerLaden")}</Hinweis>
+            <Hinweis art="fehler">{t(ladefehler)}</Hinweis>
           ) : garne.length === 0 ? (
             <Hinweis>{t("garne.listeLeer")}</Hinweis>
           ) : (

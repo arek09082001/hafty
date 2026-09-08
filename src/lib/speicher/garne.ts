@@ -15,6 +15,31 @@ import type { Garn } from "@/lib/muster/typen";
 export type GarnMitVorrat = Garn & { imVorrat: boolean };
 
 /**
+ * Warum das Laden schiefging.
+ *
+ * Der Unterschied ist wichtig für die Meldung auf dem Bildschirm: bei
+ * "rechte" hilft kein Neuladen und kein besseres WLAN, da fehlt in der
+ * Datenbank eine Einstellung. Genau diese Verwechslung hat einmal viel Zeit
+ * gekostet – auf dem Bildschirm stand "Internetverbindung prüfen", während
+ * die Datenbank in Wahrheit "permission denied" antwortete.
+ */
+export type Ladegrund = "rechte" | "verbindung";
+
+export class Ladefehler extends Error {
+  grund: Ladegrund;
+  constructor(grund: Ladegrund, meldung: string) {
+    super(meldung);
+    this.name = "Ladefehler";
+    this.grund = grund;
+  }
+}
+
+/** "permission denied for table …" beziehungsweise SQLSTATE 42501. */
+function fehlendeRechte(meldung: string, code?: string): boolean {
+  return code === "42501" || /permission denied/i.test(meldung);
+}
+
+/**
  * Den ganzen Katalog holen, dazu die Kennzeichnung „habe ich zu Hause".
  *
  * Wirft, wenn die Datenbank nicht erreichbar ist. Eine leere Liste heisst
@@ -37,7 +62,12 @@ export async function garneLaden(): Promise<GarnMitVorrat[]> {
     ]),
   );
 
-  if (farben.error) throw new Error(farben.error.message);
+  if (farben.error) {
+    throw new Ladefehler(
+      fehlendeRechte(farben.error.message, farben.error.code) ? "rechte" : "verbindung",
+      farben.error.message,
+    );
+  }
   if (!farben.data) return [];
 
   const meine = new Set(
