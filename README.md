@@ -67,9 +67,10 @@ npm run dev
    | `0001_schema.sql` | Tabellen, Fremdschlüssel und Row Level Security |
    | `0002_storage.sql` | Die vier privaten Storage-Buckets und ihre Regeln |
 
-2. Die Garnfarben einlesen:
+2. Die Garnfarben einlesen – erst Ariadna, dann DMC:
 
    ```bash
+   npm run garne-importieren -- data/garne-ariadna.csv
    npm run garne-importieren -- data/garne-dmc.csv
    ```
 
@@ -78,20 +79,67 @@ npm run dev
    Schritt läuft die App weiter, rechnet dann aber mit den Farben aus dem
    Bild statt mit Herstellergarnen.
 
-### Garnfarben nachliefern
+### Die Garnfarben
 
-`data/garne-dmc.csv` enthält 44 gut verteilte DMC-Töne als Platzhalter –
-keine erfundenen 500 Farbnummern. Das Format ist:
+Im Projekt liegen zwei Farblisten, beide im Format `brand,code,name,hex`:
 
+| Datei | Inhalt |
+| --- | --- |
+| `data/garne-ariadna.csv` | 375 Ariadna-Farben (1500–1819 und die Nummern mit Buchstaben) |
+| `data/garne-dmc.csv` | 489 DMC-Farben mit den Namen des Herstellers |
+
+Ariadna steht vorn, weil das die Garne sind, die zu Hause liegen. Die
+Spalte `name` ist dort leer: Ariadna vergibt keine Farbnamen, nur Nummern.
+Statt welche zu erfinden, beschreibt die App die Farbe selbst – aus dem
+Hexwert wird „dunkles Rot" beziehungsweise „ciemny czerwony", je nach
+eingestellter Sprache (`src/lib/farbe/farbwort.ts`).
+
+Das Importskript legt neue Farben an und aktualisiert vorhandene, löscht
+aber nie welche. Wer eine ältere Liste eingelesen hatte, wird alte Zeilen
+also von Hand los.
+
+#### Woher die Ariadna-Werte kommen
+
+Ariadna veröffentlicht keine Farbwerte. Es gibt nur die Nummern und Fotos
+der einzelnen Garnstränge im Laden von Coricamo. Aus einem Foto lässt sich
+eine Farbe lesen – nur ist die nicht die Garnfarbe: die Bilder sind
+nachbearbeitet und deutlich übersättigt, bei roten Garnen liegt der
+Grünkanal auf 0. Roh übernommen wäre die Palette zu bunt und zu dunkel.
+
+Für DMC gibt es im selben Laden dieselbe Art Foto **und** eine
+veröffentlichte Farbtafel (`data/dmc-farbtafel.csv`). Aus diesen 488 Paaren
+lernt `scripts/garne-ableiten.mjs`, wie die Bildbearbeitung des Ladens die
+Farben verschiebt, und rechnet das bei den Ariadna-Fotos wieder heraus.
+Gerechnet wird in Lab, damit jeder Fehler so schwer wiegt, wie das Auge ihn
+sieht; in RGB kam Ariadna 1819 (Schwarz) als Dunkelgrau heraus.
+
+```bash
+npm run garne-ableiten     # lädt die Garnfotos und schreibt beide CSV neu
 ```
-brand,code,name,hex
-DMC,310,Schwarz,#000000
-```
 
-Weitere Hersteller (Anchor, Madeira, Ariadna) kommen als eigene CSV-Datei
-mit demselben Kopf dazu und werden mit demselben Skript eingelesen. Die
-Hexwerte der Hersteller sind Näherungen; deshalb lässt sich in der App
-jede Farbe der Legende von Hand auf ein anderes Garn ändern.
+Wie genau das ist, misst das Skript selbst, indem es ein Fünftel der
+DMC-Farben zurückhält, auf dem Rest eicht und an den zurückgehaltenen prüft:
+
+| | Abstand zur DMC-Farbtafel (CIEDE2000) |
+| --- | --- |
+| Foto ohne Eichung | Mittel 7,5 · Median 7,1 |
+| Foto mit Eichung | **Mittel 5,0 · Median 4,7** |
+| Zwei veröffentlichte DMC-Tafeln untereinander | Mittel 9,1 · Median 8,3 |
+
+Die dritte Zeile ist der Maßstab: unsere aus Fotos gerechneten Werte liegen
+näher an der Farbtafel, als zwei veröffentlichte Tafeln beieinander liegen.
+Eine allgemeingültige „richtige" Zahl für ein Garn gibt es nicht.
+
+Als Gegenprobe dient `data/coricamo-zuordnung.csv`. Darin steht, welche
+DMC-Farbe der Laden selbst zu jeder Ariadna-Farbe nennt – eine Angabe, die
+in die Rechnung nirgends eingeflossen ist. Unsere Ariadna-Werte liegen im
+Median ΔE 10 von der jeweils genannten DMC-Farbe entfernt; zufällig
+gepaarte Farben lägen bei ΔE 34. Der Rest ist die Umrechnung selbst, die
+laut Coricamo ausdrücklich nur ein Anhaltspunkt ist.
+
+Alle Farbwerte bleiben also Näherungen. Sie ersetzen keine Garnkarte, und
+deshalb lässt sich in der App jede Farbe der Legende von Hand auf ein
+anderes Garn ändern.
 
 ## Keine Anmeldung – was das heißt
 
@@ -146,11 +194,13 @@ in der Migration ab und es fehlen stillschweigend die letzten Regeln.
 src/app/schritt/…       Die vier Schritte des geführten Weges
 src/app/garne           Der eigene Garnvorrat
 src/components          Schaltflächen, Fortschrittsleiste, Fenster
+src/lib/farbe           Lab, CIEDE2000 und die Farbbeschreibungen
 src/lib/sprache         Wörterbuch Deutsch/Polnisch und der Sprachumschalter
 src/lib/supabase        Zugang zur Datenbank
+data                    Garnlisten und ihre Quelldaten
 supabase/migrations     SQL-Migrationen
 supabase/tests          Nachbau und Prüfung der Zugriffsregeln
-scripts                 Importskript für Garnfarben, Beispielbilder
+scripts                 Garnfarben ableiten und einlesen, Beispielbilder
 ```
 
 ## Der Ausdruck

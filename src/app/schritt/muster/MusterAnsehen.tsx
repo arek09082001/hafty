@@ -14,6 +14,7 @@ import { Rasteransicht, useZoom, type Zeigerereignis } from "@/components/Raster
 import { Werkzeugwahl, type Werkzeug } from "@/components/Werkzeugwahl";
 import { Bereichswahl } from "@/components/Bereichswahl";
 import { useSprache } from "@/lib/sprache/SprachProvider";
+import { garnname } from "@/lib/farbe/farbwort";
 import type { Textschluessel } from "@/lib/sprache/texte";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { cmText, sticheInCm } from "@/lib/muster/typen";
@@ -421,7 +422,11 @@ export function MusterAnsehen() {
     paletteErsetzen(neuePalette);
     setGarnwechsel(null);
     setMeldung(
-      t("editor.garnGewechselt", { marke: garn.marke, code: garn.code, name: garn.name }),
+      t("editor.garnGewechselt", {
+        marke: garn.marke,
+        code: garn.code,
+        name: garnname(garn.name, garn.hex, t),
+      }),
     );
 
     if (musterId) {
