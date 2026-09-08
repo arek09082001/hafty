@@ -58,6 +58,27 @@ export const DE = {
   "bild.fehlerBeispiel":
     "Das Beispielbild konnte nicht geladen werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und tippen Sie noch einmal darauf.",
 
+  // --- Bild zuschneiden ----------------------------------------------------
+  "zuschnitt.titel": "Ausschnitt wählen",
+  "zuschnitt.erklaerung":
+    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben oder die Knöpfe darunter benutzen.",
+  "zuschnitt.formWaehlen": "Form des Ausschnitts",
+  "zuschnitt.ganzesBild": "Ganzes Bild",
+  "zuschnitt.quadrat": "Quadrat 1:1",
+  "zuschnitt.hochkant": "Hochkant 3:4",
+  "zuschnitt.quer": "Quer 4:3",
+  "zuschnitt.breit": "Breit 16:9",
+  "zuschnitt.schieben": "Verschieben",
+  "zuschnitt.groesse": "Größe",
+  "zuschnitt.kleiner": "Kleiner",
+  "zuschnitt.groesser": "Größer",
+  "zuschnitt.masse": "Ausschnitt: {breite} × {hoehe} Bildpunkte",
+  "zuschnitt.bildBeschriftung": "Ihr Bild mit dem gewählten Ausschnitt",
+  "zuschnitt.aendern": "Ausschnitt wählen",
+  "zuschnitt.fertig": "Ausschnitt übernehmen",
+  "zuschnitt.ganzeBildNehmen": "Doch das ganze Bild",
+  "zuschnitt.hinweisGewaehlt": "Es wird nur der gewählte Ausschnitt gestickt.",
+
   // --- Schritt 2: Größe und Farben ---------------------------------------
   "einst.titel": "Größe und Farben",
   "einst.erklaerung":
@@ -486,6 +507,27 @@ export const PL: Record<Textschluessel, string> = {
     "Nie udało się otworzyć tego zdjęcia. Proszę wybrać inne, najlepiej w formacie JPG albo PNG.",
   "bild.fehlerBeispiel":
     "Nie udało się wczytać przykładowego obrazka. Proszę sprawdzić połączenie z internetem i dotknąć go jeszcze raz.",
+
+  // --- Bild zuschneiden ----------------------------------------------------
+  "zuschnitt.titel": "Wybór wycinka",
+  "zuschnitt.erklaerung":
+    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem albo przyciskami poniżej.",
+  "zuschnitt.formWaehlen": "Kształt wycinka",
+  "zuschnitt.ganzesBild": "Całe zdjęcie",
+  "zuschnitt.quadrat": "Kwadrat 1:1",
+  "zuschnitt.hochkant": "Pionowo 3:4",
+  "zuschnitt.quer": "Poziomo 4:3",
+  "zuschnitt.breit": "Szeroko 16:9",
+  "zuschnitt.schieben": "Przesuwanie",
+  "zuschnitt.groesse": "Wielkość",
+  "zuschnitt.kleiner": "Mniejszy",
+  "zuschnitt.groesser": "Większy",
+  "zuschnitt.masse": "Wycinek: {breite} × {hoehe} pikseli",
+  "zuschnitt.bildBeschriftung": "Pani zdjęcie z wybranym wycinkiem",
+  "zuschnitt.aendern": "Wybierz wycinek",
+  "zuschnitt.fertig": "Zatwierdź wycinek",
+  "zuschnitt.ganzeBildNehmen": "Jednak całe zdjęcie",
+  "zuschnitt.hinweisGewaehlt": "Wyhaftowany zostanie tylko wybrany wycinek.",
 
   "einst.titel": "Rozmiar i kolory",
   "einst.erklaerung":

@@ -25,6 +25,7 @@ import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
 import { arbeitsstandLaden, arbeitsstandSichern } from "@/lib/speicher/browserspeicher";
 import { standSichern, type Stand } from "@/lib/speicher/staende";
 import { garneLaden, type GarnMitVorrat } from "@/lib/speicher/garne";
+import { einpassen, type Ausschnitt } from "@/lib/muster/ausschnitt";
 import type { AnWorker, AntwortVomWorker, VomWorker } from "@/lib/worker/nachrichten";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
@@ -62,15 +63,36 @@ export type Muster = {
 };
 
 export type Bildquelle = {
-  /** Eindeutig je ausgewähltem Bild – daran hängt, ob Bearbeitungen passen. */
+  /**
+   * Eindeutig je ausgewähltem Bild **und** Ausschnitt – daran hängt, ob von
+   * Hand gemalte Stiche übernommen werden. Ein anderer Ausschnitt ergibt ein
+   * ganz anderes Raster, also muss er die Kennung mitbestimmen.
+   *
+   * Sie wird aus der Grundkennung und dem Rechteck gebildet und ist damit
+   * wiederholbar: wer den Ausschnitt verschiebt und wieder zurückschiebt,
+   * bekommt dieselbe Kennung und behält seine Bearbeitungen.
+   */
   kennung: string;
+  /** Zufällig, einmal je ausgewähltem Bild. */
+  basisKennung: string;
   name: string;
   art: "datei" | "beispiel";
   blob: Blob;
   vorschauUrl: string;
   /** Maße des Quellbildes in Bildpunkten – daraus folgt die Musterhöhe. */
   masse: { breite: number; hoehe: number };
+  /**
+   * Der gewählte Bildausschnitt in Bildpunkten des Quellbildes. Beim
+   * Erzeugen liest `createImageBitmap` gleich nur diesen Teil; das Bild
+   * selbst wird nie verändert.
+   */
+  ausschnitt: Ausschnitt;
 };
+
+/** Bildkennung aus Grundkennung und Ausschnitt – gleiches Rechteck, gleiche Kennung. */
+function kennungBilden(basis: string, a: Ausschnitt): string {
+  return `${basis}:${a.x},${a.y},${a.breite},${a.hoehe}`;
+}
 
 // ---------------------------------------------------------------------------
 // Zustand und Übergänge
@@ -215,6 +237,7 @@ type MusterKontext = {
   bild: Bildquelle | null;
   /** Wählt ein Bild aus und misst dabei gleich seine Maße. */
   bildWaehlen: (quelle: { name: string; art: "datei" | "beispiel"; blob: Blob }) => Promise<void>;
+  ausschnittSetzen: (neu: Ausschnitt) => void;
   bildEntfernen: () => void;
 
   einstellungen: Einstellungen;
@@ -402,11 +425,22 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         if (stand.bild && stand.bildMasse) {
           setBild({
             kennung: stand.bildKennung,
+            // Die Grundkennung steckt vor dem Doppelpunkt; ältere Stände
+            // kennen sie noch nicht, dann gilt die ganze Kennung.
+            basisKennung: stand.bildKennung.split(":")[0],
             name: stand.bildName,
             art: "datei",
             blob: stand.bild,
             vorschauUrl: URL.createObjectURL(stand.bild),
             masse: stand.bildMasse,
+            // Aeltere Staende kennen den Ausschnitt noch nicht; dann gilt
+            // wie frueher das ganze Bild.
+            ausschnitt: stand.bildAusschnitt ?? {
+              x: 0,
+              y: 0,
+              breite: stand.bildMasse.breite,
+              hoehe: stand.bildMasse.hoehe,
+            },
           });
         }
       }
@@ -435,6 +469,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         bild: bild?.blob ?? null,
         bildName: bild?.name ?? "",
         bildMasse: bild?.masse ?? null,
+        bildAusschnitt: bild?.ausschnitt ?? null,
         bildKennung: muster.bildKennung,
         gespeichertAm: Date.now(),
       });
@@ -450,16 +485,35 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bitmap.close();
       setBild((vorher) => {
         if (vorher) URL.revokeObjectURL(vorher.vorschauUrl);
+        const basisKennung = crypto.randomUUID();
+        const ausschnitt = { x: 0, y: 0, breite: masse.breite, hoehe: masse.hoehe };
         return {
           ...quelle,
-          kennung: crypto.randomUUID(),
+          basisKennung,
+          kennung: kennungBilden(basisKennung, ausschnitt),
           vorschauUrl: URL.createObjectURL(quelle.blob),
           masse,
+          ausschnitt,
         };
       });
     },
     [],
   );
+
+  /**
+   * Einen anderen Ausschnitt wählen.
+   *
+   * Damit ändert sich das Muster von Grund auf, also bekommt das Bild eine
+   * neue Kennung. Daran hängt, ob von Hand gemalte Stiche übernommen werden –
+   * und die passen zu einem anderen Ausschnitt nicht mehr.
+   */
+  const ausschnittSetzen = useCallback((neu: Ausschnitt) => {
+    setBild((vorher) => {
+      if (!vorher) return vorher;
+      const ausschnitt = einpassen(neu, vorher.masse.breite, vorher.masse.hoehe);
+      return { ...vorher, ausschnitt, kennung: kennungBilden(vorher.basisKennung, ausschnitt) };
+    });
+  }, []);
 
   const bildEntfernen = useCallback(() => {
     setBild((vorher) => {
@@ -480,7 +534,10 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     setFortschritt({ text: "arbeit.bildLesen", anteil: 0.02 });
 
     try {
-      const bitmap = await createImageBitmap(bild.blob);
+      // createImageBitmap kann direkt einen Ausschnitt lesen – ohne das Bild
+      // vorher über eine Leinwand neu zu zeichnen und dabei zu verlieren.
+      const a = bild.ausschnitt;
+      const bitmap = await createImageBitmap(bild.blob, a.x, a.y, a.breite, a.hoehe);
 
       const breiteStiche = Math.round(einstellungen.breiteStiche);
       let hoeheStiche = Math.max(1, Math.round((breiteStiche * bitmap.height) / bitmap.width));
@@ -670,6 +727,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     () => ({
       bild,
       bildWaehlen,
+      ausschnittSetzen,
       bildEntfernen,
       einstellungen,
       einstellungenSetzen: (teil) => setEinstellungen((e) => ({ ...e, ...teil })),
@@ -707,6 +765,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     [
       bild,
       bildWaehlen,
+      ausschnittSetzen,
       bildEntfernen,
       einstellungen,
       alleGarne,
