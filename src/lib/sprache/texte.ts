@@ -332,8 +332,6 @@ export const DE = {
   "garne.zumEntfernen": "{name} · antippen zum Entfernen",
   "garne.hinzufuegen": "Garn hinzufügen",
   "garne.wirdGeholt": "Die Garnliste wird geholt …",
-  "garne.fehlerRechte":
-    "Die Datenbank lässt die App noch nicht an die Garnliste. Führen Sie im SQL-Editor von Supabase die Datei 0001_schema.sql noch einmal aus – darin stehen die Rechte.",
 
   "garne.listeLeer":
     "In der Garnliste steht noch nichts. Lesen Sie die Garnfarben mit dem Knopf weiter oben einmalig ein; solange das nicht geschehen ist, rechnet die App mit den Farben aus Ihrem Bild statt mit Herstellergarnen.",
@@ -359,8 +357,6 @@ export const DE = {
     "Die Garnliste konnte nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite noch einmal.",
   "garne.fehlerAendern":
     "Diese Änderung konnte nicht gespeichert werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und tippen Sie noch einmal darauf.",
-  "garne.fehlerGarnSetzen":
-    "Die neue Garnfarbe konnte nicht gespeichert werden. Sie sehen sie hier, aber beim nächsten Öffnen ist wieder die alte da.",
 
   // --- Schritt 4: Drucken --------------------------------------------------
   "druck.titel": "Muster drucken",
@@ -754,8 +750,6 @@ export const PL: Record<Textschluessel, string> = {
   "garne.zumEntfernen": "{name} · dotknij, aby usunąć",
   "garne.hinzufuegen": "Dodaj nitkę",
   "garne.wirdGeholt": "Pobieranie listy nici …",
-  "garne.fehlerRechte":
-    "Baza danych jeszcze nie wpuszcza aplikacji do listy nici. Proszę wykonać w edytorze SQL Supabase plik 0001_schema.sql jeszcze raz – są w nim uprawnienia.",
 
   "garne.listeLeer":
     "Na liście nici nie ma jeszcze nic. Proszę raz wczytać kolory przyciskiem powyżej; dopóki to nie nastąpi, program liczy kolorami ze zdjęcia zamiast nićmi producenta.",
@@ -781,8 +775,6 @@ export const PL: Record<Textschluessel, string> = {
     "Nie udało się pobrać listy nici. Proszę sprawdzić połączenie z internetem i wczytać stronę jeszcze raz.",
   "garne.fehlerAendern":
     "Nie udało się zapisać tej zmiany. Proszę sprawdzić połączenie z internetem i dotknąć jeszcze raz.",
-  "garne.fehlerGarnSetzen":
-    "Nie udało się zapisać nowego koloru nitki. Widzi go Pani tutaj, ale przy następnym otwarciu wróci stary.",
 
   "druck.titel": "Drukowanie wzoru",
   "druck.knopf": "Drukuj wzór",

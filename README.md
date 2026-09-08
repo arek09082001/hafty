@@ -4,6 +4,11 @@ Eine Web-App, die ein Foto in ein Kreuzstich-Zählmuster verwandelt. Die gesamte
 Bildverarbeitung läuft im Browser in einem Web Worker – für die Musterberechnung
 gibt es keinen Server-Roundtrip.
 
+**Die App lässt sich installieren und läuft ohne Internet.** Alles liegt auf
+dem Gerät: die Garnfarben im ausgelieferten Programm, Muster, Zwischenstände,
+Motive und der Garnvorrat im Browserspeicher. Es gibt keinen Dienst dahinter,
+keine Datenbank und keinen Schlüssel – siehe „Ohne Internet" weiter unten.
+
 Die Oberfläche gibt es auf **Deutsch und Polnisch** und ist für eine Nutzerin
 ohne Computererfahrung gebaut: Grundschrift 20px, Schaltflächen mindestens 56px
 hoch, pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
@@ -37,64 +42,47 @@ gebrauchten Zeichen zusammengestrichene Fassung der Liberation Sans
 
 - Next.js (App Router, TypeScript)
 - Tailwind CSS
-- Supabase (Postgres und Storage, ohne Auth)
-- `pdf-lib` für den Ausdruck, `idb` für die Sicherung im Browser
+- `pdf-lib` für den Ausdruck, `idb` für den Speicher im Browser
+- Kein Server, keine Datenbank, keine Anmeldung
 
 ## Einrichten
 
 ```bash
 npm install
-cp .env.example .env.local   # und die Werte eintragen
 npm run dev
 ```
 
-### Umgebungsvariablen
+Mehr ist es nicht. Es gibt keine Umgebungsvariablen, nichts einzurichten und
+nichts freizuschalten: die App bringt alles mit, was sie braucht.
 
-| Variable | Wofür |
+## Ohne Internet
+
+Die App ist eine PWA. Im Browser erscheint ein Knopf zum Installieren
+(in Chrome rechts in der Adresszeile, in Safari über „Zum Dock hinzufügen"),
+danach liegt sie wie ein Programm im Startmenü.
+
+Damit sie auch ohne Verbindung läuft, gehört alles auf das Gerät:
+
+| Was | Wo |
 | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Adresse des Supabase-Projekts (Project Settings → API) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Öffentlicher Schlüssel des Projekts |
-| `SUPABASE_SERVICE_ROLE_KEY` | Zum Einlesen der Garnfarben – für `npm run garne-importieren` und für den Knopf „Garnfarben einlesen" in der App. Gehört niemals in den Browser, aber sehr wohl zum Hoster, sonst fehlt er der Server-Route. |
+| Die 375 Ariadna-Farben | fest im Programm (`src/lib/garne/katalog-daten.ts`) |
+| Muster, Zwischenstände, Motive, Garnvorrat | IndexedDB im Browser |
+| Das Programm selbst | Service Worker (`public/sw.js`) |
 
-### Supabase vorbereiten
+Der Service Worker holt beim Einrichten die fünf Seiten und liest aus ihrem
+Quelltext die Adressen aller Skripte und Stilvorlagen – die tragen einen
+Prüfwert im Namen und lassen sich deshalb nicht fest hinschreiben. So ist die
+App vollständig, sobald sie einmal geladen wurde, und nicht erst, nachdem man
+jede Seite von Hand aufgerufen hat.
 
-1. Migrationen anwenden – entweder mit der Supabase-CLI
-   (`supabase db push`) oder indem die Dateien aus `supabase/migrations/`
-   der Reihe nach im SQL-Editor ausgeführt werden:
+Danach gilt: Seitenaufrufe erst über das Netz und nur ersatzweise aus dem
+Zwischenspeicher, damit eine neue Fassung ankommt, sobald Verbindung besteht.
+Die Bausteine unter `/_next/static/` kommen immer aus dem Zwischenspeicher –
+ihr Inhalt ändert sich nie, weil der Prüfwert im Namen steht.
 
-   | Datei | Inhalt |
-   | --- | --- |
-   | `0001_schema.sql` | Tabellen, Fremdschlüssel, Rechte und Row Level Security |
-   | `0002_storage.sql` | Die vier privaten Storage-Buckets und ihre Regeln |
-
-   Wenn die App später „Die Garnliste konnte nicht geholt werden" zeigt und
-   die Datenbank `permission denied for table …` antwortet, ist
-   `0001_schema.sql` nicht (oder in einer alten Fassung) gelaufen: dort
-   stehen die `grant`-Zeilen. Rechte und RLS sind zwei Tore hintereinander –
-   der `grant` entscheidet, ob eine Rolle die Tabelle überhaupt anfassen
-   darf, die Policy erst, welche Zeilen sie sieht. Ein Supabase-Projekt
-   vergibt diese Rechte nicht von allein. Die Datei lässt sich gefahrlos
-   noch einmal ausführen.
-
-2. Die Garnfarben einlesen. Am einfachsten geht das in der App selbst:
-   unter **Meine Garne** steht der Knopf „Ariadna-Farben jetzt einlesen",
-   solange die Liste leer ist. Dafuer muss `SUPABASE_SERVICE_ROLE_KEY`
-   beim Hoster gesetzt sein - der Knopf laeuft ueber die Server-Route
-   `/api/garne`, weil der Katalog nur mit dem Dienstschluessel beschrieben
-   werden darf und der nie in den Browser gehoert.
-
-   Ohne Hoster geht es auch von Hand:
-
-   ```bash
-   npm run garne-importieren -- data/garne-ariadna.csv
-   ```
-
-   Beide Wege benutzen dieselbe Logik aus `src/lib/garne/katalog.ts`.
-
-   Das Skript rechnet die Lab-Werte **einmal** aus und speichert sie mit;
-   zur Laufzeit werden dann nur noch Abstände berechnet. Ohne diesen
-   Schritt läuft die App weiter, rechnet dann aber mit den Farben aus dem
-   Bild statt mit Herstellergarnen.
+**Was das bedeutet:** die Muster liegen auf genau einem Gerät. Es gibt keine
+Kopie in der Ferne. Wer ein fertiges Muster behalten will, druckt es aus –
+dafür ist Schritt 4 da.
 
 ### Die Garnfarben
 
@@ -107,12 +95,16 @@ Statt welche zu erfinden, beschreibt die App die Farbe selbst – aus dem
 Hexwert wird „dunkles Rot" beziehungsweise „ciemny czerwony", je nach
 eingestellter Sprache (`src/lib/farbe/farbwort.ts`).
 
-Ein weiterer Hersteller käme als eigene CSV mit demselben Kopf dazu und
-würde mit demselben Skript eingelesen.
+Ausgeliefert wird die Liste nicht als CSV, sondern als Modul im Programm:
 
-Das Importskript legt neue Farben an und aktualisiert vorhandene, löscht
-aber nie welche. Wer eine ältere Liste eingelesen hatte, wird alte Zeilen
-also von Hand los.
+```bash
+npm run garnkatalog     # data/garne-ariadna.csv -> src/lib/garne/katalog-daten.ts
+```
+
+Damit steht der Katalog sofort bereit, auch beim allerersten Start ohne
+Verbindung. Die Lab-Werte stehen bewusst **nicht** in der Datei: sie aus 375
+Hexwerten zu rechnen dauert weniger als eine Millisekunde, und eine zweite
+Wahrheit, die zum Hexwert nicht mehr passt, will man nicht haben.
 
 #### Woher die Ariadna-Werte kommen
 
@@ -158,60 +150,18 @@ Alle Farbwerte bleiben also Näherungen. Sie ersetzen keine Garnkarte, und
 deshalb lässt sich in der App jede Farbe der Legende von Hand auf ein
 anderes Garn ändern.
 
-## Keine Anmeldung – was das heißt
+## Keine Anmeldung, kein Dienst
 
 Die App fragt niemanden nach irgendetwas: kein Passwort, kein Magic Link,
 kein Konto. Wer die Seite aufruft, arbeitet sofort an den Mustern.
 
-Der Preis dafür gehört benannt: **wer die Adresse der App kennt, kann die
-Muster lesen, ändern und löschen.** Der öffentliche Schlüssel steht im
-Quelltext der ausgelieferten Seite, daran führt kein Weg vorbei. Der
-Schutz besteht allein darin, die Adresse nicht herumzureichen.
+Sie braucht das auch nicht mehr: es gibt nichts in der Ferne, worauf sich
+ein Zugang beziehen könnte. Alle Daten liegen im Browser des Geräts, und
+was dort liegt, kommt ohnehin nur an, wer das Gerät hat.
 
-Für ein Muster-Programm auf einem Familientablet ist das in Ordnung. Wenn
-es doch einmal enger werden soll, ohne dass sich für die Nutzerin etwas
-ändert, gibt es zwei Wege, die nichts mit der App zu tun haben:
-
-- beim Hoster einen Zugangsschutz einschalten (bei Vercel z. B.
-  *Deployment Protection*), oder
-- die App gar nicht veröffentlichen und mit `npm run dev` auf dem Gerät
-  laufen lassen, auf dem gestickt wird.
-
-Die einzige Ausnahme von „alles erlaubt" ist der Garnkatalog: er ist aus
-der App heraus nur lesbar. Geschrieben wird er ausschließlich vom
-Importskript über den Dienstschlüssel, damit ein Versehen ihn nicht
-zerstören kann.
-
-### Zugriffsregeln prüfen
-
-Die Regeln lassen sich ohne Supabase-Projekt auf einem gewöhnlichen
-PostgreSQL nachprüfen. `supabase/tests/00_supabase_nachbau.sql` baut die
-paar Supabase-Teile nach, die die Migrationen brauchen (`storage.objects`,
-die Rollen), `01_zugriff.sql` prüft dann, was die App darf:
-
-```bash
-createdb stickmuster_test
-psql -d stickmuster_test -c 'create extension if not exists pgcrypto;'
-psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/tests/00_supabase_nachbau.sql
-psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/migrations/0001_schema.sql
-psql -v ON_ERROR_STOP=1 -d stickmuster_test -f supabase/migrations/0002_storage.sql
-psql -d stickmuster_test -f supabase/tests/01_zugriff.sql
-```
-
-Erwartet wird: die App darf Muster, Stände, Legende, Motive, Garnvorrat und
-Dateien anlegen und wieder löschen, und jeder Schreibversuch am Garnkatalog
-endet mit `violates row-level security policy` oder trifft null Zeilen.
-
-Wichtig: die Ausgabe nicht durch `head` schicken. psql bricht dann mitten
-in der Migration ab und es fehlen stillschweigend die letzten Regeln.
-
-Die Route `/api/garne` hinter dem Knopf „Garnfarben einlesen" ist derselbe
-Fall: sie läuft mit dem Dienstschlüssel, also ohne jede Beschränkung. Sie
-nimmt deshalb **nichts** entgegen – keinen Dateinamen, keine Farben, keine
-Parameter – und liest genau die Datei, die im Projekt liegt. Wer die Adresse
-der App kennt, kann den Knopf drücken; das Schlimmste dabei ist, dass
-dieselben 375 Farben noch einmal geschrieben werden. Etwas Eigenes lässt
-sich darüber nicht in den Katalog bringen.
+Der Preis gehört benannt: **die Muster liegen auf genau einem Gerät.**
+Wer den Browserspeicher leert oder das Gerät wechselt, fängt neu an.
+Ein fertiges Muster gehört deshalb ausgedruckt – dafür ist Schritt 4 da.
 
 ## Aufbau des Projekts
 
@@ -220,12 +170,12 @@ src/app/schritt/…       Die vier Schritte des geführten Weges
 src/app/garne           Der eigene Garnvorrat
 src/components          Schaltflächen, Fortschrittsleiste, Fenster
 src/lib/farbe           Lab, CIEDE2000 und die Farbbeschreibungen
+src/lib/garne           Der Garnkatalog, fest im Programm
+src/lib/speicher        IndexedDB: Arbeitsstand, Stände, Motive, Garnvorrat
 src/lib/sprache         Wörterbuch Deutsch/Polnisch und der Sprachumschalter
-src/lib/supabase        Zugang zur Datenbank
+public/sw.js            Service Worker – dafür läuft die App ohne Internet
 data                    Garnlisten und ihre Quelldaten
-supabase/migrations     SQL-Migrationen
-supabase/tests          Nachbau und Prüfung der Zugriffsregeln
-scripts                 Garnfarben ableiten und einlesen, Beispielbilder
+scripts                 Garnfarben ableiten, Katalog und Symbole erzeugen
 ```
 
 ## Der Ausdruck
@@ -251,12 +201,20 @@ Aida 14 ergibt das etwa einen Meter je hundert Stiche.
 
 ## Datenhaltung
 
-Raster (die eigentlichen Stichdaten) liegen **nie** als JSONB in Postgres,
-sondern immer lauflängenkodiert als Datei im Storage. In der Datenbank stehen
-nur Verweise und Metadaten.
+Raster (die eigentlichen Stichdaten) liegen nie als lose Zahlenlisten,
+sondern immer lauflängenkodiert und danach zusammengedrückt. Ein Muster mit
+160 000 Feldern schrumpft dabei auf wenige Kilobyte, und in IndexedDB passt
+das bequem neben Quellbild und Vorschau.
 
-Die Buckets sind nicht öffentlich; die App holt sich zeitlich begrenzte Links
-(signed URLs). Row Level Security ist auf allen Tabellen eingeschaltet, damit
-der Zugriff eine bewusst gesetzte Regel ist und nicht ein vergessener
-Schalter – ohne Anmeldung lautet diese Regel für die Musterdaten allerdings
-schlicht „alles erlaubt".
+In der Datenbank des Browsers liegen vier Läden:
+
+| Laden | Inhalt |
+| --- | --- |
+| `arbeit` | der aktuelle Stand, laufend mitgeschrieben – gegen Abstürze |
+| `staende` | die gespeicherten Zwischenstände je Muster |
+| `motive` | gemerkte Ausschnitte, über Muster hinweg |
+| `garnvorrat` | welche Garne zu Hause liegen |
+
+Aufgeräumt wird nur bei den Zwischenständen: die letzten 20 automatischen
+bleiben, gemerkte nie löschen, und ein Stand, an dem ein anderer als
+Elternteil hängt, bleibt ebenfalls stehen – sonst risse der Baum auseinander.

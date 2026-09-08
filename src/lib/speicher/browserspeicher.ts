@@ -150,7 +150,7 @@ export async function arbeitsstandLoeschen(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// gzip – für die Dateien, die in den Supabase Storage gehen
+// gzip – Raster und Motive liegen zusammengedrückt in der Datenbank
 // ---------------------------------------------------------------------------
 
 /**
