@@ -150,6 +150,47 @@ Alle Farbwerte bleiben also Näherungen. Sie ersetzen keine Garnkarte, und
 deshalb lässt sich in der App jede Farbe der Legende von Hand auf ein
 anderes Garn ändern.
 
+## Wie viele Farben
+
+Die Farbanzahl reicht von 2 bis 375 – so viele Garne hat der Katalog. Eine
+Zahl darunter wäre eine willkürliche Grenze: wer jede Nuance eines Fotos
+haben will, soll sie bekommen, und ob ein Muster mit 300 Farben zu sticken
+ist, entscheidet die Nutzerin.
+
+Meistens kommen weniger Farben heraus, als eingestellt sind. Das liegt nicht
+an einer Deckelung, sondern am Katalog: zwei Clusterzentren, die dicht
+beieinanderliegen, bekommen dasselbe nächstliegende Garn und werden
+zusammengelegt. Aus 375 gewünschten Farben werden bei einem Foto in voller
+Größe typischerweise um die hundert Garne – die App sagt das als ganzen Satz
+(„Aus 375 Farben sind 102 geworden …").
+
+Zwei Stellen mussten dafür umgebaut werden:
+
+- **Ein Feld hält zwei Byte statt einem.** Mit einem Byte war bei 255 Farben
+  Schluss, und die 255 war schon für „wird nicht gestickt" vergeben. Jetzt
+  laufen die Palettenindizes von 0 bis 1022, die 1023 ist das freie Feld
+  (`LEER` in `src/lib/muster/typen.ts`). Gespeicherte Muster und Motive aus
+  der Zeit davor werden beim Lesen umgeschrieben.
+- **Die Abstandstabelle ist eine Abstandsliste geworden.** Vorher stand für
+  jedes Feld der Abstand zu jeder Palettenfarbe in einer Tabelle: bei 160 000
+  Feldern und 48 Farben 30 MB, bei 375 Farben aber 240 MB – das überlebt kein
+  Tablet. Jetzt stehen dort nur noch die zwölf nächstliegenden Farben je Feld,
+  rund 12 MB, unabhängig von der Farbanzahl. Das Ergebnis ist dasselbe: für
+  jede Farbe, die in der Nachbarschaft eines Feldes nicht vorkommt, ist die
+  Strafe der Glättung gleich hoch, also kann unter ihnen nur die farbtreueste
+  gewinnen – und die steht in der Liste. Warum das genau aufgeht, steht in
+  `src/lib/muster/glaettung.ts`.
+
+Gerechnet wird dadurch nicht weniger: ein Muster in voller Größe (400 × 400
+Stiche) mit 375 Farben braucht rund fünf Sekunden statt der knapp vier bei 48
+Farben, das meiste davon im k-Means. Die Fortschrittsleiste sagt, woran
+gerade gearbeitet wird.
+
+Eines bleibt begrenzt: der Schwarzweißdruck hat 66 gut unterscheidbare
+Symbole (`src/lib/muster/symbole.ts`). Wer mehr Farben verwendet, findet
+manche Symbole doppelt und muss sich nach dem Farbdruck richten – der liegt
+demselben PDF ohnehin bei.
+
 ## Nur ein Motiv sticken
 
 Ein Tipp auf die Blume, und die Blume ist ausgewählt – das ist das Werkzeug
@@ -358,6 +399,11 @@ Raster (die eigentlichen Stichdaten) liegen nie als lose Zahlenlisten,
 sondern immer lauflängenkodiert und danach zusammengedrückt. Ein Muster mit
 160 000 Feldern schrumpft dabei auf wenige Kilobyte, und in IndexedDB passt
 das bequem neben Quellbild und Vorschau.
+
+Beide Formate tragen eine Fassungsnummer und lesen auch die vorige: dort
+hielt ein Feld ein Byte und die 255 stand für „wird nicht gestickt". Wer ein
+Muster gespeichert hat, findet es nach dem Aktualisieren unverändert wieder
+(`src/lib/speicher/rle.ts`, `src/lib/speicher/motive.ts`).
 
 In der Datenbank des Browsers liegen vier Läden:
 

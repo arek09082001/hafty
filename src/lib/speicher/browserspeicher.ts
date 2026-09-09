@@ -35,7 +35,7 @@ export type Arbeitsstand = {
   name: string;
   breite: number;
   hoehe: number;
-  basis: Uint8Array;
+  basis: Uint16Array;
   bearbeitung: Int16Array;
   palette: PalettenEintrag[];
   einstellungen: Einstellungen;

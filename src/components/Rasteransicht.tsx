@@ -35,7 +35,7 @@ export function Rasteransicht({
 }: {
   breite: number;
   hoehe: number;
-  raster: Uint8Array;
+  raster: Uint16Array;
   palette: PalettenEintrag[];
   /** Bildpunkte je Stich. */
   zoom: number;

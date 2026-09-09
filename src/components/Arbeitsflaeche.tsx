@@ -206,7 +206,7 @@ export function Arbeitsflaeche({
   ansicht: Ansicht;
   breite: number;
   hoehe: number;
-  raster: Uint8Array;
+  raster: Uint16Array;
   palette: PalettenEintrag[];
   mitSymbolen?: boolean;
   auswahl?: Uint8Array | null;

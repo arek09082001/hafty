@@ -16,7 +16,7 @@
  */
 
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
-import { LEER, STOFFFARBE, type PalettenEintrag } from "@/lib/muster/typen";
+import { FARBINDIZES, LEER, STOFFFARBE, type PalettenEintrag } from "@/lib/muster/typen";
 
 /** Ein Stück, das gerade verschoben und noch nicht festgeschrieben ist. */
 export type Einfuegevorschau = {
@@ -24,7 +24,7 @@ export type Einfuegevorschau = {
   y: number;
   w: number;
   h: number;
-  daten: Uint8Array;
+  daten: Uint16Array;
   maske: Uint8Array;
 };
 
@@ -41,8 +41,8 @@ export type Farbtabelle = {
 };
 
 export function farbtabelle(palette: PalettenEintrag[]): Farbtabelle {
-  const farben: Array<[number, number, number] | undefined> = [];
-  const eintraege: Array<PalettenEintrag | undefined> = [];
+  const farben = new Array<[number, number, number] | undefined>(FARBINDIZES);
+  const eintraege = new Array<PalettenEintrag | undefined>(FARBINDIZES);
   for (const eintrag of palette) {
     farben[eintrag.index] = hexNachRgb(eintrag.hex);
     eintraege[eintrag.index] = eintrag;
@@ -58,7 +58,7 @@ export function kleinbildZeichnen(
   klein: HTMLCanvasElement,
   breite: number,
   hoehe: number,
-  raster: Uint8Array,
+  raster: Uint16Array,
   tabelle: Farbtabelle,
   vorschau?: Einfuegevorschau | null,
 ): void {
@@ -106,7 +106,7 @@ export function kleinbildZeichnen(
 export type Zeichenauftrag = {
   breite: number;
   hoehe: number;
-  raster: Uint8Array;
+  raster: Uint16Array;
   tabelle: Farbtabelle;
   /** Bildpunkte je Stich. */
   zoom: number;
