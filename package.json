@@ -7,7 +7,6 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "beispielbilder": "node scripts/beispielbilder-erzeugen.mjs",
     "garne-ableiten": "node scripts/garne-ableiten.mjs",
     "garnkatalog": "node scripts/garnkatalog-erzeugen.mjs",
     "symbole": "node scripts/symbole-erzeugen.mjs"

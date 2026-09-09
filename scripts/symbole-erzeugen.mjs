@@ -23,7 +23,7 @@ import path from "node:path";
 
 const WURZEL = path.resolve(import.meta.dirname, "..");
 
-// --- PNG schreiben (wie in beispielbilder-erzeugen.mjs) --------------------
+// --- PNG schreiben ---------------------------------------------------------
 function crc32(buf) {
   const tabelle = [];
   for (let n = 0; n < 256; n++) {

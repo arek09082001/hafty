@@ -33,7 +33,7 @@ export const DE = {
   // --- Schritt 1: Bild ---------------------------------------------------
   "bild.titel": "Bild aussuchen",
   "bild.erklaerung":
-    "Wählen Sie ein Foto von Ihrem Gerät aus oder tippen Sie auf eines der drei Beispielbilder. Sie können später jederzeit ein anderes Bild nehmen.",
+    "Wählen Sie ein Foto von Ihrem Gerät aus. Sie können später jederzeit ein anderes Bild nehmen.",
   "bild.ausgewaehlt": "Ausgewählt: {name}",
   "bild.nochKeins": "Noch kein Bild ausgewählt.",
   "bild.weiter": "Weiter zu Größe und Farben",
@@ -41,27 +41,19 @@ export const DE = {
   "bild.anderesWaehlen": "Anderes Bild aussuchen",
   "bild.eigenesFoto": "Ein eigenes Foto",
   "bild.eigenesFotoText":
-    "Tippen Sie auf den Knopf. Es öffnet sich das Fenster Ihres Geräts, in dem Sie ein Bild auswählen können.",
+    "Tippen Sie auf den Knopf. Es öffnet sich sofort das Fenster Ihres Geräts, in dem Sie ein Bild auswählen können.",
   "bild.fotoWaehlen": "Foto von meinem Gerät auswählen",
-  "bild.beispiele": "Oder ein Beispielbild",
-  "bild.beispieleText": "Zum Ausprobieren. Tippen Sie einfach auf eines der Bilder.",
-  "bild.wirdGeladen": "Wird geladen …",
-  "bild.beispielBlume": "Blume",
-  "bild.beispielKatze": "Katze",
-  "bild.beispielHaus": "Haus am See",
   "bild.fehlerKeinBild":
     "Das war keine Bilddatei. Bitte wählen Sie ein Foto aus, zum Beispiel eine Datei, die auf .jpg oder .png endet.",
   "bild.fehlerZuGross":
     "Dieses Bild ist sehr groß. Bitte wählen Sie ein kleineres Foto aus – bis etwa 25 Megabyte geht gut.",
   "bild.fehlerNichtLesbar":
     "Dieses Bild konnte nicht geöffnet werden. Bitte wählen Sie ein anderes Foto aus, am besten im Format JPG oder PNG.",
-  "bild.fehlerBeispiel":
-    "Das Beispielbild konnte nicht geladen werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und tippen Sie noch einmal darauf.",
 
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Ausschnitt wählen",
   "zuschnitt.erklaerung":
-    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben oder die Knöpfe darunter benutzen.",
+    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben, an den Ecken frei in jede Form ziehen oder die Knöpfe darunter benutzen.",
   "zuschnitt.formWaehlen": "Form des Ausschnitts",
   "zuschnitt.ganzesBild": "Ganzes Bild",
   "zuschnitt.quadrat": "Quadrat 1:1",
@@ -72,6 +64,13 @@ export const DE = {
   "zuschnitt.groesse": "Größe",
   "zuschnitt.kleiner": "Kleiner",
   "zuschnitt.groesser": "Größer",
+  "zuschnitt.freihand": "Freihand",
+  "zuschnitt.freihandText":
+    "Freihand geht auch: Ziehen Sie an einer der weißen Ecken, dann bekommt der Ausschnitt jede Form, die Sie möchten. Oder setzen Sie neben dem Rahmen auf dem Bild auf und ziehen Sie einen ganz neuen Rahmen auf.",
+  "zuschnitt.schmaler": "Schmaler",
+  "zuschnitt.breiter": "Breiter",
+  "zuschnitt.flacher": "Flacher",
+  "zuschnitt.hoeher": "Höher",
   "zuschnitt.masse": "Ausschnitt: {breite} × {hoehe} Bildpunkte",
   "zuschnitt.bildBeschriftung": "Ihr Bild mit dem gewählten Ausschnitt",
   "zuschnitt.aendern": "Ausschnitt wählen",
@@ -490,7 +489,7 @@ export const PL: Record<Textschluessel, string> = {
 
   "bild.titel": "Wybierz zdjęcie",
   "bild.erklaerung":
-    "Proszę wybrać zdjęcie ze swojego urządzenia albo dotknąć jednego z trzech przykładowych obrazków. Później w każdej chwili można wziąć inne zdjęcie.",
+    "Proszę wybrać zdjęcie ze swojego urządzenia. Później w każdej chwili można wziąć inne zdjęcie.",
   "bild.ausgewaehlt": "Wybrane: {name}",
   "bild.nochKeins": "Nie wybrano jeszcze zdjęcia.",
   "bild.weiter": "Dalej do rozmiaru i kolorów",
@@ -498,27 +497,19 @@ export const PL: Record<Textschluessel, string> = {
   "bild.anderesWaehlen": "Wybierz inne zdjęcie",
   "bild.eigenesFoto": "Własne zdjęcie",
   "bild.eigenesFotoText":
-    "Proszę dotknąć przycisku. Otworzy się okno urządzenia, w którym można wybrać zdjęcie.",
+    "Proszę dotknąć przycisku. Od razu otworzy się okno urządzenia, w którym można wybrać zdjęcie.",
   "bild.fotoWaehlen": "Wybierz zdjęcie z mojego urządzenia",
-  "bild.beispiele": "Albo przykładowy obrazek",
-  "bild.beispieleText": "Do wypróbowania. Wystarczy dotknąć jednego z obrazków.",
-  "bild.wirdGeladen": "Wczytywanie …",
-  "bild.beispielBlume": "Kwiat",
-  "bild.beispielKatze": "Kot",
-  "bild.beispielHaus": "Dom nad jeziorem",
   "bild.fehlerKeinBild":
     "To nie był plik ze zdjęciem. Proszę wybrać zdjęcie, na przykład plik kończący się na .jpg albo .png.",
   "bild.fehlerZuGross":
     "To zdjęcie jest bardzo duże. Proszę wybrać mniejsze – do mniej więcej 25 megabajtów jest dobrze.",
   "bild.fehlerNichtLesbar":
     "Nie udało się otworzyć tego zdjęcia. Proszę wybrać inne, najlepiej w formacie JPG albo PNG.",
-  "bild.fehlerBeispiel":
-    "Nie udało się wczytać przykładowego obrazka. Proszę sprawdzić połączenie z internetem i dotknąć go jeszcze raz.",
 
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Wybór wycinka",
   "zuschnitt.erklaerung":
-    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem albo przyciskami poniżej.",
+    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem, dowolnie uformować za rogi albo użyć przycisków poniżej.",
   "zuschnitt.formWaehlen": "Kształt wycinka",
   "zuschnitt.ganzesBild": "Całe zdjęcie",
   "zuschnitt.quadrat": "Kwadrat 1:1",
@@ -529,6 +520,13 @@ export const PL: Record<Textschluessel, string> = {
   "zuschnitt.groesse": "Wielkość",
   "zuschnitt.kleiner": "Mniejszy",
   "zuschnitt.groesser": "Większy",
+  "zuschnitt.freihand": "Odręcznie",
+  "zuschnitt.freihandText":
+    "Można też odręcznie: proszę pociągnąć za jeden z białych rogów, a wycinek przyjmie dowolny kształt. Albo dotknąć zdjęcia obok ramki i pociągnąć – powstanie zupełnie nowa ramka.",
+  "zuschnitt.schmaler": "Węższy",
+  "zuschnitt.breiter": "Szerszy",
+  "zuschnitt.flacher": "Niższy",
+  "zuschnitt.hoeher": "Wyższy",
   "zuschnitt.masse": "Wycinek: {breite} × {hoehe} pikseli",
   "zuschnitt.bildBeschriftung": "Pani zdjęcie z wybranym wycinkiem",
   "zuschnitt.aendern": "Wybierz wycinek",
