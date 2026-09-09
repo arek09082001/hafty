@@ -346,6 +346,15 @@ NEXT_PUBLIC_SUPABASE_URL=https://…supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=…
 ```
 
+Sagt die Kopfzeile „Die Sicherung im Internet klappt gerade nicht", hat der
+Dienst abgelehnt, und im Netzwerk-Reiter des Browsers steht, woran es liegt.
+Zweimal ist es dasselbe Loch in der Einrichtung:
+
+| Antwort | Was fehlt |
+| --- | --- |
+| `POST /auth/v1/signup` → 422 | „Anonymous sign-ins" ist nicht erlaubt |
+| `/rest/v1/…` → 403, `permission denied for table` | die `grant`-Zeilen der Migration sind nicht gelaufen |
+
 Angesprochen wird Supabase über seine HTTP-Schnittstelle, ohne zusätzliches
 Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Anmelden,
 Schreiben, Lesen und zwei Dateibefehle – das sind zweihundert Zeilen. Ein

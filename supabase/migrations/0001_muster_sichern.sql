@@ -59,6 +59,21 @@ create index if not exists staende_projekt_zeit on public.staende (projekt_id, a
 -- --------------------------------------------------------------------------
 -- Wer darf was: nur der eigene Benutzer, und zwar überall
 -- --------------------------------------------------------------------------
+-- Zwei Ebenen, die beide sitzen müssen:
+--
+--   1. Das Tabellenrecht – darf die Rolle die Tabelle überhaupt anfassen?
+--      Manche Projekte vergeben das von selbst, manche nicht; fehlt es,
+--      antwortet PostgREST mit 403 und „permission denied for table", und
+--      die Regeln darunter kommen gar nicht erst zum Zuge.
+--   2. Die Zeilenregel (RLS) – welche Zeilen sind es dann?
+--
+-- Angemeldet ist immer `authenticated`: ein anonymer Benutzer bekommt in
+-- Supabase dieselbe Rolle, nur ohne Namen. `anon` (gar nicht angemeldet)
+-- bekommt bewusst nichts.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.projekte to authenticated;
+grant select, insert, update, delete on public.staende to authenticated;
+
 alter table public.projekte enable row level security;
 alter table public.staende enable row level security;
 
