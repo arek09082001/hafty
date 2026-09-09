@@ -424,8 +424,7 @@ export const DE = {
   "druck.ausDrucker": "Das kommt aus dem Drucker",
   "druck.seiteVorschau": "Eine Seite mit der Vorschau der fertigen Stickerei",
   "druck.seiteGarnliste": "Die Garnliste mit Symbol, Nummer, Farbname, Stichzahl und Garnbedarf",
-  "druck.seitenSchwarzweiss": "Das Muster auf {anzahl} Blättern in Schwarzweiß",
-  "druck.seitenFarbe": "Dasselbe noch einmal in Farbe, also {anzahl} Blätter zusammen",
+  "druck.seitenFarbe": "Das Muster in Farbe auf {anzahl} Blättern, also {gesamt} Blätter zusammen",
   "druck.blaetterHinweis":
     "Die Blätter überlappen sich um zwei Reihen. Jede zehnte Linie ist dicker, und an den Rändern stehen die Reihennummern.",
   "druck.brauchenSie": "Das brauchen Sie dafür",
@@ -460,12 +459,9 @@ export const DE = {
   "pdf.eigeneFarbe": "eigene Farbe",
   "pdf.summe": "Zusammen {stiche} Stiche und ungefähr {garn} Garn.",
   "pdf.freieFelder": "{anzahl} Felder bleiben frei",
-  "pdf.blattTitel": "{name} – {fassung}",
-  "pdf.inFarbe": "in Farbe",
-  "pdf.schwarzweiss": "schwarzweiß",
   "pdf.masseKurz": "{breite} cm × {hoehe} cm auf Aida {zaehlung}",
   "pdf.reihenSpalten": "Reihen {vonReihe} bis {bisReihe} · Spalten {vonSpalte} bis {bisSpalte}",
-  "pdf.blattFuss": "{fassung} · Blatt {spalte} von links, {reihe} von oben",
+  "pdf.blattFuss": "Blatt {spalte} von links, {reihe} von oben",
 
   // --- Fortschrittsmeldungen der Berechnung ---------------------------------
   "arbeit.bildLesen": "Das Bild wird gelesen.",
@@ -892,8 +888,7 @@ export const PL: Record<Textschluessel, string> = {
   "druck.ausDrucker": "To wyjdzie z drukarki",
   "druck.seiteVorschau": "Strona z podglądem gotowego haftu",
   "druck.seiteGarnliste": "Lista nici z symbolem, numerem, nazwą koloru, liczbą ściegów i zapotrzebowaniem",
-  "druck.seitenSchwarzweiss": "Wzór na {anzahl} kartkach w czerni i bieli",
-  "druck.seitenFarbe": "To samo jeszcze raz w kolorze, czyli razem {anzahl} kartek",
+  "druck.seitenFarbe": "Wzór w kolorze na {anzahl} kartkach, czyli razem {gesamt} kartek",
   "druck.blaetterHinweis":
     "Kartki zachodzą na siebie o dwa rzędy. Co dziesiąta linia jest grubsza, a na brzegach stoją numery rzędów.",
   "druck.brauchenSie": "To będzie Pani potrzebne",
@@ -927,12 +922,9 @@ export const PL: Record<Textschluessel, string> = {
   "pdf.eigeneFarbe": "własny kolor",
   "pdf.summe": "Razem {stiche} ściegów i około {garn} nici.",
   "pdf.freieFelder": "{anzahl} pól zostaje pustych",
-  "pdf.blattTitel": "{name} – {fassung}",
-  "pdf.inFarbe": "w kolorze",
-  "pdf.schwarzweiss": "czarno-biały",
   "pdf.masseKurz": "{breite} cm × {hoehe} cm na kanwie Aida {zaehlung}",
   "pdf.reihenSpalten": "Rzędy {vonReihe} do {bisReihe} · kolumny {vonSpalte} do {bisSpalte}",
-  "pdf.blattFuss": "{fassung} · kartka {spalte} od lewej, {reihe} od góry",
+  "pdf.blattFuss": "kartka {spalte} od lewej, {reihe} od góry",
 
   "arbeit.bildLesen": "Wczytywanie zdjęcia.",
   "arbeit.herunterrechnen": "Przeliczanie zdjęcia na siatkę ściegów.",
