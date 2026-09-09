@@ -172,7 +172,8 @@ export const DE = {
   "editor.ihreGarne": "Ihre Garne ({anzahl})",
   "editor.garnbedarf":
     "Zusammen brauchen Sie etwa {meter} Garn. Geschätzt für zwei Fäden aus einem Strang – kaufen Sie lieber etwas mehr.",
-  "editor.farbeHinweis": "Die angetippte Farbe wird zum Malen und Färben verwendet.",
+  "editor.farbeHinweis":
+    "Hier steht zu jedem Garn, wie viele Stiche und wie viel Faden gebraucht werden. Die Farbe zum Färben und Malen wählen Sie in der Leiste über dem Muster.",
   "editor.farbenZusammengelegt":
     "Aus {vorher} Farben sind {nachher} geworden – einige lagen so dicht beieinander, dass es dafür dasselbe Garn gibt.",
   "editor.farbenWeggefallen":
@@ -195,35 +196,54 @@ export const DE = {
   "editor.standGemerkt":
     "Dieser Stand ist gemerkt. Er bleibt Ihnen erhalten, auch wenn Sie noch viel weiterarbeiten.",
 
+  // --- Farbleiste an der Arbeitsfläche -----------------------------------
+  "farbleiste.titel": "Farbe zum Färben und Malen:",
+
   // --- Bereiche im Editor ------------------------------------------------
   "bereich.werkzeug": "Werkzeug",
-  "bereich.farbe": "Farbe",
+  "bereich.farbe": "Garne",
   "bereich.muster": "Muster",
   "bereich.merken": "Merken",
 
+  // --- Was ein Tipp bewirkt ----------------------------------------------
+  "tippmodus.frage": "Was soll ein Tipp ins Muster tun?",
+  "tippmodus.faerben": "Färben",
+  "tippmodus.auswaehlen": "Auswählen",
+  "tippmodus.faerbenText":
+    "Ein Tipp ins Muster färbt sofort mit der Farbe aus der Leiste über dem Muster – so wie beim Malen, ohne einen Knopf dazwischen.",
+  "tippmodus.auswaehlenText":
+    "Ein Tipp umrandet erst einmal nur. Danach können Sie das Ausgewählte freistellen, kopieren oder als Motiv merken.",
+
   // --- Werkzeuge ---------------------------------------------------------
   "werkzeug.frage": "Womit möchten Sie arbeiten?",
-  "werkzeug.motiv": "Ganzes Motiv auswählen",
+  "werkzeug.motiv": "Ganzes Motiv",
+  "werkzeug.motivFaerben":
+    "Tippen Sie mitten in die Blume. Alles, was farblich dazugehört, bekommt sofort die gewählte Farbe.",
   "werkzeug.motivText":
     "Tippen Sie mitten in die Blume. Es wird alles ausgewählt, was farblich dazugehört – auch mehrere Farbtöne. Jedes weitere Motiv kommt mit einem Tipp dazu.",
-  "werkzeug.flaeche": "Gleiche Fläche auswählen",
+  "werkzeug.flaeche": "Gleiche Fläche",
+  "werkzeug.flaecheFaerben":
+    "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, bekommt sofort die gewählte Farbe.",
   "werkzeug.flaecheText":
     "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, wird ausgewählt.",
-  "werkzeug.rechteck": "Rechteck auswählen",
+  "werkzeug.rechteck": "Rechteck",
+  "werkzeug.rechteckFaerben":
+    "Ziehen Sie mit dem Finger ein Rechteck auf. Beim Loslassen ist es gefärbt.",
   "werkzeug.rechteckText":
     "Ziehen Sie mit dem Finger ein Rechteck über den Bereich, den Sie auswählen möchten.",
-  "werkzeug.freihand": "Freihand auswählen",
+  "werkzeug.freihand": "Freihand",
+  "werkzeug.freihandFaerben":
+    "Fahren Sie einmal um den Bereich herum. Beim Loslassen ist alles darin gefärbt.",
   "werkzeug.freihandText":
     "Fahren Sie einmal um den Bereich herum. Beim Loslassen wird alles darin ausgewählt.",
-  "werkzeug.malen": "Einzelne Stiche malen",
+  "werkzeug.malen": "Einzelne Stiche",
   "werkzeug.malenText":
     "Tippen oder fahren Sie über die Felder. Sie bekommen die gewählte Farbe.",
-  "werkzeug.fuellen": "Fläche färben",
-  "werkzeug.fuellenText": "Tippen Sie in eine Fläche. Die ganze Fläche bekommt die gewählte Farbe.",
 
   // --- Motiv aussuchen ---------------------------------------------------
   "motivsuche.hinweis":
     "Tippen Sie mitten in ein Motiv. Jedes weitere kommt dazu – noch einmal darauf tippen nimmt es wieder weg.",
+  "motivsuche.wieViel": "Wie viel nimmt ein Tipp mit?",
   "motivsuche.mehr": "Mehr dazunehmen",
   "motivsuche.weniger": "Weniger dazunehmen",
   "motivsuche.fastAlles":
@@ -233,6 +253,8 @@ export const DE = {
   "schrittname.gemalt": "Stiche gemalt",
   "schrittname.einStichGemalt": "Einen Stich gemalt",
   "schrittname.flaecheGefaerbt": "Fläche gefärbt",
+  "schrittname.motivGefaerbt": "Motiv gefärbt",
+  "schrittname.bereichGefaerbt": "Bereich gefärbt",
   "schrittname.auswahlGefaerbt": "Auswahl gefärbt",
   "schrittname.stueckEingesetzt": "Stück eingesetzt",
   "schrittname.freigestellt": "Motiv freigestellt",
@@ -614,7 +636,8 @@ export const PL: Record<Textschluessel, string> = {
   "editor.ihreGarne": "Moje nici ({anzahl})",
   "editor.garnbedarf":
     "Razem potrzeba około {meter} nici. Szacunek dla dwóch nitek z jednej muliny – lepiej kupić trochę więcej.",
-  "editor.farbeHinweis": "Dotknięty kolor będzie używany do malowania i kolorowania.",
+  "editor.farbeHinweis":
+    "Tutaj przy każdej nici widać, ile ściegów i ile nitki potrzeba. Kolor do kolorowania i malowania wybiera się na pasku nad wzorem.",
   "editor.farbenZusammengelegt":
     "Z {vorher} kolorów zostało {nachher} – kilka leżało tak blisko siebie, że przypada na nie ta sama nitka.",
   "editor.farbenWeggefallen":
@@ -636,33 +659,50 @@ export const PL: Record<Textschluessel, string> = {
   "editor.standGemerkt":
     "Ta wersja została zapamiętana. Zostanie zachowana, nawet jeśli będzie Pani jeszcze dużo pracować.",
 
+  "farbleiste.titel": "Kolor do kolorowania i malowania:",
+
   "bereich.werkzeug": "Narzędzie",
-  "bereich.farbe": "Kolor",
+  "bereich.farbe": "Nici",
   "bereich.muster": "Wzór",
   "bereich.merken": "Zapamiętane",
 
+  "tippmodus.frage": "Co ma robić dotknięcie wzoru?",
+  "tippmodus.faerben": "Koloruj",
+  "tippmodus.auswaehlen": "Zaznacz",
+  "tippmodus.faerbenText":
+    "Dotknięcie wzoru od razu koloruje kolorem z paska nad wzorem – tak jak przy malowaniu, bez żadnego przycisku po drodze.",
+  "tippmodus.auswaehlenText":
+    "Dotknięcie najpierw tylko obrysowuje. Potem można zaznaczenie wyodrębnić, skopiować albo zapamiętać jako motyw.",
+
   "werkzeug.frage": "Czym chce Pani pracować?",
-  "werkzeug.motiv": "Zaznacz cały motyw",
+  "werkzeug.motiv": "Cały motyw",
+  "werkzeug.motivFaerben":
+    "Proszę dotknąć środka kwiatka. Wszystko, co pasuje kolorem, od razu dostanie wybrany kolor.",
   "werkzeug.motivText":
     "Proszę dotknąć środka kwiatka. Zaznaczy się wszystko, co pasuje do niego kolorem – także kilka odcieni. Każdy następny motyw dochodzi jednym dotknięciem.",
-  "werkzeug.flaeche": "Zaznacz tę samą powierzchnię",
+  "werkzeug.flaeche": "Ta sama powierzchnia",
+  "werkzeug.flaecheFaerben":
+    "Proszę dotknąć powierzchni. Wszystko, co się z nią łączy i ma ten sam kolor, od razu dostanie wybrany kolor.",
   "werkzeug.flaecheText":
     "Proszę dotknąć powierzchni. Zaznaczy się wszystko, co się z nią łączy i ma ten sam kolor.",
-  "werkzeug.rechteck": "Zaznacz prostokąt",
+  "werkzeug.rechteck": "Prostokąt",
+  "werkzeug.rechteckFaerben":
+    "Proszę wyciągnąć palcem prostokąt. Po puszczeniu jest pokolorowany.",
   "werkzeug.rechteckText":
     "Proszę przeciągnąć palcem prostokąt nad obszarem, który ma zostać zaznaczony.",
-  "werkzeug.freihand": "Zaznacz odręcznie",
+  "werkzeug.freihand": "Odręcznie",
+  "werkzeug.freihandFaerben":
+    "Proszę objechać obszar dookoła. Po puszczeniu wszystko w środku jest pokolorowane.",
   "werkzeug.freihandText":
     "Proszę obrysować obszar dookoła. Po puszczeniu palca zaznaczy się wszystko w środku.",
-  "werkzeug.malen": "Maluj pojedyncze ściegi",
+  "werkzeug.malen": "Pojedyncze ściegi",
   "werkzeug.malenText":
     "Proszę dotknąć pól albo przejechać po nich palcem. Dostaną wybrany kolor.",
-  "werkzeug.fuellen": "Pokoloruj powierzchnię",
-  "werkzeug.fuellenText": "Proszę dotknąć powierzchni. Cała dostanie wybrany kolor.",
 
   // --- Motiv aussuchen ---------------------------------------------------
   "motivsuche.hinweis":
     "Proszę dotknąć środka motywu. Każdy następny dochodzi – dotknięcie go jeszcze raz usuwa go z zaznaczenia.",
+  "motivsuche.wieViel": "Ile obejmuje jedno dotknięcie?",
   "motivsuche.mehr": "Weź więcej",
   "motivsuche.weniger": "Weź mniej",
   "motivsuche.fastAlles":
@@ -671,6 +711,8 @@ export const PL: Record<Textschluessel, string> = {
   "schrittname.gemalt": "Namalowane ściegi",
   "schrittname.einStichGemalt": "Namalowany jeden ścieg",
   "schrittname.flaecheGefaerbt": "Pokolorowana powierzchnia",
+  "schrittname.motivGefaerbt": "Pokolorowany motyw",
+  "schrittname.bereichGefaerbt": "Pokolorowany obszar",
   "schrittname.auswahlGefaerbt": "Pokolorowane zaznaczenie",
   "schrittname.stueckEingesetzt": "Wstawiony kawałek",
   "schrittname.freigestellt": "Wybrany sam motyw",
