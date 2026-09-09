@@ -207,8 +207,12 @@ export function MusterDrucken() {
             <ul className="flex list-disc flex-col gap-1 pl-5 text-[1.05rem]">
               <li>{t("druck.seiteVorschau")}</li>
               <li>{t("druck.seiteGarnliste")}</li>
-              <li>{t("druck.seitenSchwarzweiss", { anzahl: zahl(blaetter) })}</li>
-              <li>{t("druck.seitenFarbe", { anzahl: zahl(blaetter * 2 + 2) })}</li>
+              <li>
+                {t("druck.seitenFarbe", {
+                  anzahl: zahl(blaetter),
+                  gesamt: zahl(blaetter + 2),
+                })}
+              </li>
             </ul>
           </Abschnitt>
 
