@@ -35,7 +35,7 @@ export type VomWorker =
       art: "fertig";
       breite: number;
       hoehe: number;
-      raster: Uint8Array;
+      raster: Uint16Array;
       palette: PalettenEintrag[];
       kennzahlen: Kennzahlen;
       farbenVorher: number;

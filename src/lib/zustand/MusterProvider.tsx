@@ -53,7 +53,7 @@ export type Muster = {
   breite: number;
   hoehe: number;
   /** Untere Ebene: das erzeugte Muster. */
-  basis: Uint8Array;
+  basis: Uint16Array;
   /** Obere Ebene: die Handbearbeitungen (-1 = unberührt). */
   bearbeitung: Int16Array;
   palette: PalettenEintrag[];
@@ -302,7 +302,7 @@ type MusterKontext = {
 
   muster: Muster | null;
   /** Beide Ebenen zusammengeführt – das, was gezeigt und gedruckt wird. */
-  raster: Uint8Array | null;
+  raster: Uint16Array | null;
 
   laeuft: boolean;
   fortschritt: { text: Textschluessel; anteil: number } | null;

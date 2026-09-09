@@ -415,7 +415,7 @@ export function MusterAnsehen() {
   // dem Pinselstrich, der gerade noch gezogen wird.
   const anzeigeRaster = useMemo(() => {
     if (!raster || !malSpur || malSpur.size === 0) return raster;
-    const kopie = Uint8Array.from(raster);
+    const kopie = Uint16Array.from(raster);
     for (const [feld, wert] of malSpur) kopie[feld] = wert;
     return kopie;
   }, [raster, malSpur]);

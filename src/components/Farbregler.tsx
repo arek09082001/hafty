@@ -2,7 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Knopf } from "./Knopf";
-import { MAX_FARBEN, MIN_FARBEN, farbanzahlBegrenzen } from "@/lib/muster/typen";
+import {
+  FARBMARKEN,
+  FARBREGLER_MAX,
+  MAX_FARBEN,
+  MIN_FARBEN,
+  farbanzahlAusRegler,
+  farbanzahlBegrenzen,
+  farbenSchritt,
+  reglerAusFarbanzahl,
+} from "@/lib/muster/typen";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
@@ -16,9 +25,13 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  *
  * Bedient wird sie auf beide Arten, weil beide gebraucht werden: der Regler,
  * um schnell durch den ganzen Bereich zu fahren und zu sehen, wo das Muster
- * kippt, und die beiden Knöpfe, um am Ende die eine Farbe mehr oder weniger
- * genau zu treffen. Auf einem Tablet mit unruhiger Hand sind die Knöpfe oft
- * der einzige Weg, überhaupt eine bestimmte Zahl zu erwischen.
+ * kippt, und die beiden Knöpfe, um sich am Ende an die richtige Zahl
+ * heranzutasten. Auf einem Tablet mit unruhiger Hand sind die Knöpfe oft der
+ * einzige Weg, überhaupt eine bestimmte Zahl zu erwischen.
+ *
+ * Der Regler hat eine gekrümmte Skala (siehe `farbanzahlAusRegler`), sonst
+ * läge der ganze Bereich unter 40 Farben in den ersten Millimetern. Die
+ * Knöpfe gehen in denselben Stufen wie die Zahlenwahl in Schritt 2.
  *
  * Wie beim Glättungsregler geht der Wert erst kurz nach dem letzten Zug
  * hinaus – ein neues k-Means bei jedem Bildpunkt wäre sinnlos. Der Regler
@@ -62,6 +75,7 @@ export function Farbregler({
 
   function schieben(wert: number) {
     const neu = farbanzahlBegrenzen(wert);
+    if (neu === gezeigt) return;
     setGezeigt(neu);
     if (uhr.current) clearTimeout(uhr.current);
     uhr.current = setTimeout(() => {
@@ -83,21 +97,24 @@ export function Farbregler({
         {t("farben.gewuenscht", { anzahl: zahl(gezeigt) })}
       </label>
 
+      {/* Der Regler steht auf 0..100 und nicht auf der Farbzahl selbst –
+          dazwischen liegt die gekrümmte Skala. `aria-valuetext` sagt der
+          Vorlesesoftware trotzdem die Farbzahl an und nicht die Stellung. */}
       <input
         id="farbanzahl"
         type="range"
-        min={MIN_FARBEN}
-        max={MAX_FARBEN}
+        min={0}
+        max={FARBREGLER_MAX}
         step={1}
-        value={gezeigt}
-        onChange={(e) => schieben(Number(e.target.value))}
+        value={reglerAusFarbanzahl(gezeigt)}
+        onChange={(e) => schieben(farbanzahlAusRegler(Number(e.target.value)))}
         aria-valuetext={t("farben.gewuenscht", { anzahl: zahl(gezeigt) })}
         aria-busy={wartet}
         list="farbmarken"
       />
       <datalist id="farbmarken">
-        {[MIN_FARBEN, 10, 20, 30, MAX_FARBEN].map((marke) => (
-          <option key={marke} value={marke} label={String(marke)} />
+        {FARBMARKEN.map((marke) => (
+          <option key={marke} value={reglerAusFarbanzahl(marke)} label={String(marke)} />
         ))}
       </datalist>
 
@@ -110,19 +127,19 @@ export function Farbregler({
         <Knopf
           art="neben"
           className="px-3"
-          onClick={() => schieben(gezeigt - 1)}
+          onClick={() => schieben(gezeigt - farbenSchritt(gezeigt - 1))}
           disabled={gezeigt <= MIN_FARBEN}
           aria-label={t("einst.wenigerVon", { was: t("einst.farbanzahl") })}
         >
           {t("einst.weniger")}
         </Knopf>
-        <output className="min-w-[74px] rounded-xl border-2 border-tinte bg-white px-3 py-3 text-center text-[1.5rem] font-bold">
+        <output className="min-w-[96px] rounded-xl border-2 border-tinte bg-white px-3 py-3 text-center text-[1.5rem] font-bold tabular-nums">
           {gezeigt}
         </output>
         <Knopf
           art="neben"
           className="px-3"
-          onClick={() => schieben(gezeigt + 1)}
+          onClick={() => schieben(gezeigt + farbenSchritt(gezeigt))}
           disabled={gezeigt >= MAX_FARBEN}
           aria-label={t("einst.mehrVon", { was: t("einst.farbanzahl") })}
         >
