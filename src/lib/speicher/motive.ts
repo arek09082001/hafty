@@ -3,19 +3,16 @@
 /**
  * Motive: gespeicherte Ausschnitte, die über Muster hinweg erhalten bleiben.
  *
- * Sie liegen in der Tabelle `motifs` und – wie alle Raster – als
- * lauflängenkodierte Datei im Storage-Bucket `motive`. Zusätzlich wird ein
- * kleines Vorschaubild abgelegt, damit die Liste nicht erst alle Daten laden
- * muss, um etwas zeigen zu können.
+ * Sie liegen im Browser (IndexedDB) – wie alle Raster lauflängenkodiert und
+ * danach zusammengedrückt, dazu ein kleines Vorschaubild, damit die Liste
+ * nicht erst alle Daten laden muss, um etwas zeigen zu können.
  *
- * Die App hat keine Anmeldung, deshalb hängen Motive an niemandem: der Pfad
- * ist schlicht `<motiv-id>.rle`.
+ * Kein Netz, kein Dienst: die App ist auch ohne Verbindung vollständig.
  */
 
-import { browserClient, datenbankEingerichtet, hoechstens } from "@/lib/supabase/client";
-import { entpacken, packen } from "./browserspeicher";
+import { browserdatenbank, entpacken, packen, LADEN_MOTIVE } from "./browserspeicher";
 import type { Ausschnitt } from "@/lib/muster/raster";
-import type { PalettenEintrag } from "@/lib/muster/typen";
+import { LEER, type PalettenEintrag } from "@/lib/muster/typen";
 import { hexNachRgb } from "@/lib/farbe/lab";
 
 export type Motiv = {
@@ -25,10 +22,19 @@ export type Motiv = {
   h: number;
   vorschauUrl: string | null;
   palette: PalettenEintrag[];
-  dataPath: string;
 };
 
-const BUCKET = "motive";
+/** So liegt ein Motiv in der Datenbank. */
+type Abgelegt = {
+  id: string;
+  name: string;
+  w: number;
+  h: number;
+  palette: PalettenEintrag[];
+  daten: Uint8Array;
+  vorschau: Blob | null;
+  angelegtAm: string;
+};
 
 /**
  * Ein Motiv besteht aus zwei gleich langen Ebenen: den Farbindizes und der
@@ -104,7 +110,9 @@ async function vorschauBauen(a: Ausschnitt): Promise<Blob | null> {
 
   for (let i = 0; i < a.daten.length; i++) {
     const p = i * 4;
-    if (!a.maske[i]) {
+    // Außerhalb der Maske und auf freien Feldern bleibt das Bild
+    // durchsichtig: beides wird nicht gestickt.
+    if (!a.maske[i] || a.daten[i] === LEER) {
       bild.data[p + 3] = 0;
       continue;
     }
@@ -119,105 +127,73 @@ async function vorschauBauen(a: Ausschnitt): Promise<Blob | null> {
   return new Promise((aufloesen) => leinwand.toBlob((b) => aufloesen(b), "image/png"));
 }
 
-/** Alle Motive holen. Wirft, wenn die Datenbank nicht erreichbar ist. */
+/** Alle Motive holen, das neueste zuerst. */
 export async function motiveLaden(): Promise<Motiv[]> {
-  if (!datenbankEingerichtet()) return [];
-  const supabase = browserClient();
-
-  const { data, error } = await hoechstens(
-    supabase
-      .from("motifs")
-      .select("id, name, w, h, data_path, thumbnail_path, palette")
-      .order("created_at", { ascending: false }),
-  );
-
-  if (error) throw new Error(error.message);
-  if (!data) return [];
-
-  return Promise.all(
-    data.map(async (zeile) => {
-      let vorschauUrl: string | null = null;
-      if (zeile.thumbnail_path) {
-        const { data: link } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(zeile.thumbnail_path, 60 * 60);
-        vorschauUrl = link?.signedUrl ?? null;
-      }
-      return {
-        id: zeile.id as string,
-        name: zeile.name as string,
-        w: zeile.w as number,
-        h: zeile.h as number,
-        vorschauUrl,
-        palette: (zeile.palette ?? []) as PalettenEintrag[],
-        dataPath: zeile.data_path as string,
-      };
-    }),
-  );
+  const db = await browserdatenbank();
+  const saetze = (await db.getAll(LADEN_MOTIVE)) as Abgelegt[];
+  return saetze
+    .sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm))
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      w: m.w,
+      h: m.h,
+      palette: m.palette,
+      // Die Adresse gilt nur, solange die Seite offen ist – mehr braucht die
+      // Liste nicht.
+      vorschauUrl: m.vorschau ? URL.createObjectURL(m.vorschau) : null,
+    }));
 }
 
-/** Ein Motiv anlegen. Gibt null zurück, wenn es nicht gespeichert werden konnte. */
+/** Ein Motiv speichern. */
 export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv | null> {
-  if (!datenbankEingerichtet()) return null;
-  const supabase = browserClient();
-
-  const id = crypto.randomUUID();
-  const dataPath = `${id}.rle`;
-  const bildPath = `${id}.png`;
-
-  const gepackt = await packen(ausschnittPacken(a));
-  const hoch = await supabase.storage
-    .from(BUCKET)
-    .upload(dataPath, new Blob([gepackt as BlobPart]), { contentType: "application/octet-stream" });
-  if (hoch.error) return null;
-
-  const vorschau = await vorschauBauen(a);
-  let thumbnailPath: string | null = null;
-  if (vorschau) {
-    const bildHoch = await supabase.storage
-      .from(BUCKET)
-      .upload(bildPath, vorschau, { contentType: "image/png" });
-    if (!bildHoch.error) thumbnailPath = bildPath;
+  try {
+    const db = await browserdatenbank();
+    const id = crypto.randomUUID();
+    const vorschau = await vorschauBauen(a);
+    const satz: Abgelegt = {
+      id,
+      name,
+      w: a.w,
+      h: a.h,
+      palette: a.palette,
+      daten: await packen(ausschnittPacken(a)),
+      vorschau,
+      angelegtAm: new Date().toISOString(),
+    };
+    await db.put(LADEN_MOTIVE, satz);
+    return {
+      id,
+      name,
+      w: a.w,
+      h: a.h,
+      palette: a.palette,
+      vorschauUrl: vorschau ? URL.createObjectURL(vorschau) : null,
+    };
+  } catch {
+    return null;
   }
-
-  const { error } = await supabase.from("motifs").insert({
-    id,
-    name,
-    w: a.w,
-    h: a.h,
-    data_path: dataPath,
-    thumbnail_path: thumbnailPath,
-    palette: a.palette,
-  });
-  if (error) return null;
-
-  let vorschauUrl: string | null = null;
-  if (thumbnailPath) {
-    const { data: link } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUrl(thumbnailPath, 60 * 60);
-    vorschauUrl = link?.signedUrl ?? null;
-  }
-
-  return { id, name, w: a.w, h: a.h, vorschauUrl, palette: a.palette, dataPath };
 }
 
-/** Die Daten eines Motivs nachladen, um es einzusetzen. */
+/** Den Inhalt eines Motivs holen. */
 export async function motivHolen(motiv: Motiv): Promise<Ausschnitt | null> {
-  if (!datenbankEingerichtet()) return null;
-  const supabase = browserClient();
-  const { data, error } = await supabase.storage.from(BUCKET).download(motiv.dataPath);
-  if (error || !data) return null;
-  const roh = await entpacken(new Uint8Array(await data.arrayBuffer()));
-  return ausschnittEntpacken(roh, motiv.palette);
+  try {
+    const db = await browserdatenbank();
+    const satz = (await db.get(LADEN_MOTIVE, motiv.id)) as Abgelegt | undefined;
+    if (!satz) return null;
+    return ausschnittEntpacken(await entpacken(satz.daten), satz.palette);
+  } catch {
+    return null;
+  }
 }
 
-/** Ein Motiv endgültig löschen. */
+/** Ein Motiv löschen. */
 export async function motivLoeschen(motiv: Motiv): Promise<boolean> {
-  if (!datenbankEingerichtet()) return false;
-  const supabase = browserClient();
-  const { error } = await supabase.from("motifs").delete().eq("id", motiv.id);
-  if (error) return false;
-  await supabase.storage.from(BUCKET).remove([motiv.dataPath]);
-  return true;
+  try {
+    const db = await browserdatenbank();
+    await db.delete(LADEN_MOTIVE, motiv.id);
+    return true;
+  } catch {
+    return false;
+  }
 }

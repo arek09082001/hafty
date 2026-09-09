@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
-import type { PalettenEintrag } from "@/lib/muster/typen";
+import { LEER, STOFFFARBE, type PalettenEintrag } from "@/lib/muster/typen";
 
 export type Zeigerereignis = {
   x: number;
@@ -79,10 +79,24 @@ export function Rasteransicht({
     if (!kleinStift) return;
 
     const bild = kleinStift.createImageData(breite, hoehe);
-    const farben = palette.map((p) => hexNachRgb(p.hex));
+
+    // Nachgeschlagen wird über den Index des Eintrags und nicht über seine
+    // Stelle in der Liste: die Garnliste wird an anderer Stelle gefiltert
+    // (Farben ohne Stiche fallen heraus), und dann stimmen beide nicht mehr
+    // überein. Ein Feld mit einer falschen Farbe wäre der schlimmste
+    // denkbare Fehler in dieser App.
+    const farben: Array<[number, number, number] | undefined> = [];
+    const eintraege: Array<PalettenEintrag | undefined> = [];
+    for (const eintrag of palette) {
+      farben[eintrag.index] = hexNachRgb(eintrag.hex);
+      eintraege[eintrag.index] = eintrag;
+    }
+    // Was nicht gestickt wird, bekommt die Farbe des Stoffes.
+    const stoff = hexNachRgb(STOFFFARBE);
+    farben[LEER] = stoff;
 
     for (let i = 0; i < raster.length; i++) {
-      const farbe = farben[raster[i]] ?? [255, 255, 255];
+      const farbe = farben[raster[i]] ?? stoff;
       bild.data[i * 4] = farbe[0];
       bild.data[i * 4 + 1] = farbe[1];
       bild.data[i * 4 + 2] = farbe[2];
@@ -99,7 +113,7 @@ export function Rasteransicht({
           if (zx < 0 || zx >= breite) continue;
           const q = y * vorschau.w + x;
           if (!vorschau.maske[q]) continue;
-          const farbe = farben[vorschau.daten[q]] ?? [255, 255, 255];
+          const farbe = farben[vorschau.daten[q]] ?? stoff;
           const z = (zy * breite + zx) * 4;
           bild.data[z] = farbe[0];
           bild.data[z + 1] = farbe[1];
@@ -167,9 +181,10 @@ export function Rasteransicht({
       stift.font = `bold ${Math.floor(zoom * 0.62)}px system-ui, sans-serif`;
       for (let y = 0; y < hoehe; y++) {
         for (let x = 0; x < breite; x++) {
-          const eintrag = palette[raster[y * breite + x]];
+          // Ein freies Feld bekommt kein Symbol – dort ist nichts zu sticken.
+          const eintrag = eintraege[raster[y * breite + x]];
           if (!eintrag) continue;
-          const rgb = farben[raster[y * breite + x]];
+          const rgb = farben[eintrag.index] ?? stoff;
           stift.fillStyle = istDunkel(rgb[0], rgb[1], rgb[2]) ? "#ffffff" : "#000000";
           stift.fillText(eintrag.symbol, (x + 0.5) * zoom, (y + 0.55) * zoom);
         }

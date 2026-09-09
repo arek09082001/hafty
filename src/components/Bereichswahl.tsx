@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 /**
  * Vier Arbeitsbereiche nebeneinander, alle immer sichtbar.
@@ -28,6 +28,16 @@ export function Bereichswahl({
   onWaehlen: (schluessel: string) => void;
   children: ReactNode;
 }) {
+  const inhalt = useRef<HTMLDivElement>(null);
+
+  // Beim Wechsel des Bereichs oben anfangen. Sonst zeigt der neue Bereich
+  // dort, wo der vorige gerade stand – wer von einem langen Werkzeugbereich
+  // auf „Farbe" tippt, landete mitten in der Garnliste und sah die
+  // Überschrift nicht mehr.
+  useEffect(() => {
+    inhalt.current?.scrollTo({ top: 0 });
+  }, [gewaehlt]);
+
   return (
     <div className="flex min-h-0 flex-col gap-3 lg:flex-1">
       {/* Zwei Spalten, nicht vier: „Zapamiętane" passt sonst nicht in den
@@ -59,7 +69,12 @@ export function Bereichswahl({
         und Reiter stehen bleiben. Schmaler blättert die ganze Seite – sonst
         bliebe hier ein Streifen von wenigen Pixeln übrig.
       */}
-      <div className="flex min-h-0 flex-col gap-4 pr-1 lg:flex-1 lg:overflow-y-auto">{children}</div>
+      <div
+        ref={inhalt}
+        className="flex min-h-0 flex-col gap-4 pr-1 lg:flex-1 lg:overflow-y-auto"
+      >
+        {children}
+      </div>
     </div>
   );
 }

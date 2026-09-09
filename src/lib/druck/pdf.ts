@@ -30,6 +30,7 @@ import fontkit from "@pdf-lib/fontkit";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
 import { garnname } from "@/lib/farbe/farbwort";
 import { cmText, sticheInCm, type PalettenEintrag } from "@/lib/muster/typen";
+import { freieFelder } from "@/lib/muster/raster";
 import { garnlaengeMeter, meterText } from "./garnverbrauch";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
@@ -59,6 +60,11 @@ export type Druckauftrag = {
   breite: number;
   hoehe: number;
   raster: Uint8Array;
+  /**
+   * Nur die Farben, die im Muster wirklich vorkommen. Angesprochen wird sie
+   * über `index` und nie über die Stelle in der Liste – Felder, die nicht
+   * gestickt werden, haben gar keinen Eintrag.
+   */
   palette: PalettenEintrag[];
   stoffzaehlung: number;
   t: Uebersetzer;
@@ -121,6 +127,20 @@ function blattplan(breite: number, hoehe: number): Blattplan {
   return { kaestchen, spaltenJeBlatt, reihenJeBlatt, blaetterWaagerecht, blaetterSenkrecht, blaetter };
 }
 
+/**
+ * Die Palette nach ihrem Index sortiert ablegen.
+ *
+ * Das Raster hält Indizes, die Liste ist aber gefiltert – die Stelle in der
+ * Liste sagt deshalb nichts über die Farbe. Ein Griff daneben würde ein
+ * Muster mit falschen Farben ausdrucken, und das fiele erst am Stickrahmen
+ * auf.
+ */
+function paletteNachIndex(palette: PalettenEintrag[]): Array<PalettenEintrag | undefined> {
+  const nachIndex: Array<PalettenEintrag | undefined> = [];
+  for (const eintrag of palette) nachIndex[eintrag.index] = eintrag;
+  return nachIndex;
+}
+
 /** Kopfzeile eines Blattes. */
 function kopfzeileZeichnen(
   seite: PDFPage,
@@ -168,6 +188,7 @@ function rasterBlattZeichnen(
   const { kaestchen } = plan;
   const spalten = blatt.x1 - blatt.x0;
   const reihen = blatt.y1 - blatt.y0;
+  const nachIndex = paletteNachIndex(auftrag.palette);
 
   const links = RAND + LEISTE;
   const oben = SEITE_HOEHE - RAND - KOPF_HOEHE - LEISTE;
@@ -178,7 +199,10 @@ function rasterBlattZeichnen(
   for (let y = 0; y < reihen; y++) {
     for (let x = 0; x < spalten; x++) {
       const index = auftrag.raster[(blatt.y0 + y) * auftrag.breite + (blatt.x0 + x)];
-      const eintrag = auftrag.palette[index];
+      const eintrag = nachIndex[index];
+      // Ohne Eintrag bleibt das Kästchen leer: dort wird nicht gestickt, und
+      // genau so soll es auf dem Papier auch aussehen – nur die Rasterlinien
+      // darum herum, damit sich weiterzählen lässt.
       if (!eintrag) continue;
 
       const px = links + x * kaestchen;
@@ -437,7 +461,9 @@ async function vorschauPng(auftrag: Druckauftrag): Promise<Uint8Array | null> {
   if (!stift) return null;
 
   const bild = stift.createImageData(auftrag.breite, auftrag.hoehe);
-  const farben = auftrag.palette.map((p) => hexNachRgb(p.hex));
+  const farben: Array<[number, number, number] | undefined> = [];
+  for (const eintrag of auftrag.palette) farben[eintrag.index] = hexNachRgb(eintrag.hex);
+  // Freie Felder werden weiß gezeigt: auf dem Papier ist das der Stoff.
   for (let i = 0; i < auftrag.raster.length; i++) {
     const farbe = farben[auftrag.raster[i]] ?? [255, 255, 255];
     bild.data[i * 4] = farbe[0];
@@ -463,6 +489,7 @@ async function vorschauSeite(
   const seite = pdf.addPage([SEITE_BREITE, SEITE_HOEHE]);
   const breiteCm = sticheInCm(auftrag.breite, auftrag.stoffzaehlung);
   const hoeheCm = sticheInCm(auftrag.hoehe, auftrag.stoffzaehlung);
+  const frei = freieFelder(auftrag.raster);
 
   kopfzeileZeichnen(
     seite,
@@ -474,11 +501,16 @@ async function vorschauSeite(
       hoehe: cmText(hoeheCm, auftrag.landeskennung),
       zaehlung: String(auftrag.stoffzaehlung),
     }),
+    // Freie Felder gehören in dieselbe Zeile wie Stiche und Farben: das ist
+    // die Zeile, die sagt, worauf man sich einstellen muss.
     auftrag.t("pdf.sticheFarben", {
       breite: String(auftrag.breite),
       hoehe: String(auftrag.hoehe),
       farben: String(auftrag.palette.length),
-    }),
+    }) +
+      (frei > 0
+        ? ` · ${auftrag.t("pdf.freieFelder", { anzahl: auftrag.zahl(frei) })}`
+        : ""),
   );
 
   const png = await vorschauPng(auftrag);

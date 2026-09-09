@@ -14,7 +14,7 @@
 
 import { ciede2000 } from "@/lib/farbe/ciede2000";
 import type { Lab } from "@/lib/farbe/lab";
-import type { PalettenEintrag } from "./typen";
+import { LEER, type PalettenEintrag } from "./typen";
 
 /** Die beiden Ebenen zu einem Raster zusammenführen. */
 export function zusammenfuehren(basis: Uint8Array, bearbeitung: Int16Array): Uint8Array {
@@ -65,9 +65,101 @@ export function bearbeitungUmschreiben(
   const ergebnis = new Int16Array(bearbeitung.length);
   for (let i = 0; i < bearbeitung.length; i++) {
     const alt = bearbeitung[i];
+    // Ein Feld, das nicht gestickt wird, bleibt ungestickt. Es hat keine
+    // Farbe, für die es eine nächstliegende neue Farbe geben könnte –
+    // ohne diese Zeile stünde nach jeder Änderung an der Farbanzahl
+    // wieder der ganze Hintergrund im Muster.
+    if (alt === LEER) {
+      ergebnis[i] = LEER;
+      continue;
+    }
     ergebnis[i] = alt < 0 ? -1 : (umschreibung[alt] ?? 0);
   }
   return ergebnis;
+}
+
+// ---------------------------------------------------------------------------
+// Nicht gestickte Felder
+// ---------------------------------------------------------------------------
+
+/**
+ * Nur die Auswahl sticken: alles andere wird zu freiem Stoff.
+ *
+ * Geschrieben wird in die **Bearbeitungsebene** und nicht in die Basis. Damit
+ * gehört das Freistellen zu den Handbearbeitungen: es lässt sich mit einem
+ * Tipp auf „Rückgängig“ zurücknehmen, es bleibt erhalten, wenn das Muster
+ * mit anderer Farbanzahl neu erzeugt wird, und es liegt in jedem
+ * gespeicherten Stand mit drin.
+ */
+export function nurAuswahlSticken(auswahl: Auswahl): { indizes: number[]; werte: number[] } {
+  const indizes: number[] = [];
+  const werte: number[] = [];
+  for (let i = 0; i < auswahl.maske.length; i++) {
+    if (auswahl.maske[i]) continue;
+    indizes.push(i);
+    werte.push(LEER);
+  }
+  return { indizes, werte };
+}
+
+/** Der umgekehrte Weg: genau das Ausgewählte wird nicht gestickt. */
+export function auswahlNichtSticken(auswahl: Auswahl): { indizes: number[]; werte: number[] } {
+  const indizes: number[] = [];
+  const werte: number[] = [];
+  for (let i = 0; i < auswahl.maske.length; i++) {
+    if (!auswahl.maske[i]) continue;
+    indizes.push(i);
+    werte.push(LEER);
+  }
+  return { indizes, werte };
+}
+
+/**
+ * Alles wieder sticken.
+ *
+ * Die freien Felder gehen auf -1 zurück, also auf „unberührt“. Damit
+ * kommt darunter wieder das erzeugte Muster zum Vorschein – und nicht etwa
+ * eine Farbe, die geraten werden müsste.
+ */
+export function allesWiederSticken(bearbeitung: Int16Array): { indizes: number[]; werte: number[] } {
+  const indizes: number[] = [];
+  const werte: number[] = [];
+  for (let i = 0; i < bearbeitung.length; i++) {
+    if (bearbeitung[i] !== LEER) continue;
+    indizes.push(i);
+    werte.push(-1);
+  }
+  return { indizes, werte };
+}
+
+/** Wie viele Felder bleiben frei? */
+export function freieFelder(raster: Uint8Array): number {
+  let anzahl = 0;
+  for (let i = 0; i < raster.length; i++) if (raster[i] === LEER) anzahl++;
+  return anzahl;
+}
+
+/**
+ * Die Palette mit den Stichzahlen, die wirklich im Raster stehen.
+ *
+ * Die Zahlen aus dem Worker gelten für das erzeugte Muster. Sobald von Hand
+ * gemalt oder etwas freigestellt wurde, stimmen sie nicht mehr – und die
+ * Garnliste ist genau die Stelle, an der es darauf ankommt: sie sagt, was
+ * gekauft werden muss. Deshalb wird sie vor dem Anzeigen und vor dem
+ * Ausdrucken neu gezählt. Das kostet einen Durchlauf über das Raster.
+ *
+ * Farben, die nicht mehr vorkommen, bleiben mit der Zahl 0 in der Liste
+ * stehen; wer sie aus der Anzeige haben will, filtert sie dort heraus. Die
+ * Reihenfolge und die Indizes bleiben, denn Raster und Palette hängen
+ * über genau diese Indizes zusammen.
+ */
+export function paletteNachzaehlen(
+  palette: PalettenEintrag[],
+  raster: Uint8Array,
+): PalettenEintrag[] {
+  const zaehler = new Int32Array(256);
+  for (let i = 0; i < raster.length; i++) zaehler[raster[i]]++;
+  return palette.map((eintrag) => ({ ...eintrag, stiche: zaehler[eintrag.index] }));
 }
 
 // ---------------------------------------------------------------------------

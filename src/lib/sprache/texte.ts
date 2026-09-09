@@ -153,6 +153,15 @@ export const DE = {
   "editor.auswahlFaerben": "Auswahl färben",
   "editor.auswahlKopieren": "Auswahl kopieren",
   "editor.alsMotivMerken": "Als Motiv merken",
+  "editor.nurDasSticken": "Nur das Ausgewählte sticken",
+  "editor.nurDasGestickt":
+    "Jetzt wird nur noch das Ausgewählte gestickt. Alles andere bleibt freier Stoff – mit „Rückgängig“ holen Sie es zurück.",
+  "editor.auswahlNichtSticken": "Das Ausgewählte nicht sticken",
+  "editor.auswahlWeggelassen":
+    "Diese Stelle bleibt jetzt freier Stoff. Mit „Rückgängig“ holen Sie sie zurück.",
+  "editor.wiederAllesSticken": "Wieder alles sticken",
+  "editor.wiederAllesGestickt": "Es wird wieder alles gestickt.",
+  "editor.freieFelder": "{anzahl} Felder bleiben frei – dort wird nicht gestickt.",
   "editor.auswahlAufheben": "Auswahl aufheben",
   "editor.kopiertHinweis": "Sie haben ein Stück von {w} × {h} Stichen kopiert.",
   "editor.kopieEinfuegen": "Kopie einfügen",
@@ -205,6 +214,9 @@ export const DE = {
 
   // --- Werkzeuge ---------------------------------------------------------
   "werkzeug.frage": "Womit möchten Sie arbeiten?",
+  "werkzeug.motiv": "Ganzes Motiv auswählen",
+  "werkzeug.motivText":
+    "Tippen Sie mitten in die Blume. Es wird alles ausgewählt, was farblich dazugehört – auch mehrere Farbtöne. Jedes weitere Motiv kommt mit einem Tipp dazu.",
   "werkzeug.flaeche": "Gleiche Fläche auswählen",
   "werkzeug.flaecheText":
     "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, wird ausgewählt.",
@@ -220,12 +232,23 @@ export const DE = {
   "werkzeug.fuellen": "Fläche färben",
   "werkzeug.fuellenText": "Tippen Sie in eine Fläche. Die ganze Fläche bekommt die gewählte Farbe.",
 
+  // --- Motiv aussuchen ---------------------------------------------------
+  "motivsuche.hinweis":
+    "Tippen Sie mitten in ein Motiv. Jedes weitere kommt dazu – noch einmal darauf tippen nimmt es wieder weg.",
+  "motivsuche.mehr": "Mehr dazunehmen",
+  "motivsuche.weniger": "Weniger dazunehmen",
+  "motivsuche.fastAlles":
+    "Ausgewählt ist fast das ganze Muster. Tippen Sie auf „Weniger dazunehmen“, wenn Sie nur ein Motiv möchten.",
+
   // --- Rückgängig-Schritte ------------------------------------------------
   "schrittname.gemalt": "Stiche gemalt",
   "schrittname.einStichGemalt": "Einen Stich gemalt",
   "schrittname.flaecheGefaerbt": "Fläche gefärbt",
   "schrittname.auswahlGefaerbt": "Auswahl gefärbt",
   "schrittname.stueckEingesetzt": "Stück eingesetzt",
+  "schrittname.freigestellt": "Motiv freigestellt",
+  "schrittname.nichtGestickt": "Stelle freigelassen",
+  "schrittname.wiederGestickt": "Wieder alles gestickt",
 
   // --- Glättung -----------------------------------------------------------
   "glaettung.frage": "Wie ruhig soll das Muster sein?",
@@ -332,25 +355,6 @@ export const DE = {
   "garne.zumEntfernen": "{name} · antippen zum Entfernen",
   "garne.hinzufuegen": "Garn hinzufügen",
   "garne.wirdGeholt": "Die Garnliste wird geholt …",
-  // --- Garnfarben einlesen (Knopf auf der Garnseite) ------------------------
-  "garne.fehlerRechte":
-    "Die Datenbank lässt die App noch nicht an die Garnliste. Führen Sie im SQL-Editor von Supabase die Datei 0001_schema.sql noch einmal aus – darin stehen die Rechte.",
-  "einlesen.titel": "Garnfarben einlesen",
-  "einlesen.erklaerung":
-    "In der Garnliste steht noch nichts. Die {anzahl} Ariadna-Farben gehören einmalig in die Datenbank – danach können Sie ankreuzen, was Sie zu Hause haben.",
-  "einlesen.knopf": "Ariadna-Farben jetzt einlesen",
-  "einlesen.laeuft": "Die Farben werden eingelesen. Das dauert einen Moment.",
-  "einlesen.fertig":
-    "Fertig: {anzahl} Ariadna-Farben stehen jetzt in der Garnliste. Sie können sie gleich unten antippen.",
-  "einlesen.nochmal": "Farben noch einmal einlesen",
-  "einlesen.schonDa":
-    "In der Garnliste stehen {anzahl} Farben. Ein zweites Einlesen ändert nichts daran, es schadet aber auch nicht.",
-  "einlesen.keinSchluessel":
-    "Zum Einlesen fehlt der Dienstschlüssel. Er muss beim Hoster unter dem Namen SUPABASE_SERVICE_ROLE_KEY eingetragen werden; danach muss die Seite einmal neu veröffentlicht werden.",
-  "einlesen.keineRechte":
-    "Die Datenbank lässt das Einlesen noch nicht zu. Führen Sie im SQL-Editor von Supabase die Datei 0001_schema.sql noch einmal aus – darin stehen die Rechte.",
-  "einlesen.schiefgegangen":
-    "Das Einlesen hat nicht geklappt. Bitte prüfen Sie die Verbindung und versuchen Sie es noch einmal.",
 
   "garne.listeLeer":
     "In der Garnliste steht noch nichts. Lesen Sie die Garnfarben mit dem Knopf weiter oben einmalig ein; solange das nicht geschehen ist, rechnet die App mit den Farben aus Ihrem Bild statt mit Herstellergarnen.",
@@ -376,8 +380,6 @@ export const DE = {
     "Die Garnliste konnte nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite noch einmal.",
   "garne.fehlerAendern":
     "Diese Änderung konnte nicht gespeichert werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und tippen Sie noch einmal darauf.",
-  "garne.fehlerGarnSetzen":
-    "Die neue Garnfarbe konnte nicht gespeichert werden. Sie sehen sie hier, aber beim nächsten Öffnen ist wieder die alte da.",
 
   // --- Schritt 4: Drucken --------------------------------------------------
   "druck.titel": "Muster drucken",
@@ -429,6 +431,7 @@ export const DE = {
   "pdf.spalteGarnNoetig": "Garn nötig",
   "pdf.eigeneFarbe": "eigene Farbe",
   "pdf.summe": "Zusammen {stiche} Stiche und ungefähr {garn} Garn.",
+  "pdf.freieFelder": "{anzahl} Felder bleiben frei",
   "pdf.blattTitel": "{name} – {fassung}",
   "pdf.inFarbe": "in Farbe",
   "pdf.schwarzweiss": "schwarzweiß",
@@ -601,6 +604,15 @@ export const PL: Record<Textschluessel, string> = {
   "editor.auswahlFaerben": "Pokoloruj zaznaczenie",
   "editor.auswahlKopieren": "Skopiuj zaznaczenie",
   "editor.alsMotivMerken": "Zapamiętaj jako motyw",
+  "editor.nurDasSticken": "Haftuj tylko zaznaczone",
+  "editor.nurDasGestickt":
+    "Teraz haftowane będzie tylko zaznaczone. Cała reszta zostaje pustą kanwą – przyciskiem „Cofnij” można ją przywrócić.",
+  "editor.auswahlNichtSticken": "Nie haftuj zaznaczonego",
+  "editor.auswahlWeggelassen":
+    "To miejsce zostaje pustą kanwą. Przyciskiem „Cofnij” można je przywrócić.",
+  "editor.wiederAllesSticken": "Znów haftuj wszystko",
+  "editor.wiederAllesGestickt": "Znów haftowane jest wszystko.",
+  "editor.freieFelder": "{anzahl} pól zostaje pustych – tam się nie haftuje.",
   "editor.auswahlAufheben": "Usuń zaznaczenie",
   "editor.kopiertHinweis": "Skopiowano kawałek {w} × {h} ściegów.",
   "editor.kopieEinfuegen": "Wstaw kopię",
@@ -649,6 +661,9 @@ export const PL: Record<Textschluessel, string> = {
   "bereich.merken": "Zapamiętane",
 
   "werkzeug.frage": "Czym chce Pani pracować?",
+  "werkzeug.motiv": "Zaznacz cały motyw",
+  "werkzeug.motivText":
+    "Proszę dotknąć środka kwiatka. Zaznaczy się wszystko, co pasuje do niego kolorem – także kilka odcieni. Każdy następny motyw dochodzi jednym dotknięciem.",
   "werkzeug.flaeche": "Zaznacz tę samą powierzchnię",
   "werkzeug.flaecheText":
     "Proszę dotknąć powierzchni. Zaznaczy się wszystko, co się z nią łączy i ma ten sam kolor.",
@@ -664,11 +679,22 @@ export const PL: Record<Textschluessel, string> = {
   "werkzeug.fuellen": "Pokoloruj powierzchnię",
   "werkzeug.fuellenText": "Proszę dotknąć powierzchni. Cała dostanie wybrany kolor.",
 
+  // --- Motiv aussuchen ---------------------------------------------------
+  "motivsuche.hinweis":
+    "Proszę dotknąć środka motywu. Każdy następny dochodzi – dotknięcie go jeszcze raz usuwa go z zaznaczenia.",
+  "motivsuche.mehr": "Weź więcej",
+  "motivsuche.weniger": "Weź mniej",
+  "motivsuche.fastAlles":
+    "Zaznaczony jest prawie cały wzór. Proszę dotknąć „Weź mniej”, jeśli chodzi tylko o jeden motyw.",
+
   "schrittname.gemalt": "Namalowane ściegi",
   "schrittname.einStichGemalt": "Namalowany jeden ścieg",
   "schrittname.flaecheGefaerbt": "Pokolorowana powierzchnia",
   "schrittname.auswahlGefaerbt": "Pokolorowane zaznaczenie",
   "schrittname.stueckEingesetzt": "Wstawiony kawałek",
+  "schrittname.freigestellt": "Wybrany sam motyw",
+  "schrittname.nichtGestickt": "Miejsce zostawione puste",
+  "schrittname.wiederGestickt": "Znów haftowane wszystko",
 
   "glaettung.frage": "Jak spokojny ma być wzór?",
   "glaettung.erklaerung":
@@ -771,25 +797,6 @@ export const PL: Record<Textschluessel, string> = {
   "garne.zumEntfernen": "{name} · dotknij, aby usunąć",
   "garne.hinzufuegen": "Dodaj nitkę",
   "garne.wirdGeholt": "Pobieranie listy nici …",
-  // --- Garnfarben einlesen (Knopf auf der Garnseite) ------------------------
-  "garne.fehlerRechte":
-    "Baza danych jeszcze nie wpuszcza aplikacji do listy nici. Proszę wykonać w edytorze SQL Supabase plik 0001_schema.sql jeszcze raz – są w nim uprawnienia.",
-  "einlesen.titel": "Wczytanie kolorów nici",
-  "einlesen.erklaerung":
-    "Lista nici jest jeszcze pusta. {anzahl} kolorów Ariadny trzeba raz wczytać do bazy – potem można zaznaczać te, które ma Pani w domu.",
-  "einlesen.knopf": "Wczytaj teraz kolory Ariadny",
-  "einlesen.laeuft": "Kolory są wczytywane. To chwilę potrwa.",
-  "einlesen.fertig":
-    "Gotowe: na liście jest teraz {anzahl} kolorów Ariadny. Można je od razu zaznaczać poniżej.",
-  "einlesen.nochmal": "Wczytaj kolory jeszcze raz",
-  "einlesen.schonDa":
-    "Na liście nici jest {anzahl} kolorów. Ponowne wczytanie niczego nie zmieni, ale też nie zaszkodzi.",
-  "einlesen.keinSchluessel":
-    "Do wczytania brakuje klucza serwisowego. Trzeba go wpisać u dostawcy hostingu pod nazwą SUPABASE_SERVICE_ROLE_KEY, a potem raz opublikować stronę na nowo.",
-  "einlesen.keineRechte":
-    "Baza danych jeszcze nie pozwala na wczytanie. Proszę wykonać w edytorze SQL Supabase plik 0001_schema.sql jeszcze raz – są w nim uprawnienia.",
-  "einlesen.schiefgegangen":
-    "Wczytanie się nie udało. Proszę sprawdzić połączenie i spróbować jeszcze raz.",
 
   "garne.listeLeer":
     "Na liście nici nie ma jeszcze nic. Proszę raz wczytać kolory przyciskiem powyżej; dopóki to nie nastąpi, program liczy kolorami ze zdjęcia zamiast nićmi producenta.",
@@ -815,8 +822,6 @@ export const PL: Record<Textschluessel, string> = {
     "Nie udało się pobrać listy nici. Proszę sprawdzić połączenie z internetem i wczytać stronę jeszcze raz.",
   "garne.fehlerAendern":
     "Nie udało się zapisać tej zmiany. Proszę sprawdzić połączenie z internetem i dotknąć jeszcze raz.",
-  "garne.fehlerGarnSetzen":
-    "Nie udało się zapisać nowego koloru nitki. Widzi go Pani tutaj, ale przy następnym otwarciu wróci stary.",
 
   "druck.titel": "Drukowanie wzoru",
   "druck.knopf": "Drukuj wzór",
@@ -866,6 +871,7 @@ export const PL: Record<Textschluessel, string> = {
   "pdf.spalteGarnNoetig": "Potrzeba nici",
   "pdf.eigeneFarbe": "własny kolor",
   "pdf.summe": "Razem {stiche} ściegów i około {garn} nici.",
+  "pdf.freieFelder": "{anzahl} pól zostaje pustych",
   "pdf.blattTitel": "{name} – {fassung}",
   "pdf.inFarbe": "w kolorze",
   "pdf.schwarzweiss": "czarno-biały",

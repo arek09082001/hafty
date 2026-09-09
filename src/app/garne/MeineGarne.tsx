@@ -6,10 +6,8 @@ import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Dialog } from "@/components/Dialog";
 import { Garnwahl } from "@/components/Garnwahl";
-import { Garneinlesen } from "@/components/Garneinlesen";
 import {
   garneLaden,
-  Ladefehler,
   vorratAufnehmen,
   vorratEntfernen,
   vorratAlleAufnehmen,
@@ -34,9 +32,6 @@ export function MeineGarne() {
   const [gingSchief, setGingSchief] = useState(false);
   const { t, zahl } = useSprache();
   const [fehler, setFehler] = useState<Textschluessel | null>(null);
-  const [ladefehler, setLadefehler] = useState<Textschluessel>("garne.fehlerLaden");
-  const [nachladen, setNachladen] = useState(0);
-  const [einlesenZeigen, setEinlesenZeigen] = useState(false);
   const [nurMeine, setNurMeine] = useState(false);
   const [leerenFragen, setLeerenFragen] = useState(false);
   const [arbeitet, setArbeitet] = useState(false);
@@ -48,16 +43,12 @@ export function MeineGarne() {
         if (!abgebrochen) {
           setGarne(liste);
           setGingSchief(false);
-          if (liste.length === 0) setEinlesenZeigen(true);
         }
       })
-      .catch((fehler: unknown) => {
+      .catch(() => {
         if (!abgebrochen) {
-          const rechte = fehler instanceof Ladefehler && fehler.grund === "rechte";
           setGingSchief(true);
-          setEinlesenZeigen(true);
-          setLadefehler(rechte ? "garne.fehlerRechte" : "garne.fehlerLaden");
-          setFehler(rechte ? "garne.fehlerRechte" : "garne.fehlerLaden");
+          setFehler("garne.fehlerLaden");
         }
       })
       .finally(() => {
@@ -66,7 +57,7 @@ export function MeineGarne() {
     return () => {
       abgebrochen = true;
     };
-  }, [nachladen]);
+  }, []);
 
   async function umschalten(garn: GarnMitVorrat) {
     const neu = !garn.imVorrat;
@@ -135,17 +126,13 @@ export function MeineGarne() {
           </div>
         ) : null}
 
-        {einlesenZeigen ? (
-          <Garneinlesen onFertig={() => setNachladen((n) => n + 1)} />
-        ) : null}
-
         <section className="flex flex-col gap-4">
           <h2 className="text-[1.4rem] font-bold">{t("garne.hinzufuegen")}</h2>
 
           {!geladen ? (
             <p className="text-[1.05rem] text-gedaempft">{t("garne.wirdGeholt")}</p>
           ) : gingSchief ? (
-            <Hinweis art="fehler">{t(ladefehler)}</Hinweis>
+            <Hinweis art="fehler">{t("garne.fehlerLaden")}</Hinweis>
           ) : garne.length === 0 ? (
             <Hinweis>{t("garne.listeLeer")}</Hinweis>
           ) : (

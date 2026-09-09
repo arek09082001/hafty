@@ -7,13 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "garne-importieren": "node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/garne-importieren.ts",
     "beispielbilder": "node scripts/beispielbilder-erzeugen.mjs",
-    "garne-ableiten": "node scripts/garne-ableiten.mjs"
+    "garne-ableiten": "node scripts/garne-ableiten.mjs",
+    "garnkatalog": "node scripts/garnkatalog-erzeugen.mjs",
+    "symbole": "node scripts/symbole-erzeugen.mjs"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
-    "@supabase/supabase-js": "^2.115.0",
     "idb": "^8.0.3",
     "next": "16.3.4",
     "pdf-lib": "^1.17.1",
