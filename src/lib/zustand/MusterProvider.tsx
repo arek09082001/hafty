@@ -392,9 +392,25 @@ export function MusterProvider({ children }: { children: ReactNode }) {
 
   const { muster } = zustand;
 
+  /**
+   * Für welches Bild der Worker seine Zwischenergebnisse hält.
+   *
+   * Der Worker behält Rasterbild, Palette und Abstandsliste zwischen zwei
+   * Aufträgen – davon leben beide Regler. Nur lebt er kürzer als das Muster:
+   * beim Neuladen der Seite kommt der Arbeitsstand aus der Datenbank zurück,
+   * der Worker ist aber neu und weiß von nichts. Wer dann am Regler zog,
+   * bekam „Es ist noch kein Muster da" zu lesen, obwohl das Muster vor ihm
+   * auf dem Bildschirm stand.
+   *
+   * Deshalb wird hier mitgeschrieben, worauf der Worker gerade eingerichtet
+   * ist. Passt es nicht, holt `nachrechnen` die Vorarbeit von selbst nach.
+   */
+  const workerBereitFuer = useRef<string | null>(null);
+
   // --- Worker ---------------------------------------------------------------
   const workerHolen = useCallback(() => {
     if (!worker.current) {
+      workerBereitFuer.current = null;
       worker.current = new Worker(new URL("../worker/muster.worker.ts", import.meta.url), {
         type: "module",
       });
@@ -415,6 +431,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     return () => {
       eigen.current?.terminate();
       eigen.current = null;
+      workerBereitFuer.current = null;
     };
   }, []);
 
@@ -652,6 +669,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         setFehler(antwort.text);
         return false;
       }
+      workerBereitFuer.current = bild.kennung;
 
       // Handbearbeitungen aus einem früheren Durchlauf übernehmen, indem
       // ihre Farben auf die neue Palette umgeschrieben werden.
@@ -717,6 +735,18 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   const rechnenLaeuft = useRef(false);
   const offenerWunsch = useRef<Wunsch | null>(null);
 
+  // Die Rechenschleife läuft über mehrere Runden weiter und darf dabei nicht
+  // auf einem alten Muster sitzen bleiben – deshalb über Refs statt über die
+  // Abhängigkeiten des Callbacks.
+  const musterRef = useRef(muster);
+  const bildRef = useRef(bild);
+  useEffect(() => {
+    musterRef.current = muster;
+  }, [muster]);
+  useEffect(() => {
+    bildRef.current = bild;
+  }, [bild]);
+
   const nachrechnen = useCallback(
     async (wunsch: Wunsch) => {
       rechnenLaeuft.current = true;
@@ -726,23 +756,56 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         let naechster: Wunsch | null = wunsch;
         while (naechster !== null) {
           const werte = glaettungswerte(naechster.staerke);
-          const antwort = await anWorkerSenden(
-            workerHolen(),
-            wartend,
-            naechster.farbenNeu
-              ? {
-                  art: "farben",
-                  farbanzahl: naechster.farbanzahl,
-                  lambda: werte.lambda,
-                  mindestFlaeche: werte.mindestFlaeche,
-                  garne,
-                }
-              : { art: "glaetten", lambda: werte.lambda, mindestFlaeche: werte.mindestFlaeche },
-          );
+          const jetzt = musterRef.current;
+          const quelle = bildRef.current;
+
+          // Hält der Worker die Vorarbeit noch? Nach einem Neuladen der Seite
+          // nicht – dann wird sie hier aus dem Bild nachgeholt, in genau der
+          // Größe des Musters, das gerade auf dem Bildschirm steht. So passen
+          // die Raster aufeinander und die eigenen Stiche der Nutzerin
+          // überleben den Umweg (siehe „geglaettet" im Reduzierer).
+          const nachzuholen =
+            quelle !== null && jetzt !== null && workerBereitFuer.current !== quelle.kennung;
+
+          let auftrag: AnWorker;
+          let mitgeben: Transferable[] = [];
+
+          if (nachzuholen) {
+            const a = quelle.ausschnitt;
+            const bitmap = await createImageBitmap(quelle.blob, a.x, a.y, a.breite, a.hoehe);
+            auftrag = {
+              art: "erzeugen",
+              bild: bitmap,
+              breiteStiche: jetzt.breite,
+              hoeheStiche: jetzt.hoehe,
+              farbanzahl: naechster.farbanzahl,
+              lambda: werte.lambda,
+              mindestFlaeche: werte.mindestFlaeche,
+              garne,
+            };
+            mitgeben = [bitmap];
+          } else if (naechster.farbenNeu) {
+            auftrag = {
+              art: "farben",
+              farbanzahl: naechster.farbanzahl,
+              lambda: werte.lambda,
+              mindestFlaeche: werte.mindestFlaeche,
+              garne,
+            };
+          } else {
+            auftrag = {
+              art: "glaetten",
+              lambda: werte.lambda,
+              mindestFlaeche: werte.mindestFlaeche,
+            };
+          }
+
+          const antwort = await anWorkerSenden(workerHolen(), wartend, auftrag, mitgeben);
 
           if (antwort.art === "fehler") {
             setFehler(antwort.text);
           } else {
+            if (nachzuholen && quelle) workerBereitFuer.current = quelle.kennung;
             ausloesen({ art: "geglaettet", antwort });
           }
 
