@@ -496,16 +496,39 @@ hier eigentlich tun?"
 
 Darunter zeigen vier Reiter, was zum Werkzeug gehört:
 
-- **Ändern** richtet sich nach dem Werkzeug. Bei den Auswahlwerkzeugen stehen
-  dort die Knöpfe für das Ausgewählte – **immer sichtbar**, ohne Auswahl grau.
-  Vorher tauchten sie erst nach dem ersten Tipp auf; wer nicht wusste, dass es
-  sie gibt, erfuhr nie, wozu das Auswählen überhaupt gut ist. Bei Pinsel und
-  Farbeimer steht dort die Farbwahl als Kacheln, denn die Farbe gehört zum
-  Malen und nicht in einen anderen Reiter.
+- **Ändern** richtet sich nach dem Werkzeug. Bei den Auswahlwerkzeugen steht
+  dort der Auswahlbereich (siehe unten). Bei Pinsel und Farbeimer steht dort
+  die Farbwahl als Kacheln, denn die Farbe gehört zum Malen und nicht in einen
+  anderen Reiter.
 - **Garne** ist die ausführliche Liste mit Marke, Nummer und Verbrauch.
 - **Muster** trägt die Maße, den Glättungsregler und die Meldung über
   zusammengelegte Farben.
 - **Gemerkt** hält frühere Stände und eigene Motive.
+
+### Auswählen: zwei Zustände, keine toten Knöpfe
+
+Im Auswahlbereich standen zuerst immer alle sechs Knöpfe, und solange nichts
+ausgewählt war, waren alle sechs grau. Gemeint war das als Angebot („seht
+her, das ginge"), angekommen ist es als Rätsel: sechs tote Knöpfe, und keiner
+sagt, warum er nicht geht oder welchen man zuerst braucht.
+
+`src/components/Auswahlbereich.tsx` zeigt deshalb genau einen von zwei
+Zuständen:
+
+- **Noch nichts ausgewählt:** kein einziger Knopf. Stattdessen der Griff, der
+  jetzt dran ist – der Satz zum gewählten Werkzeug, also „Tippen Sie mitten
+  in die Blume" oder „Ziehen Sie einen Rahmen auf" –, und darunter in Worten,
+  wozu das gut sein wird. Nichts zu drücken heißt: der nächste Schritt liegt
+  im Muster und nicht in dieser Spalte.
+- **Etwas ausgewählt:** die Zahl der Stiche als Überschrift, dann die Knöpfe,
+  alle benutzbar. Zuoberst und größer als der Rest „Nur das sticken" – das
+  ist der Grund, aus dem man überhaupt auswählt –, darunter „Das hier
+  weglassen", beide mit einem Satz, was danach anders ist. Erst dann Färben,
+  Kopieren und Merken, und ganz unten leise der Weg zurück.
+
+Die Rangfolge läuft über Größe und Reihenfolge, nicht über Farbe: grün
+gefüllt bleibt genau ein Ding je Bildschirm, und das ist „Weiter zum Drucken"
+unten rechts.
 
 ## Aufbau des Projekts
 
