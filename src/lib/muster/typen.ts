@@ -186,10 +186,21 @@ export function einstellungenLesen(gespeichert: unknown): Einstellungen {
   return {
     breiteStiche: zahl(roh.breiteStiche, STANDARD_EINSTELLUNGEN.breiteStiche),
     stoffzaehlung: zahl(roh.stoffzaehlung, STANDARD_EINSTELLUNGEN.stoffzaehlung),
-    farbanzahl: zahl(roh.farbanzahl, STANDARD_EINSTELLUNGEN.farbanzahl),
+    farbanzahl: farbanzahlBegrenzen(zahl(roh.farbanzahl, STANDARD_EINSTELLUNGEN.farbanzahl)),
     glaettungsstaerke: glaettungBegrenzen(staerke),
     nurEigeneGarne: roh.nurEigeneGarne === true,
   };
+}
+
+/**
+ * Eine gewünschte Farbzahl auf das Machbare begrenzen.
+ *
+ * Sie steht nicht mehr nur in Schritt 2, sondern lässt sich im Editor am
+ * Regler ändern – und ein Regler liefert auch Zwischenwerte und Unsinn.
+ */
+export function farbanzahlBegrenzen(anzahl: number): number {
+  if (!Number.isFinite(anzahl)) return STANDARD_EINSTELLUNGEN.farbanzahl;
+  return Math.min(MAX_FARBEN, Math.max(MIN_FARBEN, Math.round(anzahl)));
 }
 
 /** Übliche Stoffzählungen. */
