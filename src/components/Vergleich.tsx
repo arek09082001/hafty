@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import { Knopf } from "./Knopf";
 import { Hinweis } from "./Hinweis";
 import { Rasteransicht } from "./Rasteransicht";
@@ -10,23 +11,30 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { PalettenEintrag } from "@/lib/muster/typen";
 
 /**
- * Zwei Stände nebeneinander.
+ * Alle Versionen eines Musters auf einen Blick.
  * ---------------------------------------------------------------------------
  *
- * Der Grund, warum es das gibt: „einmal habe ich mehr Farben genommen,
- * einmal die Größe geändert – welches war besser?" Diese Frage lässt sich an
- * zwei Bildchen von 140 Punkten Breite nicht beantworten. Hier bekommt jeder
- * der beiden Stände die halbe Bildschirmfläche, und beide zeigen denselben
- * Ausschnitt in derselben Vergrößerung: geschoben und vergrößert wird immer
- * für beide gleichzeitig, sonst vergleicht man zwei verschiedene Stellen.
+ * Zuerst waren das zwei Fassungen nebeneinander, jede mit eigenen
+ * Blätterknöpfen. Das war nicht zu bedienen: wer wissen will, welche der acht
+ * Fassungen ihm gefällt, müsste sie paarweise durchgehen und dabei im Kopf
+ * behalten, welche er schon gesehen hat. Zwei Bilder nebeneinander helfen,
+ * wenn man die beiden schon kennt – nicht beim Suchen.
  *
- * Geblättert wird links und rechts einzeln („Früherer Stand" / „Späterer
- * Stand"), damit man einen festhalten und am anderen entlanggehen kann. Die
- * beiden Knöpfe heißen nach der Zeit und nicht nach einer Richtung: eine
- * Nutzerin denkt in „vorher" und „nachher", nicht in „vorwärts".
+ * Deshalb: **erst die Übersicht, dann das Einzelne.** Alle Versionen liegen
+ * als Kacheln da, so wie Fotos auf dem Tisch. Man sieht auf einen Schlag, wo
+ * es dunkler wurde, wo mehr Farben dazukamen, welche die schmale war. Ein
+ * Tipp auf eine Kachel macht genau die groß, und dort geht es mit zwei
+ * Knöpfen weiter durch die Reihe.
+ *
+ * Die Kacheln zeigen das gespeicherte Vorschaubild – es liegt neben jedem
+ * Stand und ist sofort da. Erst die große Ansicht rechnet das volle Raster
+ * aus, denn dort will man die Kästchen zählen können.
  */
 
-/** Wie weit sich beide Seiten gemeinsam vergrößern lassen. 1 = eingepasst. */
+/** Wie groß eine Kachel mindestens ist. Drei Stufen, mehr braucht niemand. */
+const KACHELBREITEN = [200, 300, 420] as const;
+
+/** Vergrößerung in der großen Ansicht. 1 = ganzes Muster zu sehen. */
 const LUPE_STUFEN = [1, 1.5, 2, 3, 4, 6, 8] as const;
 
 type Geladen = {
@@ -46,12 +54,13 @@ export function Vergleich({
   musterId: string | null;
   offen: boolean;
   onSchliessen: () => void;
-  /** Fehlt sie, wird nur verglichen und nichts verändert. */
+  /** Fehlt sie, wird nur angesehen und nichts verändert. */
   onWiederherstellen?: (stand: Stand) => Promise<void> | void;
-  /** Womit rechts angefangen wird – sonst mit dem neuesten Stand. */
+  /** Welche Version die gerade bearbeitete ist – sie wird gekennzeichnet. */
   startStandId?: string | null;
 }) {
   const { t, sprache, zahl } = useSprache();
+
   /**
    * Der Schlüssel sagt, zu welchem Muster die geladene Liste gehört. Solange
    * er nicht zum gewünschten passt, wird noch geholt – so braucht es kein
@@ -63,18 +72,21 @@ export function Vergleich({
     staende: Stand[];
     ging: boolean;
   } | null>(null);
-  const [links, setLinks] = useState(1);
-  const [rechts, setRechts] = useState(0);
-  /**
-   * Die schon geholten Raster. Sie bleiben auch nach dem Schließen liegen:
-   * ein gespeicherter Stand ändert sich nie, und beim Blättern hin und her
-   * soll nichts warten.
-   */
-  const [inhalte, setInhalte] = useState<Record<string, Geladen>>({});
-  const angefasst = useRef(new Set<string>());
+
+  /** Welche Version gerade groß zu sehen ist – sonst liegt die Übersicht da. */
+  const [gross, setGross] = useState<number | null>(null);
+  const [kachelStufe, setKachelStufe] = useState(1);
   const [lupeStufe, setLupeStufe] = useState(0);
   const [mitte, setMitte] = useState({ x: 0.5, y: 0.5 });
   const [holtGerade, setHoltGerade] = useState(false);
+
+  /**
+   * Die schon geholten Raster der großen Ansicht. Sie bleiben liegen: ein
+   * gespeicherter Stand ändert sich nie, und beim Durchblättern soll nichts
+   * warten.
+   */
+  const [inhalte, setInhalte] = useState<Record<string, Geladen>>({});
+  const angefasst = useRef(new Set<string>());
 
   const passt = geladen?.schluessel === schluessel;
   const staende = passt ? geladen.staende : null;
@@ -90,12 +102,7 @@ export function Vergleich({
       .then((liste) => {
         if (abgebrochen) return;
         setGeladen({ schluessel: musterId, staende: liste, ging: true });
-        const gewaehlt = startStandId ? liste.findIndex((s) => s.id === startStandId) : 0;
-        const rechteSeite = gewaehlt >= 0 ? gewaehlt : 0;
-        setRechts(rechteSeite);
-        // Links steht der Stand davor – das ist der Vergleich, den man
-        // fast immer meint: was hat der letzte Schritt verändert?
-        setLinks(Math.min(liste.length - 1, rechteSeite + 1));
+        setGross(null);
         setLupeStufe(0);
         setMitte({ x: 0.5, y: 0.5 });
       })
@@ -105,31 +112,23 @@ export function Vergleich({
     return () => {
       abgebrochen = true;
     };
-  }, [offen, musterId, startStandId]);
+  }, [offen, musterId]);
 
-  // --- Die beiden gezeigten Stände laden -----------------------------------
-  const linkerStand = staende?.[links] ?? null;
-  const rechterStand = staende?.[rechts] ?? null;
+  // --- Für die große Ansicht das volle Raster holen -------------------------
+  const grosserStand = gross !== null ? (staende?.[gross] ?? null) : null;
 
   useEffect(() => {
-    if (!offen) return;
+    if (!offen || !grosserStand || angefasst.current.has(grosserStand.id)) return;
+    const stand = grosserStand;
+    angefasst.current.add(stand.id);
     let abgebrochen = false;
 
-    // Ein Stand wird genau einmal geholt und bleibt dann liegen: beim
-    // Blättern hin und her soll nichts warten.
-    const fehlende = [linkerStand, rechterStand].filter(
-      (s): s is Stand => s !== null && !angefasst.current.has(s.id),
-    );
-    if (fehlende.length === 0) return;
-    for (const stand of fehlende) angefasst.current.add(stand.id);
-
-    (async () => {
-      for (const stand of fehlende) {
-        const inhalt = await standHolen(stand);
+    standHolen(stand)
+      .then((inhalt) => {
         if (abgebrochen) return;
         if (!inhalt) {
           angefasst.current.delete(stand.id);
-          continue;
+          return;
         }
         setInhalte((bisher) => ({
           ...bisher,
@@ -140,194 +139,282 @@ export function Vergleich({
             palette: inhalt.palette,
           },
         }));
-      }
-    })();
+      })
+      .catch(() => {
+        angefasst.current.delete(stand.id);
+      });
 
     return () => {
       abgebrochen = true;
     };
-  }, [offen, linkerStand, rechterStand]);
+  }, [offen, grosserStand]);
 
-  const lupe = LUPE_STUFEN[lupeStufe];
-
-  const schieben = useCallback((dx: number, dy: number) => {
-    setMitte((m) => ({
-      x: Math.min(1, Math.max(0, m.x + dx)),
-      y: Math.min(1, Math.max(0, m.y + dy)),
-    }));
-  }, []);
-
-  const wiederherstellen = async (stand: Stand) => {
+  async function wiederherstellen(stand: Stand) {
     if (!onWiederherstellen) return;
     setHoltGerade(true);
     await onWiederherstellen(stand);
     setHoltGerade(false);
     onSchliessen();
-  };
-
-  const unterschied = useMemo(() => {
-    if (!linkerStand || !rechterStand) return null;
-    const farben = rechterStand.farben - linkerStand.farben;
-    const breiteLinks = linkerStand.breite ?? inhalte[linkerStand.id]?.breite ?? null;
-    const breiteRechts = rechterStand.breite ?? inhalte[rechterStand.id]?.breite ?? null;
-    const groesse =
-      breiteLinks !== null && breiteRechts !== null ? breiteRechts - breiteLinks : null;
-    return { farben, groesse };
-  }, [linkerStand, rechterStand, inhalte]);
+  }
 
   if (!offen) return null;
 
+  /** Die Angaben unter jeder Kachel und in der großen Ansicht. */
+  const angaben = (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) =>
+    t("vergleich.angaben", {
+      farben: zahl(stand.farben),
+      breite: zahl(stand.breite ?? breiteErsatz ?? 0),
+      hoehe: zahl(stand.hoehe ?? hoeheErsatz ?? 0),
+    });
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-papier">
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-linie px-4 py-3">
-        <div>
-          <h2 className="text-[1.3rem] font-bold leading-tight">{t("vergleich.titel")}</h2>
-          <p className="text-[1rem] text-gedaempft">{t("vergleich.erklaerung")}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Knopf klein onClick={() => setLupeStufe((s) => Math.max(0, s - 1))} disabled={lupeStufe === 0}>
-            {t("vergleich.lupeKleiner")}
-          </Knopf>
-          <Knopf
-            klein
-            onClick={() => setLupeStufe((s) => Math.min(LUPE_STUFEN.length - 1, s + 1))}
-            disabled={lupeStufe === LUPE_STUFEN.length - 1}
-          >
-            {t("vergleich.lupeGroesser")}
-          </Knopf>
-          <Knopf
-            klein
-            onClick={() => {
-              setLupeStufe(0);
-              setMitte({ x: 0.5, y: 0.5 });
-            }}
-          >
-            {t("vergleich.einpassen")}
-          </Knopf>
-          <Knopf
-            klein
-            onClick={() => {
-              setLinks(rechts);
-              setRechts(links);
-            }}
-          >
-            {t("vergleich.tauschen")}
-          </Knopf>
-          <Knopf art="haupt" onClick={onSchliessen}>
-            {t("vergleich.fertig")}
-          </Knopf>
-        </div>
-      </header>
-
       {gingSchief ? (
-        <div className="p-5">
-          <Hinweis art="fehler">{t("staende.fehlerLaden")}</Hinweis>
-        </div>
-      ) : !staende ? (
-        <p className="p-5 text-[1.05rem] text-gedaempft">{t("staende.wirdGeholt")}</p>
-      ) : staende.length < 2 ? (
-        <div className="p-5">
-          <Hinweis>{t("vergleich.zuWenige")}</Hinweis>
-        </div>
-      ) : (
         <>
-          <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 lg:flex-row">
-            <Vergleichsseite
-              stand={linkerStand}
-              geladen={linkerStand ? (inhalte[linkerStand.id] ?? null) : null}
-              lupe={lupe}
-              mitte={mitte}
-              onSchieben={schieben}
-              zeit={zeit}
-              zahl={zahl}
-              kannFrueher={links < staende.length - 1}
-              kannSpaeter={links > 0}
-              onFrueher={() => setLinks((i) => Math.min(staende.length - 1, i + 1))}
-              onSpaeter={() => setLinks((i) => Math.max(0, i - 1))}
-              onWiederherstellen={onWiederherstellen ? wiederherstellen : undefined}
-              holtGerade={holtGerade}
-            />
-            <Vergleichsseite
-              stand={rechterStand}
-              geladen={rechterStand ? (inhalte[rechterStand.id] ?? null) : null}
-              lupe={lupe}
-              mitte={mitte}
-              onSchieben={schieben}
-              zeit={zeit}
-              zahl={zahl}
-              kannFrueher={rechts < staende.length - 1}
-              kannSpaeter={rechts > 0}
-              onFrueher={() => setRechts((i) => Math.min(staende.length - 1, i + 1))}
-              onSpaeter={() => setRechts((i) => Math.max(0, i - 1))}
-              onWiederherstellen={onWiederherstellen ? wiederherstellen : undefined}
-              holtGerade={holtGerade}
-            />
+          <Kopf titel={t("vergleich.titel")} onSchliessen={onSchliessen} t={t} />
+          <div className="p-5">
+            <Hinweis art="fehler">{t("staende.fehlerLaden")}</Hinweis>
           </div>
+        </>
+      ) : !staende ? (
+        <>
+          <Kopf titel={t("vergleich.titel")} onSchliessen={onSchliessen} t={t} />
+          <p className="p-5 text-[1.05rem] text-gedaempft">{t("staende.wirdGeholt")}</p>
+        </>
+      ) : grosserStand ? (
+        // ------------------------------------------------------------------
+        // Eine Version groß
+        // ------------------------------------------------------------------
+        <GrosseAnsicht
+          stand={grosserStand}
+          geladen={inhalte[grosserStand.id] ?? null}
+          nummer={staende.length - (gross ?? 0)}
+          gesamt={staende.length}
+          lupe={LUPE_STUFEN[lupeStufe]}
+          mitte={mitte}
+          onSchieben={(dx, dy) =>
+            setMitte((m) => ({
+              x: Math.min(1, Math.max(0, m.x + dx)),
+              y: Math.min(1, Math.max(0, m.y + dy)),
+            }))
+          }
+          kannKleiner={lupeStufe > 0}
+          kannGroesser={lupeStufe < LUPE_STUFEN.length - 1}
+          onKleiner={() => setLupeStufe((s) => Math.max(0, s - 1))}
+          onGroesser={() => setLupeStufe((s) => Math.min(LUPE_STUFEN.length - 1, s + 1))}
+          onEinpassen={() => {
+            setLupeStufe(0);
+            setMitte({ x: 0.5, y: 0.5 });
+          }}
+          kannFrueher={(gross ?? 0) < staende.length - 1}
+          kannSpaeter={(gross ?? 0) > 0}
+          onFrueher={() => {
+            setGross((i) => Math.min(staende.length - 1, (i ?? 0) + 1));
+            setMitte({ x: 0.5, y: 0.5 });
+          }}
+          onSpaeter={() => {
+            setGross((i) => Math.max(0, (i ?? 0) - 1));
+            setMitte({ x: 0.5, y: 0.5 });
+          }}
+          onZurueck={() => setGross(null)}
+          onSchliessen={onSchliessen}
+          onNehmen={onWiederherstellen ? wiederherstellen : undefined}
+          holtGerade={holtGerade}
+          angaben={angaben}
+          zeit={zeit}
+          istAktuell={grosserStand.id === startStandId}
+          t={t}
+        />
+      ) : (
+        // ------------------------------------------------------------------
+        // Die Übersicht: alle Versionen als Kacheln
+        // ------------------------------------------------------------------
+        <>
+          <Kopf
+            titel={t("vergleich.titel")}
+            erklaerung={t("vergleich.erklaerung")}
+            onSchliessen={onSchliessen}
+            t={t}
+          >
+            <Knopf
+              klein
+              onClick={() => setKachelStufe((s) => Math.max(0, s - 1))}
+              disabled={kachelStufe === 0}
+            >
+              {t("vergleich.lupeKleiner")}
+            </Knopf>
+            <Knopf
+              klein
+              onClick={() => setKachelStufe((s) => Math.min(KACHELBREITEN.length - 1, s + 1))}
+              disabled={kachelStufe === KACHELBREITEN.length - 1}
+            >
+              {t("vergleich.lupeGroesser")}
+            </Knopf>
+          </Kopf>
 
-          {unterschied ? (
-            <footer className="shrink-0 border-t border-linie px-4 py-3 text-[1.05rem]">
-              {unterschied.farben === 0 && (unterschied.groesse ?? 0) === 0
-                ? t("vergleich.gleich")
-                : [
-                    unterschied.farben !== 0
-                      ? t(
-                          unterschied.farben > 0
-                            ? "vergleich.mehrFarben"
-                            : "vergleich.wenigerFarben",
-                          { anzahl: zahl(Math.abs(unterschied.farben)) },
-                        )
-                      : null,
-                    unterschied.groesse
-                      ? t(
-                          unterschied.groesse > 0 ? "vergleich.breiter" : "vergleich.schmaler",
-                          { anzahl: zahl(Math.abs(unterschied.groesse)) },
-                        )
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-            </footer>
-          ) : null}
+          {staende.length === 0 ? (
+            <div className="p-5">
+              <Hinweis>{t("staende.nochKeine")}</Hinweis>
+            </div>
+          ) : (
+            <ul
+              className="grid min-h-0 flex-1 content-start gap-5 overflow-y-auto p-5"
+              style={{
+                gridTemplateColumns: `repeat(auto-fill, minmax(${KACHELBREITEN[kachelStufe]}px, 1fr))`,
+              }}
+            >
+              {staende.map((stand, i) => {
+                const ist = stand.id === startStandId;
+                return (
+                  <li key={stand.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGross(i);
+                        setLupeStufe(0);
+                        setMitte({ x: 0.5, y: 0.5 });
+                      }}
+                      className={`flex w-full flex-col gap-2 rounded-xl border p-3 text-left ${
+                        ist
+                          ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief"
+                          : "border-linie bg-white hover:bg-hinweis"
+                      }`}
+                    >
+                      {/* Ein fester Rahmen fürs Bild: sonst wären in einer
+                          Reihe aus einem hochkanten und einem querformatigen
+                          Muster die Beschriftungen gegeneinander verrutscht.
+                          Etwas höher als breit, weil Stickmuster meistens
+                          hochkant sind – so nutzen sie den Platz besser. */}
+                      <span
+                        className="flex w-full items-center justify-center rounded-lg border border-linie bg-hinweis"
+                        style={{ height: Math.round(KACHELBREITEN[kachelStufe] * 1.15) }}
+                      >
+                        {stand.vorschauUrl ? (
+                          <Image
+                            src={stand.vorschauUrl}
+                            alt=""
+                            width={480}
+                            height={480}
+                            unoptimized
+                            className="raster max-h-full w-auto max-w-full object-contain"
+                          />
+                        ) : (
+                          <span className="text-[0.95rem] text-gedaempft">
+                            {t("start.ohneBild")}
+                          </span>
+                        )}
+                      </span>
+                      <span className="block text-[1.05rem] font-bold leading-tight">
+                        {zeit(stand.angelegtAm)}
+                      </span>
+                      <span className="block text-[0.95rem] text-gedaempft">
+                        {angaben(stand)}
+                      </span>
+                      <span className="block text-[0.95rem] text-gedaempft">
+                        {stand.gemerkt ? t("staende.gemerkt") : t(stand.beschriftung)}
+                        {ist ? t("staende.sieArbeitenHier") : ""}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </>
       )}
     </div>
   );
 }
 
+/** Die Kopfzeile des Fensters: Überschrift links, Knöpfe rechts. */
+function Kopf({
+  titel,
+  erklaerung,
+  onSchliessen,
+  children,
+  t,
+}: {
+  titel: string;
+  erklaerung?: string;
+  onSchliessen: () => void;
+  children?: React.ReactNode;
+  t: (schluessel: Parameters<ReturnType<typeof useSprache>["t"]>[0]) => string;
+}) {
+  return (
+    <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-linie px-4 py-3">
+      <div>
+        <h2 className="text-[1.3rem] font-bold leading-tight">{titel}</h2>
+        {erklaerung ? <p className="text-[1rem] text-gedaempft">{erklaerung}</p> : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {children}
+        <Knopf art="haupt" onClick={onSchliessen}>
+          {t("vergleich.fertig")}
+        </Knopf>
+      </div>
+    </header>
+  );
+}
+
 /**
- * Eine der beiden Hälften: oben das Muster, darunter, was es ist, und die
- * beiden Knöpfe zum Blättern.
+ * Eine Version über den ganzen Bildschirm.
+ *
+ * Hier wird aus den vollen Rasterdaten gezeichnet und nicht aus dem
+ * Vorschaubildchen: wer eine Fassung groß ansieht, will die Kästchen sehen.
+ * Weiter geht es mit „Frühere Version" und „Spätere Version" – dieselbe
+ * Reihe wie in der Übersicht, nur eines nach dem anderen.
  */
-function Vergleichsseite({
+function GrosseAnsicht({
   stand,
   geladen,
+  nummer,
+  gesamt,
   lupe,
   mitte,
   onSchieben,
-  zeit,
-  zahl,
+  kannKleiner,
+  kannGroesser,
+  onKleiner,
+  onGroesser,
+  onEinpassen,
   kannFrueher,
   kannSpaeter,
   onFrueher,
   onSpaeter,
-  onWiederherstellen,
+  onZurueck,
+  onSchliessen,
+  onNehmen,
   holtGerade,
+  angaben,
+  zeit,
+  istAktuell,
+  t,
 }: {
-  stand: Stand | null;
+  stand: Stand;
   geladen: Geladen | null;
+  nummer: number;
+  gesamt: number;
   lupe: number;
   mitte: { x: number; y: number };
   onSchieben: (dx: number, dy: number) => void;
-  zeit: (iso: string) => string;
-  zahl: (n: number) => string;
+  kannKleiner: boolean;
+  kannGroesser: boolean;
+  onKleiner: () => void;
+  onGroesser: () => void;
+  onEinpassen: () => void;
   kannFrueher: boolean;
   kannSpaeter: boolean;
   onFrueher: () => void;
   onSpaeter: () => void;
-  onWiederherstellen?: (stand: Stand) => Promise<void>;
+  onZurueck: () => void;
+  onSchliessen: () => void;
+  onNehmen?: (stand: Stand) => Promise<void>;
   holtGerade: boolean;
+  angaben: (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) => string;
+  zeit: (iso: string) => string;
+  istAktuell: boolean;
+  t: (schluessel: Parameters<ReturnType<typeof useSprache>["t"]>[0], werte?: Record<string, string>) => string;
 }) {
-  const { t } = useSprache();
   const flaeche = useRef<HTMLDivElement>(null);
   const [masse, setMasse] = useState({ breite: 0, hoehe: 0 });
   const letzterZeiger = useRef<{ x: number; y: number } | null>(null);
@@ -342,8 +429,7 @@ function Vergleichsseite({
     return () => beobachter.disconnect();
   }, []);
 
-  // Eingepasst heißt: das ganze Muster ist zu sehen. Alles darüber ist die
-  // Lupe, und die gilt für beide Seiten gleichermaßen.
+  // Eingepasst heißt: das ganze Muster ist zu sehen. Alles darüber ist Lupe.
   const grund =
     geladen && masse.breite > 0 && masse.hoehe > 0
       ? Math.min(masse.breite / geladen.breite, masse.hoehe / geladen.hoehe)
@@ -366,10 +452,39 @@ function Vergleichsseite({
   const kannSchieben = bildBreite > masse.breite || bildHoehe > masse.hoehe;
 
   return (
-    <section className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+    <>
+      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-linie px-4 py-3">
+        <div>
+          <h2 className="text-[1.3rem] font-bold leading-tight">{zeit(stand.angelegtAm)}</h2>
+          <p className="text-[1rem] text-gedaempft">
+            {t("vergleich.wievielte", { nummer: String(nummer), gesamt: String(gesamt) })}
+            {" · "}
+            {angaben(stand, geladen?.breite, geladen?.hoehe)}
+            {" · "}
+            {stand.gemerkt ? t("staende.gemerkt") : t(stand.beschriftung)}
+            {istAktuell ? t("staende.sieArbeitenHier") : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Knopf klein onClick={onKleiner} disabled={!kannKleiner}>
+            {t("vergleich.lupeKleiner")}
+          </Knopf>
+          <Knopf klein onClick={onGroesser} disabled={!kannGroesser}>
+            {t("vergleich.lupeGroesser")}
+          </Knopf>
+          <Knopf klein onClick={onEinpassen}>
+            {t("vergleich.einpassen")}
+          </Knopf>
+          <Knopf onClick={onZurueck}>{t("vergleich.zurueck")}</Knopf>
+          <Knopf art="haupt" onClick={onSchliessen}>
+            {t("vergleich.fertig")}
+          </Knopf>
+        </div>
+      </header>
+
       <div
         ref={flaeche}
-        className={`relative min-h-[220px] flex-1 overflow-hidden rounded-xl border border-linie bg-hinweis ${
+        className={`relative min-h-0 flex-1 overflow-hidden bg-hinweis ${
           kannSchieben ? "cursor-grab touch-none" : ""
         }`}
         onPointerDown={(e) => {
@@ -393,7 +508,7 @@ function Vergleichsseite({
           letzterZeiger.current = null;
         }}
       >
-        {geladen && stand ? (
+        {geladen ? (
           <div
             className="absolute left-0 top-0"
             style={{ transform: `translate(${versatzX}px, ${versatzY}px)` }}
@@ -413,35 +528,21 @@ function Vergleichsseite({
         )}
       </div>
 
-      {stand ? (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-[1.05rem] font-bold leading-tight">{zeit(stand.angelegtAm)}</p>
-            <p className="text-[0.95rem] text-gedaempft">
-              {t("vergleich.angaben", {
-                farben: zahl(stand.farben),
-                breite: zahl(stand.breite ?? geladen?.breite ?? 0),
-                hoehe: zahl(stand.hoehe ?? geladen?.hoehe ?? 0),
-              })}
-              {" · "}
-              {stand.gemerkt ? t("staende.gemerkt") : t(stand.beschriftung)}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Knopf klein onClick={onFrueher} disabled={!kannFrueher}>
-              {t("vergleich.frueher")}
-            </Knopf>
-            <Knopf klein onClick={onSpaeter} disabled={!kannSpaeter}>
-              {t("vergleich.spaeter")}
-            </Knopf>
-            {onWiederherstellen ? (
-              <Knopf klein onClick={() => onWiederherstellen(stand)} disabled={holtGerade}>
-                {t("vergleich.nehmen")}
-              </Knopf>
-            ) : null}
-          </div>
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-linie px-4 py-3">
+        <div className="flex flex-wrap gap-2">
+          <Knopf onClick={onFrueher} disabled={!kannFrueher}>
+            {t("vergleich.frueher")}
+          </Knopf>
+          <Knopf onClick={onSpaeter} disabled={!kannSpaeter}>
+            {t("vergleich.spaeter")}
+          </Knopf>
         </div>
-      ) : null}
-    </section>
+        {onNehmen ? (
+          <Knopf onClick={() => onNehmen(stand)} disabled={holtGerade || istAktuell}>
+            {istAktuell ? t("vergleich.schonHier") : t("vergleich.nehmen")}
+          </Knopf>
+        ) : null}
+      </footer>
+    </>
   );
 }

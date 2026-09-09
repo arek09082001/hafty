@@ -181,7 +181,7 @@ export function Startseite() {
                       <Knopf
                         klein
                         onClick={() => setVergleich(projekt.id)}
-                        disabled={projekt.staendeAnzahl < 2}
+                        disabled={projekt.staendeAnzahl === 0}
                       >
                         {t("start.vergleichen")}
                       </Knopf>
