@@ -76,7 +76,6 @@ export type Bildquelle = {
   /** Zufällig, einmal je ausgewähltem Bild. */
   basisKennung: string;
   name: string;
-  art: "datei" | "beispiel";
   blob: Blob;
   vorschauUrl: string;
   /** Maße des Quellbildes in Bildpunkten – daraus folgt die Musterhöhe. */
@@ -236,7 +235,7 @@ function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
 type MusterKontext = {
   bild: Bildquelle | null;
   /** Wählt ein Bild aus und misst dabei gleich seine Maße. */
-  bildWaehlen: (quelle: { name: string; art: "datei" | "beispiel"; blob: Blob }) => Promise<void>;
+  bildWaehlen: (quelle: { name: string; blob: Blob }) => Promise<void>;
   ausschnittSetzen: (neu: Ausschnitt) => void;
   bildEntfernen: () => void;
 
@@ -429,7 +428,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
             // kennen sie noch nicht, dann gilt die ganze Kennung.
             basisKennung: stand.bildKennung.split(":")[0],
             name: stand.bildName,
-            art: "datei",
             blob: stand.bild,
             vorschauUrl: URL.createObjectURL(stand.bild),
             masse: stand.bildMasse,
@@ -479,7 +477,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
 
   // --- Bild auswählen -------------------------------------------------------
   const bildWaehlen = useCallback(
-    async (quelle: { name: string; art: "datei" | "beispiel"; blob: Blob }) => {
+    async (quelle: { name: string; blob: Blob }) => {
       const bitmap = await createImageBitmap(quelle.blob);
       const masse = { breite: bitmap.width, hoehe: bitmap.height };
       bitmap.close();

@@ -112,3 +112,92 @@ export function groesseAendern(
 export function istGanzesBild(a: Ausschnitt, bildBreite: number, bildHoehe: number): boolean {
   return a.x === 0 && a.y === 0 && a.breite === bildBreite && a.hoehe === bildHoehe;
 }
+
+/**
+ * Eine Ecke oder eine Kante des Ausschnitts.
+ *
+ * Die Buchstaben sind Himmelsrichtungen: `nw` ist die Ecke links oben, `o`
+ * die rechte Kante. So steht in jedem Kürzel schon drin, welche Seiten es
+ * bewegt – `so` fasst die untere und die rechte Kante an.
+ */
+export type Kante = "nw" | "n" | "no" | "o" | "so" | "s" | "sw" | "w";
+
+/**
+ * Freihand: eine Ecke oder Kante ziehen.
+ *
+ * Anders als `groesseAendern` hält das **kein** Seitenverhältnis fest. Die
+ * gegenüberliegende Seite bleibt liegen, wie es beim Zuschneiden von Papier
+ * auch wäre: man fasst eine Ecke an, die andere bleibt, wo sie war.
+ *
+ * `dx`/`dy` sind Bildpunkte des Quellbildes.
+ */
+export function kanteZiehen(
+  start: Ausschnitt,
+  kante: Kante,
+  dx: number,
+  dy: number,
+  bildBreite: number,
+  bildHoehe: number,
+): Ausschnitt {
+  let links = start.x;
+  let oben = start.y;
+  let rechts = start.x + start.breite;
+  let unten = start.y + start.hoehe;
+
+  // Jede Seite darf nur bis dicht an ihre Gegenseite und nie aus dem Bild.
+  if (kante.includes("w")) links = Math.min(rechts - MINDESTKANTE, Math.max(0, links + dx));
+  if (kante.includes("o")) rechts = Math.max(links + MINDESTKANTE, Math.min(bildBreite, rechts + dx));
+  if (kante.startsWith("n")) oben = Math.min(unten - MINDESTKANTE, Math.max(0, oben + dy));
+  if (kante.includes("s")) unten = Math.max(oben + MINDESTKANTE, Math.min(bildHoehe, unten + dy));
+
+  return einpassen(
+    { x: links, y: oben, breite: rechts - links, hoehe: unten - oben },
+    bildBreite,
+    bildHoehe,
+  );
+}
+
+/**
+ * Freihand: einen neuen Ausschnitt aus zwei Punkten aufziehen.
+ *
+ * Welcher der beiden Punkte zuerst kam, ist gleich – gezogen werden darf in
+ * jede Richtung.
+ */
+export function ausRechteck(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  bildBreite: number,
+  bildHoehe: number,
+): Ausschnitt {
+  const links = Math.max(0, Math.min(x1, x2));
+  const oben = Math.max(0, Math.min(y1, y2));
+  const rechts = Math.min(bildBreite, Math.max(x1, x2));
+  const unten = Math.min(bildHoehe, Math.max(y1, y2));
+  return einpassen(
+    { x: links, y: oben, breite: rechts - links, hoehe: unten - oben },
+    bildBreite,
+    bildHoehe,
+  );
+}
+
+/**
+ * Freihand mit Knöpfen: nur die Breite **oder** nur die Höhe ändern, um die
+ * Mitte herum. Damit kommt auch ans Ziel, wer nicht ziehen mag oder mit der
+ * Maus keine Ecke trifft – das Seitenverhältnis wird dabei bewusst frei.
+ */
+export function seiteAendern(
+  a: Ausschnitt,
+  seite: "breite" | "hoehe",
+  faktor: number,
+  bildBreite: number,
+  bildHoehe: number,
+): Ausschnitt {
+  if (seite === "breite") {
+    const breite = Math.min(bildBreite, Math.max(MINDESTKANTE, a.breite * faktor));
+    return einpassen({ ...a, x: a.x + (a.breite - breite) / 2, breite }, bildBreite, bildHoehe);
+  }
+  const hoehe = Math.min(bildHoehe, Math.max(MINDESTKANTE, a.hoehe * faktor));
+  return einpassen({ ...a, y: a.y + (a.hoehe - hoehe) / 2, hoehe }, bildBreite, bildHoehe);
+}
