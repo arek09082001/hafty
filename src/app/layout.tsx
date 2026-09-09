@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SprachProvider } from "@/lib/sprache/SprachProvider";
+import { AbgleichProvider } from "@/lib/ferne/AbgleichProvider";
 import { OhneNetz } from "@/components/OhneNetz";
 
 export const metadata: Metadata = {
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="de" className="h-full">
       <body className="flex h-full flex-col overflow-hidden bg-papier text-tinte antialiased">
         <OhneNetz />
-        <SprachProvider>{children}</SprachProvider>
+        <SprachProvider>
+          <AbgleichProvider>{children}</AbgleichProvider>
+        </SprachProvider>
       </body>
     </html>
   );

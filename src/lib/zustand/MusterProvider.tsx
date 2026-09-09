@@ -27,6 +27,8 @@ import { bearbeitungUmschreiben, zusammenfuehren } from "@/lib/muster/raster";
 import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
 import { arbeitsstandLaden, arbeitsstandSichern } from "@/lib/speicher/browserspeicher";
 import { standSichern, type Stand } from "@/lib/speicher/staende";
+import { projektMerken, projektNachName } from "@/lib/speicher/projekte";
+import { abgleichAnstossen } from "@/lib/ferne/abgleich";
 import { garneLaden, type GarnMitVorrat } from "@/lib/speicher/garne";
 import { einpassen, type Ausschnitt } from "@/lib/muster/ausschnitt";
 import type { AnWorker, AntwortVomWorker, VomWorker } from "@/lib/worker/nachrichten";
@@ -293,6 +295,13 @@ type MusterKontext = {
   einstellungen: Einstellungen;
   einstellungenSetzen: (e: Partial<Einstellungen>) => void;
 
+  /**
+   * Der Name des Projekts, zu dem das gewählte Bild gehört, falls es dieses
+   * Bild schon einmal gab. Schritt 1 sagt das dazu – sonst wunderte sich die
+   * Nutzerin, warum ihre alten Stände plötzlich wieder da sind.
+   */
+  zugeordnetesProjekt: string | null;
+
   /** Der ganze Garnkatalog, mit Kennzeichnung des eigenen Vorrats. */
   alleGarne: GarnMitVorrat[];
   /** Die Garne, mit denen tatsächlich gerechnet wird (siehe nurEigeneGarne). */
@@ -370,6 +379,8 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   const [musterId, setMusterId] = useState<string | null>(null);
   const [versionId, setVersionId] = useState<string | null>(null);
   const [standZaehler, setStandZaehler] = useState(0);
+  /** Name des Projekts, zu dem das gewählte Bild gehört – sonst null. */
+  const [zugeordnet, setZugeordnet] = useState<string | null>(null);
 
   const worker = useRef<Worker | null>(null);
   const wartend = useRef<((w: AntwortVomWorker) => void) | null>(null);
@@ -474,6 +485,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         });
         setEinstellungen(einstellungenLesen(stand.einstellungen));
         setMusterId(stand.musterId);
+        setVersionId(stand.versionId);
         if (stand.bild && stand.bildMasse) {
           setBild({
             kennung: stand.bildKennung,
@@ -510,6 +522,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     const zeitgeber = window.setTimeout(() => {
       void arbeitsstandSichern({
         musterId,
+        versionId,
         name: bild?.name ?? "Muster",
         breite: muster.breite,
         hoehe: muster.hoehe,
@@ -526,7 +539,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       });
     }, 800);
     return () => window.clearTimeout(zeitgeber);
-  }, [muster, einstellungen, bild, wiederhergestellt, musterId]);
+  }, [muster, einstellungen, bild, wiederhergestellt, musterId, versionId]);
 
   // --- Bild auswählen -------------------------------------------------------
   const bildWaehlen = useCallback(
@@ -534,6 +547,25 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       const bitmap = await createImageBitmap(quelle.blob);
       const masse = { breite: bitmap.width, hoehe: bitmap.height };
       bitmap.close();
+
+      /**
+       * Zugeordnet wird über den Dateinamen: „blume.jpg" gehört zu dem
+       * Projekt, das schon einmal aus „blume.jpg" entstanden ist. Damit
+       * landen die Fassung mit 12 Farben und die mit 30 nebeneinander und
+       * lassen sich vergleichen, statt zwei fremde Muster zu werden.
+       *
+       * Die Einstellungen von damals kommen mit: wer dasselbe Bild noch
+       * einmal aussucht, will fast immer eine Kleinigkeit ändern und nicht
+       * bei den Voreinstellungen anfangen.
+       */
+      const bekannt = await projektNachName(quelle.name);
+      setMusterId(bekannt?.id ?? null);
+      // Der nächste Stand fängt einen eigenen Zweig an – er hängt nicht an
+      // dem, an dem beim letzten Mal gearbeitet wurde.
+      setVersionId(null);
+      setZugeordnet(bekannt ? bekannt.name : null);
+      if (bekannt) setEinstellungen(einstellungenLesen(bekannt.einstellungen));
+
       setBild((vorher) => {
         if (vorher) URL.revokeObjectURL(vorher.vorschauUrl);
         const basisKennung = crypto.randomUUID();
@@ -799,6 +831,22 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       setMusterId(ergebnis.musterId);
       setVersionId(ergebnis.standId);
       setStandZaehler((z) => z + 1);
+
+      // Das Projekt kennt danach seinen neuesten Zeitpunkt – daran hängt die
+      // Reihenfolge auf der Startseite.
+      await projektMerken({
+        id: ergebnis.musterId,
+        name: bild?.name ?? "",
+        bild: bild?.blob ?? null,
+        bildMasse: bild?.masse ?? null,
+        bildAusschnitt: bild?.ausschnitt ?? null,
+        bildKennung: zuSichern.bildKennung,
+        einstellungen,
+      });
+
+      // Und sofort in die Ferne, wenn es eine gibt und Netz da ist. Gewartet
+      // wird darauf nicht: gespeichert ist der Stand schon.
+      void abgleichAnstossen();
       return true;
     },
     [musterId, versionId, bild, einstellungen],
@@ -835,6 +883,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bildEntfernen,
       einstellungen,
       einstellungenSetzen: (teil) => setEinstellungen((e) => ({ ...e, ...teil })),
+      zugeordnetesProjekt: zugeordnet,
       alleGarne,
       garne,
       garneNeuLaden,
@@ -873,6 +922,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       ausschnittSetzen,
       bildEntfernen,
       einstellungen,
+      zugeordnet,
       alleGarne,
       garne,
       garneNeuLaden,

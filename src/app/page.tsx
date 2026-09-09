@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+import { Startseite } from "./Startseite";
+
+export const metadata = { title: "Meine Muster · Moje wzory" };
 
 export default function Start() {
-  redirect("/schritt/bild");
+  return <Startseite />;
 }

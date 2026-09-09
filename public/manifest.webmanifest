@@ -4,7 +4,7 @@
   "description": "Aus einem Foto ein Kreuzstich-Zählmuster machen. – Z jednego zdjęcia wzór do haftu krzyżykowego.",
   "lang": "de",
   "dir": "ltr",
-  "start_url": "/schritt/bild",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
