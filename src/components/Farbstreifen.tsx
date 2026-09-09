@@ -46,7 +46,7 @@ export function Farbstreifen({
               aria-label={name}
               title={name}
               className={`flex h-[56px] w-full items-center justify-center rounded-lg text-[1.05rem] font-bold ${
-                ist ? "ring-4 ring-hauptaktion" : ""
+                ist ? "ring-4 ring-hauptaktion" : "hover:ring-2 hover:ring-tinte"
               }`}
               style={{
                 backgroundColor: eintrag.hex,

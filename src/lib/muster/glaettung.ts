@@ -33,6 +33,10 @@
  * gleichfarbigen Nachbarn haben, werden hart auf die häufigste Nachbarfarbe
  * gesetzt. ICM lässt solche Felder stehen, wenn ihre Farbtreue die Strafe
  * gerade noch aufwiegt – gestickt werden will das trotzdem niemand.
+ *
+ * Nur ganz links am Regler bleibt auch dieser Durchgang aus: dort ist
+ * ausdrücklich das ungeglättete Bild gewollt, in dem jedes Kästchen seine
+ * eigene Farbe haben darf.
  */
 
 import { ciede2000 } from "@/lib/farbe/ciede2000";
@@ -181,10 +185,16 @@ export function glaetten(
   }
 
   // --- Aufräumdurchgang -----------------------------------------------------
-  // Erst die harte Regel für Felder ohne jeden gleichfarbigen Nachbarn …
-  aufraeumen(raster, breite, k);
-  // … danach die gröberen Flecken, deren Größe am Schieberegler hängt.
-  kleineFlaechenAufloesen(raster, breite, k, mindestGroesse);
+  // Ganz links am Regler (lambda = 0, mindestFlaeche = 1) wird gar nichts
+  // aufgeräumt. Dort will die Nutzerin das Bild sehen, wie die Farbwahl es
+  // ergibt: jedes einzelne Kästchen darf seine eigene Farbe haben. Erst mit
+  // dem ersten Schritt nach rechts greifen die beiden Durchgänge.
+  if (lambda > 0 || mindestGroesse > 1) {
+    // Erst die harte Regel für Felder ohne jeden gleichfarbigen Nachbarn …
+    aufraeumen(raster, breite, k);
+    // … danach die gröberen Flecken, deren Größe am Schieberegler hängt.
+    kleineFlaechenAufloesen(raster, breite, k, mindestGroesse);
+  }
 
   return { raster, kennzahlen: kennzahlenBerechnen(raster, breite) };
 }

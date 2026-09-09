@@ -18,7 +18,7 @@
  */
 
 import { byteNachLinear, labNachRgb, linearNachLab, rgbNachHex, type Lab } from "@/lib/farbe/lab";
-import { ciede2000, labAbstandQuadrat } from "@/lib/farbe/ciede2000";
+import { ciede2000 } from "@/lib/farbe/ciede2000";
 import type { Garn } from "./typen";
 
 /**
@@ -498,16 +498,3 @@ export function labAlsHex(farbe: Lab): string {
   return rgbNachHex(r, g, b);
 }
 
-/** Wird nur vom Dithering gebraucht: nächster Palettenindex zu einer Farbe. */
-export function naechsterIndex(farbe: Lab, palette: Lab[]): number {
-  let bester = 0;
-  let besterAbstand = Infinity;
-  for (let i = 0; i < palette.length; i++) {
-    const d = labAbstandQuadrat(farbe, palette[i]);
-    if (d < besterAbstand) {
-      besterAbstand = d;
-      bester = i;
-    }
-  }
-  return bester;
-}

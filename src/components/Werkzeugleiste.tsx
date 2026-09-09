@@ -151,7 +151,7 @@ export function Werkzeugleiste({
                 title={t(werkzeug.titel)}
                 className={`flex w-[82px] shrink-0 flex-col items-center justify-center gap-1 rounded-xl border px-1 py-2 text-[0.75rem] font-semibold ${
                   ist
-                    ? "border-hauptaktion bg-[#e8f3ee] text-hauptaktion"
+                    ? "border-hauptaktion bg-gewaehlt text-hauptaktion hover:bg-gewaehlt-tief"
                     : "border-linie bg-white text-tinte hover:bg-hinweis"
                 }`}
               >

@@ -27,7 +27,11 @@ export function Sprachwahl({ klein = false }: { klein?: boolean }) {
             aria-pressed={ist}
             className={`flex items-center rounded-lg px-3 font-bold ${
               klein ? "min-h-[38px] text-[0.85rem]" : "min-h-[46px] text-[0.95rem]"
-            } ${ist ? "bg-hauptaktion text-white" : "bg-white text-tinte hover:bg-hinweis"}`}
+            } ${
+              ist
+                ? "bg-hauptaktion text-white hover:bg-hauptaktion-hell"
+                : "bg-white text-tinte hover:bg-hinweis"
+            }`}
           >
             {SPRACHNAMEN[s]}
           </button>

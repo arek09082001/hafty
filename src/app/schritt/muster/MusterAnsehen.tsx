@@ -1135,7 +1135,7 @@ export function MusterAnsehen() {
                     </Abschnitt>
                     <Abschnitt titel={t("glaettung.frage")}>
                       <Glaettungsregler
-                        stufe={einstellungen.glaettung}
+                        staerke={einstellungen.glaettungsstaerke}
                         kennzahlen={muster.kennzahlen}
                         laeuft={laeuft}
                         onAendern={glaettungSetzen}
@@ -1253,7 +1253,7 @@ function Sichtknopf({
       aria-pressed={gedrueckt}
       className={`min-h-[44px] rounded-lg border px-3 text-[0.9rem] font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${
         gedrueckt
-          ? "border-hauptaktion bg-[#e8f3ee] text-hauptaktion"
+          ? "border-hauptaktion bg-gewaehlt text-hauptaktion hover:bg-gewaehlt-tief"
           : "border-linie bg-white hover:bg-hinweis"
       }`}
     >

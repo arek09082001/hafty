@@ -33,7 +33,7 @@ export const DE = {
   // --- Schritt 1: Bild ---------------------------------------------------
   "bild.titel": "Bild aussuchen",
   "bild.erklaerung":
-    "Wählen Sie ein Foto von Ihrem Gerät aus oder tippen Sie auf eines der drei Beispielbilder. Sie können später jederzeit ein anderes Bild nehmen.",
+    "Wählen Sie ein Foto von Ihrem Gerät aus. Sie können später jederzeit ein anderes Bild nehmen.",
   "bild.ausgewaehlt": "Ausgewählt: {name}",
   "bild.nochKeins": "Noch kein Bild ausgewählt.",
   "bild.weiter": "Weiter zu Größe und Farben",
@@ -41,27 +41,19 @@ export const DE = {
   "bild.anderesWaehlen": "Anderes Bild aussuchen",
   "bild.eigenesFoto": "Ein eigenes Foto",
   "bild.eigenesFotoText":
-    "Tippen Sie auf den Knopf. Es öffnet sich das Fenster Ihres Geräts, in dem Sie ein Bild auswählen können.",
+    "Tippen Sie auf den Knopf. Es öffnet sich sofort das Fenster Ihres Geräts, in dem Sie ein Bild auswählen können.",
   "bild.fotoWaehlen": "Foto von meinem Gerät auswählen",
-  "bild.beispiele": "Oder ein Beispielbild",
-  "bild.beispieleText": "Zum Ausprobieren. Tippen Sie einfach auf eines der Bilder.",
-  "bild.wirdGeladen": "Wird geladen …",
-  "bild.beispielBlume": "Blume",
-  "bild.beispielKatze": "Katze",
-  "bild.beispielHaus": "Haus am See",
   "bild.fehlerKeinBild":
     "Das war keine Bilddatei. Bitte wählen Sie ein Foto aus, zum Beispiel eine Datei, die auf .jpg oder .png endet.",
   "bild.fehlerZuGross":
     "Dieses Bild ist sehr groß. Bitte wählen Sie ein kleineres Foto aus – bis etwa 25 Megabyte geht gut.",
   "bild.fehlerNichtLesbar":
     "Dieses Bild konnte nicht geöffnet werden. Bitte wählen Sie ein anderes Foto aus, am besten im Format JPG oder PNG.",
-  "bild.fehlerBeispiel":
-    "Das Beispielbild konnte nicht geladen werden. Bitte prüfen Sie, ob Sie mit dem Internet verbunden sind, und tippen Sie noch einmal darauf.",
 
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Ausschnitt wählen",
   "zuschnitt.erklaerung":
-    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben oder die Knöpfe darunter benutzen.",
+    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben, an den Ecken frei in jede Form ziehen oder die Knöpfe darunter benutzen.",
   "zuschnitt.formWaehlen": "Form des Ausschnitts",
   "zuschnitt.ganzesBild": "Ganzes Bild",
   "zuschnitt.quadrat": "Quadrat 1:1",
@@ -72,6 +64,13 @@ export const DE = {
   "zuschnitt.groesse": "Größe",
   "zuschnitt.kleiner": "Kleiner",
   "zuschnitt.groesser": "Größer",
+  "zuschnitt.freihand": "Freihand",
+  "zuschnitt.freihandText":
+    "Freihand geht auch: Ziehen Sie an einer der weißen Ecken, dann bekommt der Ausschnitt jede Form, die Sie möchten. Oder setzen Sie neben dem Rahmen auf dem Bild auf und ziehen Sie einen ganz neuen Rahmen auf.",
+  "zuschnitt.schmaler": "Schmaler",
+  "zuschnitt.breiter": "Breiter",
+  "zuschnitt.flacher": "Flacher",
+  "zuschnitt.hoeher": "Höher",
   "zuschnitt.masse": "Ausschnitt: {breite} × {hoehe} Bildpunkte",
   "zuschnitt.bildBeschriftung": "Ihr Bild mit dem gewählten Ausschnitt",
   "zuschnitt.aendern": "Ausschnitt wählen",
@@ -117,10 +116,6 @@ export const DE = {
   "einst.nurEigene": "Nur meine Garne verwenden: {zustand}",
   "einst.ein": "ein",
   "einst.aus": "aus",
-  "einst.verlauf": "Selten gebraucht: Farbverlauf nachahmen",
-  "einst.verlaufText":
-    "Wenn Sie das einschalten, werden zwei Farben abwechselnd nebeneinandergesetzt, damit ein Verlauf weicher aussieht. Auf dem Bildschirm wirkt das gut, beim Sticken bedeutet es aber viele einzelne Stiche. Deshalb ist es normalerweise ausgeschaltet.",
-  "einst.verlaufSchalter": "Farbverlauf nachahmen: {zustand}",
   "einst.weniger": "Weniger",
   "einst.mehr": "Mehr",
   "einst.wenigerVon": "{was}: weniger",
@@ -283,12 +278,14 @@ export const DE = {
   // --- Glättung -----------------------------------------------------------
   "glaettung.frage": "Wie ruhig soll das Muster sein?",
   "glaettung.erklaerung":
-    "Schieben Sie den Regler nach rechts, wenn Sie große zusammenhängende Flächen möchten. Nach links wird das Bild genauer, aber es entstehen mehr einzelne Stiche.",
+    "Schieben Sie den Regler nach rechts, wenn Sie große zusammenhängende Flächen möchten. Nach links wird das Bild genauer, aber es entstehen mehr einzelne Stiche. Der Regler hat keine Stufen – jede Stellung dazwischen geht auch.",
   "glaettung.stufe0": "sehr detailliert",
   "glaettung.stufe1": "detailliert",
   "glaettung.stufe2": "ausgewogen",
   "glaettung.stufe3": "ruhig",
   "glaettung.stufe4": "ruhig und einfach zu sticken",
+  "glaettung.flaeche": "Kleinste Fläche: etwa {kante} × {kante} Kästchen.",
+  "glaettung.flaecheFrei": "Jedes einzelne Kästchen darf seine eigene Farbe haben.",
   "glaettung.einzelstiche": "Einzelne Stiche",
   "glaettung.einzelsticheText": "So oft müssen Sie für nur ein oder zwei Kreuze neu einfädeln.",
   "glaettung.farbwechsel": "Farbwechsel pro Reihe",
@@ -517,7 +514,7 @@ export const PL: Record<Textschluessel, string> = {
 
   "bild.titel": "Wybierz zdjęcie",
   "bild.erklaerung":
-    "Proszę wybrać zdjęcie ze swojego urządzenia albo dotknąć jednego z trzech przykładowych obrazków. Później w każdej chwili można wziąć inne zdjęcie.",
+    "Proszę wybrać zdjęcie ze swojego urządzenia. Później w każdej chwili można wziąć inne zdjęcie.",
   "bild.ausgewaehlt": "Wybrane: {name}",
   "bild.nochKeins": "Nie wybrano jeszcze zdjęcia.",
   "bild.weiter": "Dalej do rozmiaru i kolorów",
@@ -525,27 +522,19 @@ export const PL: Record<Textschluessel, string> = {
   "bild.anderesWaehlen": "Wybierz inne zdjęcie",
   "bild.eigenesFoto": "Własne zdjęcie",
   "bild.eigenesFotoText":
-    "Proszę dotknąć przycisku. Otworzy się okno urządzenia, w którym można wybrać zdjęcie.",
+    "Proszę dotknąć przycisku. Od razu otworzy się okno urządzenia, w którym można wybrać zdjęcie.",
   "bild.fotoWaehlen": "Wybierz zdjęcie z mojego urządzenia",
-  "bild.beispiele": "Albo przykładowy obrazek",
-  "bild.beispieleText": "Do wypróbowania. Wystarczy dotknąć jednego z obrazków.",
-  "bild.wirdGeladen": "Wczytywanie …",
-  "bild.beispielBlume": "Kwiat",
-  "bild.beispielKatze": "Kot",
-  "bild.beispielHaus": "Dom nad jeziorem",
   "bild.fehlerKeinBild":
     "To nie był plik ze zdjęciem. Proszę wybrać zdjęcie, na przykład plik kończący się na .jpg albo .png.",
   "bild.fehlerZuGross":
     "To zdjęcie jest bardzo duże. Proszę wybrać mniejsze – do mniej więcej 25 megabajtów jest dobrze.",
   "bild.fehlerNichtLesbar":
     "Nie udało się otworzyć tego zdjęcia. Proszę wybrać inne, najlepiej w formacie JPG albo PNG.",
-  "bild.fehlerBeispiel":
-    "Nie udało się wczytać przykładowego obrazka. Proszę sprawdzić połączenie z internetem i dotknąć go jeszcze raz.",
 
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Wybór wycinka",
   "zuschnitt.erklaerung":
-    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem albo przyciskami poniżej.",
+    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem, dowolnie uformować za rogi albo użyć przycisków poniżej.",
   "zuschnitt.formWaehlen": "Kształt wycinka",
   "zuschnitt.ganzesBild": "Całe zdjęcie",
   "zuschnitt.quadrat": "Kwadrat 1:1",
@@ -556,6 +545,13 @@ export const PL: Record<Textschluessel, string> = {
   "zuschnitt.groesse": "Wielkość",
   "zuschnitt.kleiner": "Mniejszy",
   "zuschnitt.groesser": "Większy",
+  "zuschnitt.freihand": "Odręcznie",
+  "zuschnitt.freihandText":
+    "Można też odręcznie: proszę pociągnąć za jeden z białych rogów, a wycinek przyjmie dowolny kształt. Albo dotknąć zdjęcia obok ramki i pociągnąć – powstanie zupełnie nowa ramka.",
+  "zuschnitt.schmaler": "Węższy",
+  "zuschnitt.breiter": "Szerszy",
+  "zuschnitt.flacher": "Niższy",
+  "zuschnitt.hoeher": "Wyższy",
   "zuschnitt.masse": "Wycinek: {breite} × {hoehe} pikseli",
   "zuschnitt.bildBeschriftung": "Pani zdjęcie z wybranym wycinkiem",
   "zuschnitt.aendern": "Wybierz wycinek",
@@ -600,10 +596,6 @@ export const PL: Record<Textschluessel, string> = {
   "einst.nurEigene": "Używaj tylko moich nici: {zustand}",
   "einst.ein": "włączone",
   "einst.aus": "wyłączone",
-  "einst.verlauf": "Rzadko potrzebne: naśladowanie przejścia kolorów",
-  "einst.verlaufText":
-    "Po włączeniu dwa kolory będą układane na przemian obok siebie, żeby przejście wyglądało łagodniej. Na ekranie wygląda to dobrze, ale przy haftowaniu oznacza mnóstwo pojedynczych ściegów. Dlatego zwykle jest to wyłączone.",
-  "einst.verlaufSchalter": "Naśladuj przejście kolorów: {zustand}",
   "einst.weniger": "Mniej",
   "einst.mehr": "Więcej",
   "einst.wenigerVon": "{was}: mniej",
@@ -758,12 +750,14 @@ export const PL: Record<Textschluessel, string> = {
 
   "glaettung.frage": "Jak spokojny ma być wzór?",
   "glaettung.erklaerung":
-    "Proszę przesunąć suwak w prawo, jeśli chce Pani dużych, jednolitych powierzchni. W lewo obraz będzie dokładniejszy, ale powstanie więcej pojedynczych ściegów.",
+    "Proszę przesunąć suwak w prawo, jeśli chce Pani dużych, jednolitych powierzchni. W lewo obraz będzie dokładniejszy, ale powstanie więcej pojedynczych ściegów. Suwak nie ma stopni – każde położenie pomiędzy też jest możliwe.",
   "glaettung.stufe0": "bardzo szczegółowy",
   "glaettung.stufe1": "szczegółowy",
   "glaettung.stufe2": "wyważony",
   "glaettung.stufe3": "spokojny",
   "glaettung.stufe4": "spokojny i łatwy do haftowania",
+  "glaettung.flaeche": "Najmniejsza powierzchnia: około {kante} × {kante} kratek.",
+  "glaettung.flaecheFrei": "Każda pojedyncza kratka może mieć swój własny kolor.",
   "glaettung.einzelstiche": "Pojedyncze ściegi",
   "glaettung.einzelsticheText":
     "Tyle razy trzeba będzie nawlekać igłę dla jednego lub dwóch krzyżyków.",

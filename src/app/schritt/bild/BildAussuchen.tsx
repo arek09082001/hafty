@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useRef, useState } from "react";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
@@ -11,21 +10,31 @@ import { useMuster } from "@/lib/zustand/MusterProvider";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
-const BEISPIELE = [
-  { datei: "/beispiele/blume.png", titel: "bild.beispielBlume" },
-  { datei: "/beispiele/katze.png", titel: "bild.beispielKatze" },
-  { datei: "/beispiele/haus-am-see.png", titel: "bild.beispielHaus" },
-] as const satisfies ReadonlyArray<{ datei: string; titel: Textschluessel }>;
-
 /** Höchstgröße einer Bilddatei: 25 MB. Darüber wird es auf dem Tablet zäh. */
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export function BildAussuchen() {
-  const { bild, bildWaehlen, bildEntfernen, ausschnittSetzen } = useMuster();
+  const { bild, bildWaehlen, ausschnittSetzen } = useMuster();
   const { t } = useSprache();
   const [fehler, setFehler] = useState<Textschluessel | null>(null);
-  const [laedt, setLaedt] = useState<string | null>(null);
   const dateiFeld = useRef<HTMLInputElement>(null);
+
+  /**
+   * Den Dateiauswahl-Dialog des Geräts aufmachen – und zwar sofort, mit
+   * diesem einen Tipp und ohne Zwischenseite.
+   *
+   * Die Reihenfolge ist mit Bedacht so herum: Erst der Dialog, dann das
+   * Vollbild. Das Vollbild verbraucht die „frische“ Nutzeraktion des
+   * Browsers; stünde es vorn, bliebe der Dateidialog in manchen Browsern
+   * einfach zu. Wie groß das Fenster des Geräts dann wird, entscheidet das
+   * Betriebssystem – die App kann nur dafür sorgen, dass es sich über eine
+   * bildschirmfüllende Seite legt und nicht über ein halbes Fenster.
+   */
+  function explorerOeffnen() {
+    setFehler(null);
+    dateiFeld.current?.click();
+    void vollbild();
+  }
 
   async function dateiGewaehlt(e: React.ChangeEvent<HTMLInputElement>) {
     const datei = e.target.files?.[0];
@@ -43,23 +52,9 @@ export function BildAussuchen() {
 
     setFehler(null);
     try {
-      await bildWaehlen({ name: datei.name, art: "datei", blob: datei });
+      await bildWaehlen({ name: datei.name, blob: datei });
     } catch {
       setFehler("bild.fehlerNichtLesbar");
-    }
-  }
-
-  async function beispielGewaehlt(datei: string, titel: Textschluessel) {
-    setFehler(null);
-    setLaedt(datei);
-    try {
-      const antwort = await fetch(datei);
-      const blob = await antwort.blob();
-      await bildWaehlen({ name: t(titel), art: "beispiel", blob });
-    } catch {
-      setFehler("bild.fehlerBeispiel");
-    } finally {
-      setLaedt(null);
     }
   }
 
@@ -87,6 +82,17 @@ export function BildAussuchen() {
       <div className="flex flex-col gap-8">
         {fehler ? <Hinweis art="fehler">{t(fehler)}</Hinweis> : null}
 
+        {/* Das Feld ist immer da, auch wenn noch kein Bild gewählt wurde:
+            beide Knöpfe tippen darauf. */}
+        <input
+          ref={dateiFeld}
+          type="file"
+          accept="image/*"
+          onChange={dateiGewaehlt}
+          className="sr-only"
+          id="bilddatei"
+        />
+
         {bild ? (
           /* Das gewählte Bild und gleich darunter der Ausschnitt. Er steht
              offen da und nicht hinter einem Knopf: versteckte Einstellungen
@@ -100,13 +106,10 @@ export function BildAussuchen() {
                 <p className="text-[1.2rem] font-bold">{t("bild.wirdVerwendet")}</p>
                 <p className="text-[1.05rem] text-gedaempft">{bild.name}</p>
               </div>
-              <Knopf
-                art="neben"
-                onClick={() => {
-                  bildEntfernen();
-                  setFehler(null);
-                }}
-              >
+              {/* Ein Tipp, ein Dialog. Das alte Bild bleibt so lange stehen,
+                  bis wirklich ein neues gewählt ist – wer den Dialog wieder
+                  zumacht, steht nicht plötzlich ohne Bild da. */}
+              <Knopf art="neben" onClick={explorerOeffnen}>
                 {t("bild.anderesWaehlen")}
               </Knopf>
             </div>
@@ -135,47 +138,31 @@ export function BildAussuchen() {
         <section className="flex flex-col gap-4 border-t border-linie pt-7">
           <h2 className="text-[1.3rem] font-bold">{t("bild.eigenesFoto")}</h2>
           <p className="max-w-[60ch] text-[1.05rem] text-gedaempft">{t("bild.eigenesFotoText")}</p>
-          <input
-            ref={dateiFeld}
-            type="file"
-            accept="image/*"
-            onChange={dateiGewaehlt}
-            className="sr-only"
-            id="bilddatei"
-          />
-          <Knopf art={bild ? "neben" : "haupt"} gross onClick={() => dateiFeld.current?.click()}>
+          <Knopf art={bild ? "neben" : "haupt"} gross onClick={explorerOeffnen}>
             {t("bild.fotoWaehlen")}
           </Knopf>
-        </section>
-
-        <section className="flex flex-col gap-4 border-t border-linie pt-7">
-          <h2 className="text-[1.3rem] font-bold">{t("bild.beispiele")}</h2>
-          <p className="max-w-[60ch] text-[1.05rem] text-gedaempft">{t("bild.beispieleText")}</p>
-          <ul className="flex flex-wrap gap-5">
-            {BEISPIELE.map((beispiel) => (
-              <li key={beispiel.datei}>
-                <button
-                  type="button"
-                  onClick={() => beispielGewaehlt(beispiel.datei, beispiel.titel)}
-                  disabled={laedt !== null}
-                  className="flex min-h-[56px] w-[220px] flex-col items-center gap-3 rounded-xl border border-linie bg-white p-4 hover:bg-hinweis disabled:opacity-50"
-                >
-                  <Image
-                    src={beispiel.datei}
-                    alt=""
-                    width={200}
-                    height={200}
-                    className="rounded-lg border border-linie"
-                  />
-                  <span className="text-[1.15rem] font-semibold">
-                    {laedt === beispiel.datei ? t("bild.wirdGeladen") : t(beispiel.titel)}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
         </section>
       </div>
     </Seite>
   );
+
+}
+
+/**
+ * Die Seite auf Vollbild stellen, damit der Dateidialog des Geräts vor einer
+ * ganzen Seite steht und nicht vor einem kleinen Fensterausschnitt.
+ *
+ * Best effort: Browser dürfen das ablehnen (etwa wenn schon Vollbild ist oder
+ * die Einstellung es verbietet). Dann wird eben nichts größer – das Bild
+ * aussuchen geht trotzdem, deshalb gibt es hier auch keine Fehlermeldung.
+ */
+async function vollbild() {
+  if (typeof document === "undefined") return;
+  const seite = document.documentElement;
+  if (document.fullscreenElement || typeof seite.requestFullscreen !== "function") return;
+  try {
+    await seite.requestFullscreen();
+  } catch {
+    // Kein Vollbild – kein Problem.
+  }
 }

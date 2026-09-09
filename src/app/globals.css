@@ -20,6 +20,10 @@
   --color-warnung: #8a1c1c;
   --color-hinweis: #f3efe2;
   --color-auswahl: #1d4ed8;
+  /* Der getoente Grund einer gewaehlten Zeile und dieselbe Zeile unter dem
+     Mauszeiger. Beides stand vorher als Hexwert in einem Dutzend Dateien. */
+  --color-gewaehlt: #e8f3ee;
+  --color-gewaehlt-tief: #d9e9e1;
 }
 
 :root {
@@ -55,6 +59,50 @@ label {
   touch-action: manipulation;
 }
 
+/* Alles, was man anfassen kann, zeigt auch den Zeigefinger.
+   Tailwind setzt fuer <button> von sich aus `cursor: default`; wer mit der
+   Maus arbeitet, verliert damit den wichtigsten Hinweis darauf, dass hier
+   etwas passiert. Ein gesperrter Knopf sagt umgekehrt sofort, dass er gerade
+   nicht geht, statt sich anfassbar zu geben. */
+button,
+summary,
+label[for],
+select,
+[role="button"],
+[role="tab"],
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+input[type="range"] {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+/* Farbwechsel immer weich – ein Knopf, der beim Ueberfahren umspringt, wirkt
+   wie ein Fehler. */
+button,
+a,
+summary {
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  a,
+  summary {
+    transition: none;
+  }
+}
+
 /* Der Schieberegler wird bewusst gross gebaut. */
 input[type="range"] {
   -webkit-appearance: none;
@@ -86,6 +134,7 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--color-hauptaktion);
   border: 3px solid #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: grab;
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -95,6 +144,25 @@ input[type="range"]::-moz-range-thumb {
   background: var(--color-hauptaktion);
   border: 3px solid #ffffff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  cursor: grab;
+}
+
+/* Unter dem Zeiger heller, beim Ziehen die geschlossene Hand: der Griff soll
+   sich anfuehlen, als haette man ihn wirklich gefasst. */
+input[type="range"]:hover::-webkit-slider-thumb {
+  background: var(--color-hauptaktion-hell);
+}
+
+input[type="range"]:hover::-moz-range-thumb {
+  background: var(--color-hauptaktion-hell);
+}
+
+input[type="range"]:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+input[type="range"]:active::-moz-range-thumb {
+  cursor: grabbing;
 }
 
 /* Das Stichraster darf nie weichgezeichnet werden. */
