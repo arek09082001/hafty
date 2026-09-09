@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { Sprachwahl } from "./Sprachwahl";
 import { Sicherungszeichen } from "./Sicherungszeichen";
@@ -40,13 +41,33 @@ export const SCHRITTE = [
 export function Fortschritt() {
   const { t } = useSprache();
   const pfad = usePathname();
+  const leiste = useRef<HTMLElement>(null);
+
+  // Die Einblendungen (siehe `Meldungen.tsx`) hängen oben und müssen unter
+  // dieser Leiste anfangen. Wie hoch sie ist, hängt von der Fensterbreite ab
+  // – auf einem schmalen Fenster rutschen „Meine Muster" und die Sprachwahl
+  // in eigene Zeilen. Deshalb misst sie sich selbst.
+  useEffect(() => {
+    const el = leiste.current;
+    if (!el) return;
+    const setzen = () =>
+      document.documentElement.style.setProperty("--kopfleiste", `${el.offsetHeight}px`);
+    setzen();
+    const beobachter = new ResizeObserver(setzen);
+    beobachter.observe(el);
+    return () => beobachter.disconnect();
+  }, []);
   const aktuell = Math.max(
     0,
     SCHRITTE.findIndex((s) => pfad.startsWith(s.pfad)),
   );
 
   return (
-    <nav aria-label={t("schritt.fortschritt")} className="shrink-0 border-b border-linie bg-white">
+    <nav
+      ref={leiste}
+      aria-label={t("schritt.fortschritt")}
+      className="shrink-0 border-b border-linie bg-white"
+    >
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 px-4 py-1">
         {/* Schmal nimmt die Schrittzeile die volle Breite, damit „Meine
             Garne" und die Sprachwahl darunter rutschen. Vorher teilten sie
@@ -83,8 +104,12 @@ export function Fortschritt() {
             </>
           );
 
+          // Zwei Zeilen sind fest vorgesehen: „Bild aussuchen" braucht eine,
+          // „Muster ansehen und ändern" zwei. Ohne festen Platz wäre die
+          // Leiste auf jeder der vier Seiten anders hoch, und der Inhalt
+          // darunter spränge beim Weiterblättern.
           const stil =
-            "flex min-h-[44px] flex-1 items-center gap-2 rounded-xl px-2 py-0.5 " +
+            "flex min-h-[52px] flex-1 items-center gap-2 rounded-xl px-2 py-0.5 " +
             (jetzt ? "bg-hinweis" : "");
 
           return (

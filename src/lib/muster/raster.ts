@@ -396,6 +396,74 @@ export function spiegelnSenkrecht(a: Ausschnitt): Ausschnitt {
 }
 
 // ---------------------------------------------------------------------------
+// Größe eines Ausschnitts
+// ---------------------------------------------------------------------------
+
+/**
+ * Die Stufen, in denen ein eingesetztes Stück wächst und schrumpft, in
+ * Prozent.
+ *
+ * Keine stufenlose Eingabe: auf einem Stichraster ist der Unterschied
+ * zwischen 100 % und 104 % gar nicht zu sehen, und wer eine Zahl eintippen
+ * müsste, hätte schon verloren. Zwei Knöpfe und eine Handvoll Stufen
+ * genügen – dazwischen liegt jeweils ein sichtbarer Sprung.
+ */
+export const STUECK_STUFEN = [25, 33, 50, 75, 100, 150, 200, 300, 400] as const;
+
+/** Die Stufe, auf der ein Stück eingesetzt wird: seine eigene Größe. */
+export const STUECK_STUFE_NORMAL = STUECK_STUFEN.indexOf(100);
+
+/**
+ * Wie groß ein Stück auf einer Stufe wird.
+ *
+ * Steht als eigene Funktion da, weil die Oberfläche die Maße braucht, ohne
+ * das Stück wirklich umzurechnen: sie zeigt sie an und entscheidet daran,
+ * ob die Knöpfe noch etwas bewirken.
+ */
+export function skalierteMasse(a: Ausschnitt, prozent: number): { w: number; h: number } {
+  return {
+    w: Math.max(1, Math.round((a.w * prozent) / 100)),
+    h: Math.max(1, Math.round((a.h * prozent) / 100)),
+  };
+}
+
+/**
+ * Ein Stück größer oder kleiner machen.
+ *
+ * Gerechnet wird mit dem nächsten Nachbarn und ausdrücklich nicht gemittelt.
+ * Ein Mittelwert zwischen zwei Garnfarben ist eine dritte Farbe, die es im
+ * Katalog nicht gibt – aus einem Motiv mit vier Farben würde eines mit
+ * dreißig, und jede davon wäre ein Strang mehr zu kaufen. So bleibt die
+ * Palette genau die, die vorher da war.
+ *
+ * Beim Vergrößern wird jedes Kästchen zu einem Block, beim Verkleinern
+ * fallen Kästchen weg. Das ist auf einem Stichraster nicht zu vermeiden und
+ * der Grund für die Stufen: wer von 100 % auf 50 % und zurück geht, bekommt
+ * sein Motiv unverändert wieder, weil immer vom Original gerechnet wird und
+ * nie vom schon Gerechneten.
+ */
+export function skalieren(a: Ausschnitt, prozent: number): Ausschnitt {
+  const { w, h } = skalierteMasse(a, prozent);
+  if (w === a.w && h === a.h) return a;
+
+  const daten = new Uint16Array(w * h);
+  const maske = new Uint8Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    const qy = Math.min(a.h - 1, Math.floor((y * a.h) / h));
+    for (let x = 0; x < w; x++) {
+      const qx = Math.min(a.w - 1, Math.floor((x * a.w) / w));
+      const q = qy * a.w + qx;
+      const z = y * w + x;
+      daten[z] = a.daten[q];
+      maske[z] = a.maske[q];
+    }
+  }
+
+  return { w, h, daten, maske, palette: a.palette };
+}
+
+// ---------------------------------------------------------------------------
 // Hilfen für die Werkzeuge
 // ---------------------------------------------------------------------------
 

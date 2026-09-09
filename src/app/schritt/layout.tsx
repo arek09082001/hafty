@@ -1,4 +1,5 @@
 import { Fortschritt } from "@/components/Fortschritt";
+import { FehlerAlsMeldung } from "@/components/FehlerAlsMeldung";
 import { MusterProvider } from "@/lib/zustand/MusterProvider";
 
 /**
@@ -9,6 +10,7 @@ import { MusterProvider } from "@/lib/zustand/MusterProvider";
 export default function SchrittLayout({ children }: { children: React.ReactNode }) {
   return (
     <MusterProvider>
+      <FehlerAlsMeldung />
       <Fortschritt />
       <main className="flex min-h-0 flex-1 flex-col overflow-auto">{children}</main>
     </MusterProvider>
