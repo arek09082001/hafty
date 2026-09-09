@@ -12,7 +12,14 @@ import { Motivliste } from "@/components/Motivliste";
 import { Staendeleiste } from "@/components/Staendeleiste";
 import { Garnwahl } from "@/components/Garnwahl";
 import { Rasteransicht, useZoom, type Zeigerereignis } from "@/components/Rasteransicht";
-import { Werkzeugwahl, type Werkzeug } from "@/components/Werkzeugwahl";
+import { Farbleiste } from "@/components/Farbleiste";
+import {
+  Tippmoduswahl,
+  Werkzeugwahl,
+  werkzeugeFuer,
+  type Tippmodus,
+  type Werkzeug,
+} from "@/components/Werkzeugwahl";
 import { Bereichswahl } from "@/components/Bereichswahl";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { garnname } from "@/lib/farbe/farbwort";
@@ -86,6 +93,12 @@ export function MusterAnsehen() {
   const { t, zahl, landeskennung } = useSprache();
   /** Welcher der vier Bereiche rechts gerade offen ist. */
   const [bereich, setBereich] = useState("werkzeug");
+  /**
+   * Was ein Tipp ins Muster bewirkt. „Färben" ist voreingestellt: das ist
+   * der Handgriff, den man beim Nachbessern hundertmal braucht, und er soll
+   * ohne jede Vorbereitung sitzen.
+   */
+  const [modus, setModus] = useState<Tippmodus>("faerben");
   const [werkzeug, setWerkzeug] = useState<Werkzeug>("motiv");
   const [farbe, setFarbe] = useState(0);
   const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
@@ -250,6 +263,22 @@ export function MusterAnsehen() {
     tippsVergessen();
   };
 
+  /**
+   * Zwischen Färben und Auswählen wechseln.
+   *
+   * Die alte Auswahl fällt dabei weg. Sie gehörte zum vorigen Modus, und eine
+   * Umrandung, die im Färben-Modus liegen bliebe, sähe aus, als müsste man
+   * jetzt noch etwas damit tun – genau der Umweg, den es nicht mehr geben soll.
+   */
+  const modusWaehlen = (neu: Tippmodus) => {
+    if (neu === modus) return;
+    setModus(neu);
+    setAuswahl(null);
+    tippsVergessen();
+    // Der Pinsel färbt von Natur aus; zum Auswählen gibt es „Freihand".
+    if (!werkzeugeFuer(neu).some((w) => w.art === werkzeug)) setWerkzeug("freihand");
+  };
+
   // ---------------------------------------------------------------------
   // Zeigerbehandlung
   // ---------------------------------------------------------------------
@@ -268,6 +297,103 @@ export function MusterAnsehen() {
         return;
       }
 
+      // --- Färben: aus dem Tipp wird sofort Farbe ------------------------
+      // Kein Auswählen, kein Knopf hinterher. Was gefärbt wurde, steht im
+      // Muster; „Rückgängig" holt jeden Schritt einzeln zurück.
+      if (modus === "faerben") {
+        switch (werkzeug) {
+          case "malen": {
+            const bisher = e.beginn ? new Map<number, number>() : new Map(malSpur ?? []);
+            const vorheriges = spur.current[spur.current.length - 1];
+            const felder =
+              vorheriges && !e.beginn
+                ? linieFelder(vorheriges.x, vorheriges.y, e.x, e.y)
+                : [{ x: e.x, y: e.y }];
+            for (const f of felder) {
+              if (f.x < 0 || f.y < 0 || f.x >= breite || f.y >= hoehe) continue;
+              bisher.set(f.y * breite + f.x, farbeSicher);
+            }
+            spur.current = e.gedrueckt ? [{ x: e.x, y: e.y }] : [];
+
+            if (e.gedrueckt) {
+              setMalSpur(bisher);
+            } else {
+              const indizes = [...bisher.keys()];
+              felderAendern(
+                indizes.length > 1 ? "schrittname.gemalt" : "schrittname.einStichGemalt",
+                indizes,
+                indizes.map((i) => bisher.get(i) as number),
+              );
+              setMalSpur(null);
+            }
+            return;
+          }
+
+          case "motiv": {
+            if (!e.beginn) return;
+            const getroffen = motivAuswaehlen(
+              raster,
+              breite,
+              hoehe,
+              muster.palette,
+              e.x,
+              e.y,
+              aehnlichkeit,
+            );
+            if (getroffen.anzahl === 0) return;
+            const { indizes, werte } = auswahlFuellen(getroffen, farbeSicher);
+            felderAendern("schrittname.motivGefaerbt", indizes, werte);
+            return;
+          }
+
+          case "flaeche": {
+            if (!e.beginn) return;
+            const flaecheAuswahl = gleicheFlaecheAuswaehlen(raster, breite, e.x, e.y);
+            if (flaecheAuswahl.anzahl === 0) return;
+            const { indizes, werte } = auswahlFuellen(flaecheAuswahl, farbeSicher);
+            felderAendern("schrittname.flaecheGefaerbt", indizes, werte);
+            return;
+          }
+
+          case "rechteck": {
+            if (e.beginn) rechteckStart.current = { x: e.x, y: e.y };
+            const start = rechteckStart.current;
+            if (!start) return;
+            const gezogen = rechteckAuswaehlen(breite, hoehe, start.x, start.y, e.x, e.y);
+            if (e.gedrueckt) {
+              // Solange gezogen wird, ist die Umrandung nur die Vorschau auf
+              // das, was gleich Farbe bekommt.
+              setAuswahl(gezogen);
+              return;
+            }
+            rechteckStart.current = null;
+            setAuswahl(null);
+            if (gezogen.anzahl === 0) return;
+            const { indizes, werte } = auswahlFuellen(gezogen, farbeSicher);
+            felderAendern("schrittname.bereichGefaerbt", indizes, werte);
+            return;
+          }
+
+          case "freihand": {
+            if (e.beginn) spur.current = [];
+            spur.current.push({ x: e.x, y: e.y });
+            if (e.gedrueckt) {
+              setAuswahl(spurAuswahl(spur.current, breite, hoehe));
+              return;
+            }
+            const umrandet = freihandAuswahl(breite, hoehe, spur.current);
+            spur.current = [];
+            setAuswahl(null);
+            if (umrandet.anzahl === 0) return;
+            const { indizes, werte } = auswahlFuellen(umrandet, farbeSicher);
+            felderAendern("schrittname.bereichGefaerbt", indizes, werte);
+            return;
+          }
+        }
+        return;
+      }
+
+      // --- Auswählen: der Tipp umrandet, gehandelt wird danach -----------
       switch (werkzeug) {
         case "motiv": {
           if (!e.beginn) return;
@@ -316,22 +442,7 @@ export function MusterAnsehen() {
           if (e.gedrueckt) {
             // Während des Ziehens nur die Spur zeigen, damit man sieht,
             // wo man schon war. Erst beim Loslassen wird das Innere gefüllt.
-            const maske = new Uint8Array(breite * hoehe);
-            let anzahl = 0;
-            for (let i = 1; i < spur.current.length; i++) {
-              for (const f of linieFelder(
-                spur.current[i - 1].x,
-                spur.current[i - 1].y,
-                spur.current[i].x,
-                spur.current[i].y,
-              )) {
-                if (f.x < 0 || f.y < 0 || f.x >= breite || f.y >= hoehe) continue;
-                const feld = f.y * breite + f.x;
-                if (!maske[feld]) anzahl++;
-                maske[feld] = 1;
-              }
-            }
-            setAuswahl({ maske, x0: 0, y0: 0, x1: breite - 1, y1: hoehe - 1, anzahl });
+            setAuswahl(spurAuswahl(spur.current, breite, hoehe));
           } else {
             setAuswahl(freihandAuswahl(breite, hoehe, spur.current));
             spur.current = [];
@@ -339,47 +450,16 @@ export function MusterAnsehen() {
           return;
         }
 
-        case "malen": {
-          const bisher = e.beginn ? new Map<number, number>() : new Map(malSpur ?? []);
-          const vorheriges = spur.current[spur.current.length - 1];
-          const felder =
-            vorheriges && !e.beginn
-              ? linieFelder(vorheriges.x, vorheriges.y, e.x, e.y)
-              : [{ x: e.x, y: e.y }];
-          for (const f of felder) {
-            if (f.x < 0 || f.y < 0 || f.x >= breite || f.y >= hoehe) continue;
-            bisher.set(f.y * breite + f.x, farbeSicher);
-          }
-          spur.current = e.gedrueckt ? [{ x: e.x, y: e.y }] : [];
-
-          if (e.gedrueckt) {
-            setMalSpur(bisher);
-          } else {
-            const indizes = [...bisher.keys()];
-            felderAendern(
-              indizes.length > 1 ? "schrittname.gemalt" : "schrittname.einStichGemalt",
-              indizes,
-              indizes.map((i) => bisher.get(i) as number),
-            );
-            setMalSpur(null);
-          }
+        case "malen":
+          // Den Pinsel gibt es im Auswählen-Modus nicht.
           return;
-        }
-
-        case "fuellen": {
-          if (!e.beginn) return;
-          const flaecheAuswahl = gleicheFlaecheAuswaehlen(raster, breite, e.x, e.y);
-          if (flaecheAuswahl.anzahl === 0) return;
-          const { indizes, werte } = auswahlFuellen(flaecheAuswahl, farbeSicher);
-          felderAendern("schrittname.flaecheGefaerbt", indizes, werte);
-          return;
-        }
       }
     },
     [
       muster,
       raster,
       vorschau,
+      modus,
       werkzeug,
       farbeSicher,
       malSpur,
@@ -745,6 +825,11 @@ export function MusterAnsehen() {
             </Knopf>
           </div>
 
+          {/* Der Farbkasten liegt am Blatt und nicht hinter einem Reiter: mit
+              welcher Farbe der nächste Tipp arbeitet, muss man sehen, während
+              man ins Muster tippt – nicht auf einem anderen Bildschirm. */}
+          <Farbleiste palette={paletteJetzt} gewaehlt={farbeSicher} onWaehlen={setFarbe} />
+
           <div
             ref={flaeche}
             className="grid h-[46vh] min-h-0 shrink-0 place-items-center overflow-auto px-6 pb-6 lg:h-auto lg:flex-1 lg:shrink"
@@ -890,13 +975,25 @@ export function MusterAnsehen() {
               {bereich === "werkzeug" ? (
                 <>
                   {/*
-                    Die Auswahl steht oben, die Werkzeugliste darunter: wer ins
-                    Muster tippt, will als Nächstes wissen, was ausgewählt ist
-                    und was er damit tun kann. Das Werkzeug wählt man einmal,
-                    die Auswahl bei jedem Tipp neu. Die Reihenfolge steht fest,
-                    auch wenn nichts ausgewählt ist – ein Bereich, der die
-                    Plätze tauscht, lässt die Knöpfe springen.
+                    Ganz oben die eine Frage, von der alles Übrige abhängt:
+                    Was passiert, wenn ich ins Muster tippe? Darunter erst das
+                    Werkzeug – die Form, mit der es passiert. Vorher stand hier
+                    die Auswahl an erster Stelle, und dass ein Tipp überhaupt
+                    nur auswählen konnte, stand nirgends.
                   */}
+                  <Abschnitt
+                    titel={t("tippmodus.frage")}
+                    hinweis={t(
+                      modus === "faerben" ? "tippmodus.faerbenText" : "tippmodus.auswaehlenText",
+                    )}
+                  >
+                    <Tippmoduswahl modus={modus} onWaehlen={modusWaehlen} />
+                  </Abschnitt>
+
+                  {/* Die Auswahl und alles, was mit ihr geschieht – das gibt
+                      es nur im Auswählen-Modus. Beim Färben steht das
+                      Ergebnis schon im Muster und braucht keinen Knopf. */}
+                  {modus === "auswaehlen" ? (
                   <Abschnitt
                     titel={
                       auswahl && hatAuswahl
@@ -911,37 +1008,14 @@ export function MusterAnsehen() {
                           : t("editor.tippenHinweis")
                     }
                   >
-                    {werkzeug === "motiv" ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <Knopf
-                          art="neben"
-                          klein
-                          onClick={() => aehnlichkeitAendern(1)}
-                          disabled={
-                            tipps.length === 0 || aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1
-                          }
-                        >
-                          {t("motivsuche.mehr")}
-                        </Knopf>
-                        <Knopf
-                          art="neben"
-                          klein
-                          onClick={() => aehnlichkeitAendern(-1)}
-                          disabled={tipps.length === 0 || aehnlichkeit <= 0}
-                        >
-                          {t("motivsuche.weniger")}
-                        </Knopf>
-                      </div>
-                    ) : null}
-
                     {auswahl && auswahl.anzahl > 0.8 * muster.breite * muster.hoehe ? (
-                      <div className="mt-3">
+                      <div className="mb-3">
                         <Hinweis>{t("motivsuche.fastAlles")}</Hinweis>
                       </div>
                     ) : null}
 
                     {hatAuswahl ? (
-                      <div className="mt-3 flex flex-col gap-2">
+                      <div className="flex flex-col gap-2">
                         {/* Freistellen steht vorn und über die ganze Breite:
                             das ist der Grund, aus dem man ein Motiv auswählt. */}
                         <Knopf art="neben" onClick={nurAuswahlBehalten}>
@@ -974,6 +1048,7 @@ export function MusterAnsehen() {
                       </div>
                     ) : null}
                   </Abschnitt>
+                  ) : null}
 
                   {/* Sobald etwas freigestellt ist, muss der Weg zurück
                       sichtbar sein – und zwar nicht nur über „Rückgängig",
@@ -1009,7 +1084,35 @@ export function MusterAnsehen() {
                   ) : null}
 
                   <Abschnitt titel={t("werkzeug.frage")}>
-                    <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
+                    <Werkzeugwahl modus={modus} gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
+
+                    {/* „Mehr" und „Weniger" gehören zum Motivwerkzeug und
+                        stehen deshalb bei ihm – in beiden Modi. Beim Färben
+                        stellen sie ein, wie viel der nächste Tipp mitnimmt;
+                        beim Auswählen rechnen sie die Umrandung sofort neu. */}
+                    {werkzeug === "motiv" ? (
+                      <div className="mt-4 border-t border-linie pt-3">
+                        <p className="mb-2 text-[1rem] font-semibold">{t("motivsuche.wieViel")}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Knopf
+                            art="neben"
+                            klein
+                            onClick={() => aehnlichkeitAendern(1)}
+                            disabled={aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1}
+                          >
+                            {t("motivsuche.mehr")}
+                          </Knopf>
+                          <Knopf
+                            art="neben"
+                            klein
+                            onClick={() => aehnlichkeitAendern(-1)}
+                            disabled={aehnlichkeit <= 0}
+                          >
+                            {t("motivsuche.weniger")}
+                          </Knopf>
+                        </div>
+                      </div>
+                    ) : null}
                   </Abschnitt>
                 </>
               ) : null}
@@ -1162,6 +1265,31 @@ export function MusterAnsehen() {
       />
     </Seite>
   );
+}
+
+/**
+ * Die gefahrene Spur als Auswahl – die Vorschau während eines Freihandzugs.
+ *
+ * Solange der Finger unten ist, wird nur gezeigt, wo er schon war; das Innere
+ * kommt erst beim Loslassen dazu (`freihandAuswahl`). Beide Modi brauchen
+ * dieselbe Vorschau, deshalb steht sie hier einmal.
+ */
+function spurAuswahl(
+  punkte: Array<{ x: number; y: number }>,
+  breite: number,
+  hoehe: number,
+): Auswahl {
+  const maske = new Uint8Array(breite * hoehe);
+  let anzahl = 0;
+  for (let i = 1; i < punkte.length; i++) {
+    for (const f of linieFelder(punkte[i - 1].x, punkte[i - 1].y, punkte[i].x, punkte[i].y)) {
+      if (f.x < 0 || f.y < 0 || f.x >= breite || f.y >= hoehe) continue;
+      const feld = f.y * breite + f.x;
+      if (!maske[feld]) anzahl++;
+      maske[feld] = 1;
+    }
+  }
+  return { maske, x0: 0, y0: 0, x1: breite - 1, y1: hoehe - 1, anzahl };
 }
 
 /**
