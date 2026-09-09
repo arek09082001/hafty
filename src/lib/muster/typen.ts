@@ -128,15 +128,6 @@ export function glaettungswerte(staerke: number): Glaettungswerte {
 }
 
 /**
- * Wie groß die kleinste Fläche ungefähr ist, als Kantenlänge in Kästchen.
- * Das ist die Zahl, die unter dem Regler steht: „etwa 4 × 4 Kästchen" sagt
- * einer Stickerin mehr als „mindestFlaeche 18".
- */
-export function glaettungsKante(staerke: number): number {
-  return Math.max(1, Math.round(Math.sqrt(glaettungswerte(staerke).mindestFlaeche)));
-}
-
-/**
  * Die Beschriftung über dem Regler. Sie bleibt in ganzen Worten – eine Zahl
  * sagt der Nutzerin nichts – und wechselt an fünf Stellen der Skala.
  */

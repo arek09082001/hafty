@@ -1297,7 +1297,6 @@ export function MusterAnsehen() {
                     <Abschnitt titel={t("glaettung.frage")}>
                       <Glaettungsregler
                         staerke={einstellungen.glaettungsstaerke}
-                        kennzahlen={muster.kennzahlen}
                         laeuft={laeuft}
                         onAendern={glaettungSetzen}
                       />
@@ -1308,16 +1307,10 @@ export function MusterAnsehen() {
                     <Abschnitt titel={t("farben.frage")}>
                       <Farbregler
                         farbanzahl={einstellungen.farbanzahl}
-                        imMuster={muster.farbenNachher}
                         laeuft={laeuft}
                         onAendern={farbanzahlSetzen}
                       />
                     </Abschnitt>
-                    <Farbmeldung
-                      vorher={muster.farbenVorher}
-                      nachher={muster.farbenNachher}
-                      zusammengelegt={muster.garneZusammengelegt}
-                    />
                   </>
                 ) : null}
 
@@ -1443,28 +1436,3 @@ function Sichtknopf({
   );
 }
 
-/**
- * Wenn Farben verschwunden sind, wird das in einem ganzen Satz gesagt – die
- * Nutzerin soll nicht selbst nachzählen müssen.
- */
-function Farbmeldung({
-  vorher,
-  nachher,
-  zusammengelegt,
-}: {
-  vorher: number;
-  nachher: number;
-  zusammengelegt: number;
-}) {
-  const { t } = useSprache();
-  if (nachher >= vorher) return null;
-
-  return (
-    <Hinweis>
-      {t(zusammengelegt > 0 ? "editor.farbenZusammengelegt" : "editor.farbenWeggefallen", {
-        vorher: String(vorher),
-        nachher: String(nachher),
-      })}
-    </Hinweis>
-  );
-}

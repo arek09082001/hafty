@@ -36,6 +36,11 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  * Wie beim Glättungsregler geht der Wert erst kurz nach dem letzten Zug
  * hinaus – ein neues k-Means bei jedem Bildpunkt wäre sinnlos. Der Regler
  * selbst bleibt dabei immer bedienbar.
+ *
+ * Erklärungen stehen hier keine mehr, und auch nicht, wie viele Farben nach
+ * dem Glätten wirklich übrig bleiben. Beides war mehr Text als Bedienung.
+ * Wie viele Farben es geworden sind, steht ohnehin im Reiter „Garne", und
+ * zwar mit jeder einzelnen davon.
  */
 
 /** So lange nach dem letzten Zug wird gewartet, bevor gerechnet wird. */
@@ -43,14 +48,11 @@ const VERZOEGERUNG = 200;
 
 export function Farbregler({
   farbanzahl,
-  imMuster,
   laeuft,
   onAendern,
 }: {
   /** Die gewünschte Zahl – die Reglerstellung. */
   farbanzahl: number;
-  /** Wie viele Farben im gerechneten Muster wirklich vorkommen. */
-  imMuster: number;
   laeuft: boolean;
   onAendern: (anzahl: number) => void;
 }) {
@@ -85,14 +87,11 @@ export function Farbregler({
     }, VERZOEGERUNG);
   }
 
-  // Solange der zuletzt geschobene Wert noch nicht gerechnet ist, gehört die
-  // Zahl unten zu einem anderen Muster – dann steht dort nur „…".
+  /** Solange gerechnet wird, gehört das Muster daneben noch zur alten Stellung. */
   const wartet = laeuft || gezeigt !== farbanzahl;
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[1rem] text-gedaempft">{t("farben.erklaerung")}</p>
-
       <label htmlFor="farbanzahl" className="text-[1.3rem] font-bold text-hauptaktion">
         {t("farben.gewuenscht", { anzahl: zahl(gezeigt) })}
       </label>
@@ -146,21 +145,6 @@ export function Farbregler({
           {t("einst.mehr")}
         </Knopf>
       </div>
-
-      {/* Gewünscht und tatsächlich sind zweierlei: Flächen können bei der
-          Glättung ganz verschwinden, und ohne passendes Garn fallen zwei
-          Töne doch zusammen. */}
-      <dl className="mt-2 flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-4 border-t border-linie pt-3">
-          <dt className="text-[1.05rem]">
-            {t("farben.imMuster")}
-            <span className="block text-[0.95rem] text-gedaempft">{t("farben.imMusterText")}</span>
-          </dt>
-          <dd className="shrink-0 text-[1.6rem] font-bold leading-none">
-            {wartet ? "…" : zahl(imMuster)}
-          </dd>
-        </div>
-      </dl>
     </div>
   );
 }

@@ -191,10 +191,6 @@ export const DE = {
   "editor.garnbedarf":
     "Zusammen brauchen Sie etwa {meter} Garn. Geschätzt für zwei Fäden aus einem Strang – kaufen Sie lieber etwas mehr.",
   "editor.farbeHinweis": "Die angetippte Farbe wird zum Malen und Färben verwendet.",
-  "editor.farbenZusammengelegt":
-    "Aus {vorher} Farben sind {nachher} geworden – einige lagen so dicht beieinander, dass es dafür dasselbe Garn gibt.",
-  "editor.farbenWeggefallen":
-    "Aus {vorher} Farben sind {nachher} geworden – beim Glätten sind einzelne ganz verschwunden.",
   "editor.hinweisAufklappen": "Erklärung zum Werkzeug anzeigen",
   "editor.hinweisZuklappen": "Erklärung zum Werkzeug ausblenden",
   "editor.anderesGarnTitel": "Ein anderes Garn für diese Farbe",
@@ -284,28 +280,15 @@ export const DE = {
 
   // --- Glättung -----------------------------------------------------------
   "glaettung.frage": "Wie ruhig soll das Muster sein?",
-  "glaettung.erklaerung":
-    "Schieben Sie den Regler nach rechts, wenn Sie große zusammenhängende Flächen möchten. Nach links wird das Bild genauer, aber es entstehen mehr einzelne Stiche. Der Regler hat keine Stufen – jede Stellung dazwischen geht auch.",
   "glaettung.stufe0": "sehr detailliert",
   "glaettung.stufe1": "detailliert",
   "glaettung.stufe2": "ausgewogen",
   "glaettung.stufe3": "ruhig",
   "glaettung.stufe4": "ruhig und einfach zu sticken",
-  "glaettung.flaeche": "Kleinste Fläche: etwa {kante} × {kante} Kästchen.",
-  "glaettung.flaecheFrei": "Jedes einzelne Kästchen darf seine eigene Farbe haben.",
-  "glaettung.einzelstiche": "Einzelne Stiche",
-  "glaettung.einzelsticheText": "So oft müssen Sie für nur ein oder zwei Kreuze neu einfädeln.",
-  "glaettung.farbwechsel": "Farbwechsel pro Reihe",
-  "glaettung.farbwechselText": "So oft wechselt in einer Reihe im Schnitt die Farbe.",
 
   // --- Der Farbregler im Editor --------------------------------------------
   "farben.frage": "Wie viele Farben soll das Muster haben?",
-  "farben.erklaerung":
-    "Mehr Farben heißt mehr Abstufungen und ein Bild, das dem Foto näher kommt. Weniger Farben heißt weniger Garn zu kaufen und ruhigere Flächen. Sie können hier so oft hin und her stellen, wie Sie mögen – Ihre eigenen Stiche bleiben dabei erhalten.",
   "farben.gewuenscht": "{anzahl} Farben",
-  "farben.imMuster": "Farben im Muster",
-  "farben.imMusterText":
-    "So viele bleiben nach dem Glätten wirklich übrig. Sind es weniger als gewünscht, waren zwei Töne so ähnlich, dass sie dasselbe Garn bekommen haben.",
 
   // --- Legende ------------------------------------------------------------
   // --- Farben in Worten ----------------------------------------------------
@@ -729,10 +712,6 @@ export const PL: Record<Textschluessel, string> = {
   "editor.garnbedarf":
     "Razem potrzeba około {meter} nici. Szacunek dla dwóch nitek z jednej muliny – lepiej kupić trochę więcej.",
   "editor.farbeHinweis": "Dotknięty kolor będzie używany do malowania i kolorowania.",
-  "editor.farbenZusammengelegt":
-    "Z {vorher} kolorów zostało {nachher} – kilka leżało tak blisko siebie, że przypada na nie ta sama nitka.",
-  "editor.farbenWeggefallen":
-    "Z {vorher} kolorów zostało {nachher} – przy wygładzaniu pojedyncze zniknęły całkiem.",
   "editor.hinweisAufklappen": "Pokaż objaśnienie narzędzia",
   "editor.hinweisZuklappen": "Ukryj objaśnienie narzędzia",
   "editor.anderesGarnTitel": "Inna nitka dla tego koloru",
@@ -815,28 +794,14 @@ export const PL: Record<Textschluessel, string> = {
   "schrittname.wiederGestickt": "Znów haftowane wszystko",
 
   "glaettung.frage": "Jak spokojny ma być wzór?",
-  "glaettung.erklaerung":
-    "Proszę przesunąć suwak w prawo, jeśli chce Pani dużych, jednolitych powierzchni. W lewo obraz będzie dokładniejszy, ale powstanie więcej pojedynczych ściegów. Suwak nie ma stopni – każde położenie pomiędzy też jest możliwe.",
   "glaettung.stufe0": "bardzo szczegółowy",
   "glaettung.stufe1": "szczegółowy",
   "glaettung.stufe2": "wyważony",
   "glaettung.stufe3": "spokojny",
   "glaettung.stufe4": "spokojny i łatwy do haftowania",
-  "glaettung.flaeche": "Najmniejsza powierzchnia: około {kante} × {kante} kratek.",
-  "glaettung.flaecheFrei": "Każda pojedyncza kratka może mieć swój własny kolor.",
-  "glaettung.einzelstiche": "Pojedyncze ściegi",
-  "glaettung.einzelsticheText":
-    "Tyle razy trzeba będzie nawlekać igłę dla jednego lub dwóch krzyżyków.",
-  "glaettung.farbwechsel": "Zmian koloru na rząd",
-  "glaettung.farbwechselText": "Tyle razy średnio zmienia się kolor w jednym rzędzie.",
 
   "farben.frage": "Ile kolorów ma mieć wzór?",
-  "farben.erklaerung":
-    "Więcej kolorów to więcej odcieni i obraz bliższy zdjęciu. Mniej kolorów to mniej nici do kupienia i spokojniejsze powierzchnie. Można przestawiać tam i z powrotem, ile się chce – własne ściegi przy tym zostają.",
   "farben.gewuenscht": "kolorów: {anzahl}",
-  "farben.imMuster": "Kolorów we wzorze",
-  "farben.imMusterText":
-    "Tyle zostaje naprawdę po wygładzeniu. Jeśli jest ich mniej niż wybrano, dwa odcienie były tak podobne, że dostały tę samą nitkę.",
 
   // --- Farben in Worten ----------------------------------------------------
   // Im Polnischen steht die Stufe vor dem Farbwort und beide sind

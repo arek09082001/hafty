@@ -6,8 +6,6 @@ import {
   GLAETTUNG_MAX,
   GLAETTUNG_MIN,
   glaettungTitel,
-  glaettungsKante,
-  type Kennzahlen,
 } from "@/lib/muster/typen";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
@@ -21,10 +19,14 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  * rechts, wo im Schnitt eine Farbe für 10 × 10 Kästchen steht.
  *
  * In der Oberfläche taucht die Zahl dahinter nirgends auf, sie sagt der
- * Nutzerin nichts. Stattdessen stehen dort drei Angaben, die sich beim
- * Schieben sofort mitbewegen: die Beschriftung in ganzen Worten, wie groß
- * die kleinste Fläche dann ungefähr ist, und die beiden Zahlen des fertig
- * gerechneten Musters.
+ * Nutzerin nichts. Stattdessen steht dort die Stellung in ganzen Worten.
+ *
+ * Sonst steht dort nichts mehr. Unter dem Regler standen einmal ein
+ * Absatz Erklärung, die ungefähre Größe der kleinsten Fläche und zwei
+ * Kennzahlen des gerechneten Musters – zusammen mehr Text als Bedienung,
+ * und auf einem Telefon war der zweite Regler dahinter kaum noch zu
+ * erreichen. Was der Regler tut, sieht man am Muster daneben; dafür ist es
+ * schließlich da.
  *
  * Während des Ziehens wird nicht bei jedem Bildpunkt neu gerechnet: der Wert
  * geht erst kurz nach dem letzten Zug hinaus. Der Regler selbst bleibt dabei
@@ -37,16 +39,14 @@ const VERZOEGERUNG = 120;
 
 export function Glaettungsregler({
   staerke,
-  kennzahlen,
   laeuft,
   onAendern,
 }: {
   staerke: number;
-  kennzahlen: Kennzahlen;
   laeuft: boolean;
   onAendern: (staerke: number) => void;
 }) {
-  const { t, zahl } = useSprache();
+  const { t } = useSprache();
   const [gezeigt, setGezeigt] = useState(staerke);
   /** Der zuletzt hinausgegebene Wert – daran hängt, ob von außen kam, was kommt. */
   const gesendet = useRef(staerke);
@@ -77,15 +77,11 @@ export function Glaettungsregler({
   }
 
   const titel = glaettungTitel(gezeigt);
-  const kante = glaettungsKante(gezeigt);
-  // Solange der zuletzt geschobene Wert noch nicht gerechnet ist, gehören die
-  // beiden Zahlen unten zu einem anderen Muster – dann steht dort nur „…".
+  /** Solange gerechnet wird, gehört das Muster daneben noch zur alten Stellung. */
   const wartet = laeuft || gezeigt !== staerke;
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[1rem] text-gedaempft">{t("glaettung.erklaerung")}</p>
-
       <label htmlFor="glaettung" className="text-[1.3rem] font-bold text-hauptaktion">
         {t(titel)}
       </label>
@@ -112,41 +108,6 @@ export function Glaettungsregler({
         <span>{t("glaettung.stufe0")}</span>
         <span className="text-right">{t("glaettung.stufe4")}</span>
       </div>
-
-      {/* Was die Reglerstellung für das Sticken heißt, in Kästchen gesagt. */}
-      <p aria-live="polite" className="text-[1.05rem]">
-        {kante <= 1
-          ? t("glaettung.flaecheFrei")
-          : t("glaettung.flaeche", { kante: String(kante) })}
-      </p>
-
-      {/* Die beiden Zahlen sagen, was der Regler bewirkt hat. Sie standen
-          bisher in zwei gerahmten Kästen; als schlichte Zeilen mit einer
-          Trennlinie lesen sie sich schneller und tragen nicht auf. */}
-      <dl className="mt-2 flex flex-col gap-3">
-        <div className="flex items-baseline justify-between gap-4 border-t border-linie pt-3">
-          <dt className="text-[1.05rem]">
-            {t("glaettung.einzelstiche")}
-            <span className="block text-[0.95rem] text-gedaempft">
-              {t("glaettung.einzelsticheText")}
-            </span>
-          </dt>
-          <dd className="shrink-0 text-[1.6rem] font-bold leading-none">
-            {wartet ? "…" : zahl(kennzahlen.einzelstiche)}
-          </dd>
-        </div>
-        <div className="flex items-baseline justify-between gap-4 border-t border-linie pt-3">
-          <dt className="text-[1.05rem]">
-            {t("glaettung.farbwechsel")}
-            <span className="block text-[0.95rem] text-gedaempft">
-              {t("glaettung.farbwechselText")}
-            </span>
-          </dt>
-          <dd className="shrink-0 text-[1.6rem] font-bold leading-none">
-            {wartet ? "…" : zahl(kennzahlen.farbwechselProReihe)}
-          </dd>
-        </div>
-      </dl>
     </div>
   );
 }
