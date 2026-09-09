@@ -55,7 +55,7 @@ export type Stand = {
 export type StandInhalt = {
   breite: number;
   hoehe: number;
-  basis: Uint8Array;
+  basis: Uint16Array;
   bearbeitung: Int16Array;
   palette: PalettenEintrag[];
 };
@@ -82,7 +82,7 @@ export type Standsatz = {
 async function vorschauBauen(
   breite: number,
   hoehe: number,
-  raster: Uint8Array,
+  raster: Uint16Array,
   palette: PalettenEintrag[],
 ): Promise<Blob | null> {
   if (typeof document === "undefined") return null;
@@ -125,9 +125,9 @@ export async function standSichern(argumente: {
   gemerkt: boolean;
   breite: number;
   hoehe: number;
-  basis: Uint8Array;
+  basis: Uint16Array;
   bearbeitung: Int16Array;
-  raster: Uint8Array;
+  raster: Uint16Array;
   palette: PalettenEintrag[];
   einstellungen: Einstellungen;
   quellbild: Blob | null;

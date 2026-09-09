@@ -1,5 +1,7 @@
 /** Gemeinsame Typen fuer Pipeline, Editor und Ausdruck. */
 
+import { GARNE } from "@/lib/garne/katalog-daten";
+
 /** Eine reale Herstellerfarbe mit vorberechnetem Lab-Wert. */
 export type Garn = {
   id: string;
@@ -14,7 +16,7 @@ export type Garn = {
 
 /** Ein Eintrag der Legende: ein Palettenindex und was dahintersteckt. */
 export type PalettenEintrag = {
-  /** Index im Raster (0..254). */
+  /** Index im Raster (0..1022). */
   index: number;
   /** Bildschirmfarbe, mit der das Feld gemalt wird. */
   hex: string;
@@ -42,8 +44,8 @@ export type Kennzahlen = {
 export type MusterErgebnis = {
   breite: number;
   hoehe: number;
-  /** Ein Byte je Feld: der Palettenindex. */
-  raster: Uint8Array;
+  /** Zwei Byte je Feld: der Palettenindex. */
+  raster: Uint16Array;
   palette: PalettenEintrag[];
   kennzahlen: Kennzahlen;
   /** Wie viele Farben das k-Means gefunden hat, bevor Garne zusammenfielen. */
@@ -186,10 +188,21 @@ export function einstellungenLesen(gespeichert: unknown): Einstellungen {
   return {
     breiteStiche: zahl(roh.breiteStiche, STANDARD_EINSTELLUNGEN.breiteStiche),
     stoffzaehlung: zahl(roh.stoffzaehlung, STANDARD_EINSTELLUNGEN.stoffzaehlung),
-    farbanzahl: zahl(roh.farbanzahl, STANDARD_EINSTELLUNGEN.farbanzahl),
+    farbanzahl: farbanzahlBegrenzen(zahl(roh.farbanzahl, STANDARD_EINSTELLUNGEN.farbanzahl)),
     glaettungsstaerke: glaettungBegrenzen(staerke),
     nurEigeneGarne: roh.nurEigeneGarne === true,
   };
+}
+
+/**
+ * Eine gewünschte Farbzahl auf das Machbare begrenzen.
+ *
+ * Sie steht nicht mehr nur in Schritt 2, sondern lässt sich im Editor am
+ * Regler ändern – und ein Regler liefert auch Zwischenwerte und Unsinn.
+ */
+export function farbanzahlBegrenzen(anzahl: number): number {
+  if (!Number.isFinite(anzahl)) return STANDARD_EINSTELLUNGEN.farbanzahl;
+  return Math.min(MAX_FARBEN, Math.max(MIN_FARBEN, Math.round(anzahl)));
 }
 
 /** Übliche Stoffzählungen. */
@@ -201,10 +214,22 @@ export const STOFFZAEHLUNGEN = [
 ] as const;
 
 /**
+ * So viele Farbindizes gibt es: 0 bis 1022, dazu die 1023 für LEER.
+ *
+ * Das Raster hält zwei Byte je Feld, es wären also 65.536 Werte möglich.
+ * Gedeckelt wird trotzdem, und zwar hier: über den Farbindex laufen
+ * Nachschlagetabellen – die Bildschirmfarben beim Zeichnen, die Zähler beim
+ * Glätten, die Stichzahlen beim Nachzählen. Mit 1024 Plätzen bleiben die
+ * winzig, und der Wert passt zugleich in die Int16-Bearbeitungsebene, in der
+ * -1 „unberührt" heißt. Für einen Garnkatalog ist das reichlich: der
+ * größte, den es hier gibt, hat 375 Farben.
+ */
+export const FARBINDIZES = 1024;
+
+/**
  * Ein Feld, das **nicht gestickt** wird – dort bleibt der Stoff frei.
  *
- * Das Raster hält je Feld ein Byte. Die Palette reicht von 0 bis 254 (das
- * k-Means begrenzt sich selbst auf 255 Farben), 255 ist deshalb frei und
+ * Die Palette reicht von 0 bis 1022, der letzte Wert ist deshalb frei und
  * bekommt hier seine Bedeutung: kein Garn, kein Stich, nichts.
  *
  * Gebraucht wird das, sobald jemand nur ein Motiv aus dem Bild sticken
@@ -217,7 +242,7 @@ export const STOFFZAEHLUNGEN = [
  *   - die Garnliste zählt es nicht mit (paletteNachzaehlen)
  *   - beim Neuerzeugen bleibt es stehen (bearbeitungUmschreiben)
  */
-export const LEER = 255;
+export const LEER = FARBINDIZES - 1;
 
 /**
  * Die Farbe des unbestickten Stoffes auf dem Bildschirm.
@@ -231,8 +256,75 @@ export const STOFFFARBE = "#f1e8d6";
 export const MAX_FELDER = 160_000;
 export const MAX_BREITE = 400;
 export const MIN_BREITE = 20;
-export const MAX_FARBEN = 48;
+/**
+ * Höchstzahl an Farben: so viele Garne hat der Katalog.
+ *
+ * Eine kleinere Zahl wäre eine willkürliche Grenze. Wer jede Nuance eines
+ * Fotos will, soll sie bekommen – dass ein Muster mit 300 Farben kaum zu
+ * sticken ist, entscheidet die Nutzerin und nicht das Programm. Nach oben
+ * hin ist der Katalog selbst die Grenze: mehr Farben als Garne zu verlangen
+ * ergibt keinen Sinn, zwei Cluster fielen ohnehin auf dasselbe Garn
+ * zusammen (siehe `aufGarneAbbilden`).
+ *
+ * Was viele Farben kosten, steht in `glaettung.ts`: Rechenzeit ja, Speicher
+ * nein – die Abstandsliste je Feld ist deshalb der Länge nach begrenzt.
+ */
+export const MAX_FARBEN = GARNE.length;
 export const MIN_FARBEN = 2;
+
+/**
+ * Wie viele Farben ein Tipp auf „Mehr" dazugibt.
+ *
+ * Unten in Zweierschritten: da entscheidet jede einzelne Farbe darüber, wie
+ * das Bild aussieht. Weiter oben in größeren – von 20 bis an den ganzen
+ * Katalog wären es sonst fast zweihundert Tipps, und zwischen 300 und 302
+ * Farben liegt ohnehin kein sichtbarer Unterschied.
+ *
+ * Steht hier und nicht in einer der beiden Seiten, weil die Farbzahl an zwei
+ * Stellen eingestellt wird – in Schritt 2 und am Regler im Editor. Zwei
+ * verschiedene Schrittweiten für dieselbe Zahl wären nicht zu erklären.
+ */
+export function farbenSchritt(wert: number): number {
+  if (wert < 24) return 2;
+  if (wert < 60) return 4;
+  if (wert < 150) return 10;
+  return 25;
+}
+
+/**
+ * Der Farbregler im Editor.
+ * ---------------------------------------------------------------------------
+ *
+ * Der Regler läuft in gleichen Schritten von links nach rechts, die Farbzahl
+ * dahinter aber nicht. Zwischen 8 und 12 Farben liegt ein ganz anderes
+ * Muster; zwischen 300 und 320 sieht niemand einen Unterschied. Auf einer
+ * geraden Skala von 2 bis 375 läge der ganze interessante Bereich in den
+ * ersten Millimetern, und mit dem Finger auf dem Tablet wäre er nicht zu
+ * treffen.
+ *
+ * Deshalb wächst die Farbzahl geometrisch: gleich große Wege am Regler
+ * bedeuten überall dieselbe **anteilige** Änderung. Die Mitte liegt damit bei
+ * rund 27 Farben, ein Viertel bei etwa 7, drei Viertel bei etwa 100 – die
+ * untere Hälfte des Reglers deckt genau den Bereich ab, in dem jede einzelne
+ * Farbe zählt.
+ */
+export const FARBREGLER_MAX = 100;
+
+/** Reglerstellung (0..100) -> Farbzahl. */
+export function farbanzahlAusRegler(stellung: number): number {
+  const anteil = Math.min(1, Math.max(0, stellung / FARBREGLER_MAX));
+  return farbanzahlBegrenzen(MIN_FARBEN * (MAX_FARBEN / MIN_FARBEN) ** anteil);
+}
+
+/** Farbzahl -> Reglerstellung (0..100), die Umkehrung von `farbanzahlAusRegler`. */
+export function reglerAusFarbanzahl(anzahl: number): number {
+  const wert = farbanzahlBegrenzen(anzahl);
+  const anteil = Math.log(wert / MIN_FARBEN) / Math.log(MAX_FARBEN / MIN_FARBEN);
+  return Math.round(anteil * FARBREGLER_MAX);
+}
+
+/** Orientierungspunkte am Farbregler – keine Rastpunkte. */
+export const FARBMARKEN = [MIN_FARBEN, 10, 25, 60, 150, MAX_FARBEN] as const;
 
 /** Stiche in Zentimeter umrechnen. */
 export function sticheInCm(stiche: number, stoffzaehlung: number): number {

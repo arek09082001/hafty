@@ -45,7 +45,7 @@
 
 import { ciede2000 } from "@/lib/farbe/ciede2000";
 import { auswahlAusMaske, leereAuswahl, type Auswahl } from "./raster";
-import { LEER, type PalettenEintrag } from "./typen";
+import { FARBINDIZES, LEER, type PalettenEintrag } from "./typen";
 
 /**
  * Die Stufen der Ähnlichkeit, als CIEDE2000-Schwelle.
@@ -73,7 +73,7 @@ export function stufeBegrenzen(stufe: number): number {
  * vorkommen) darf hier nicht zu falschen Farben führen.
  */
 export function motivAuswaehlen(
-  raster: Uint8Array,
+  raster: Uint16Array,
   breite: number,
   hoehe: number,
   palette: PalettenEintrag[],
@@ -91,7 +91,7 @@ export function motivAuswaehlen(
   // --- Welche Farben zählen als „ähnlich genug“? --------------------------
   // Das hängt nur von der Palette ab, nicht vom einzelnen Feld: bei 20 Farben
   // sind das 20 Abstandsrechnungen für das ganze Muster statt einer je Feld.
-  const passt = new Uint8Array(256);
+  const passt = new Uint8Array(FARBINDIZES);
   const nachIndex: (PalettenEintrag | undefined)[] = [];
   for (const eintrag of palette) nachIndex[eintrag.index] = eintrag;
 

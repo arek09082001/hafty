@@ -8,9 +8,11 @@
  * nicht einfriert, während 30 Millionen Abstände berechnet werden.
  *
  * Zwischen zwei Aufträgen behält der Worker seine Zwischenergebnisse. Das ist
- * der Grund, warum sich der Glättungsregler live anfühlt: Herunterrechnen,
- * Filtern, k-Means und die Abstandstabelle laufen einmal, danach kostet eine
- * Änderung des Reglers nur noch die vier ICM-Durchläufe.
+ * der Grund, warum sich die beiden Regler live anfühlen: Herunterrechnen,
+ * Filtern, k-Means und die Abstandsliste laufen einmal, danach kostet eine
+ * Änderung des Glättungsreglers nur noch die vier ICM-Durchläufe. Der
+ * Farbregler setzt eine Stufe früher an – er rechnet ab dem k-Means neu, das
+ * Bild wird auch dafür kein zweites Mal gelesen.
  */
 
 import {
@@ -22,10 +24,11 @@ import {
   type Rasterbild,
 } from "@/lib/muster/pipeline";
 import {
-  abstandstabelleBauen,
+  abstandslisteBauen,
   glaetten,
   ohneGlaettungZuordnen,
   paletteNeuZaehlen,
+  type Abstandsliste,
 } from "@/lib/muster/glaettung";
 import { symboleVerteilen } from "@/lib/muster/symbole";
 import type { Garn, PalettenEintrag } from "@/lib/muster/typen";
@@ -39,14 +42,20 @@ const eigen = self as unknown as DedicatedWorkerGlobalScope;
 type Zwischenstand = {
   breite: number;
   hoehe: number;
+  /**
+   * Das heruntergerechnete und gefilterte Raster in Lab. Es bleibt liegen,
+   * damit der Farbregler ein neues k-Means rechnen kann, ohne das Bild noch
+   * einmal zu lesen. Selbst beim größten Muster sind das keine 2 MB.
+   */
+  lab: Float32Array;
   /** Palettenfarben im Lab-Raum (nach dem Garnmapping). */
   paletteLab: Lab[];
   /** Die zugehörigen Garne, oder lauter null ohne Katalog. */
   garne: (Garn | null)[];
-  /** Abstand jedes Feldes zu jeder Palettenfarbe. */
-  tabelle: Float32Array;
+  /** Je Feld die nächstliegenden Palettenfarben mit ihrem Abstand. */
+  tabelle: Abstandsliste;
   /** Zuordnung ohne jede Glättung – Ausgangspunkt jedes ICM-Laufs. */
-  startRaster: Uint8Array;
+  startRaster: Uint16Array;
   /** Wie viele Farben das k-Means gefunden hat. */
   farbenVorher: number;
   garneZusammengelegt: number;
@@ -66,6 +75,8 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
   try {
     if (e.data.art === "erzeugen") {
       erzeugen(e.data);
+    } else if (e.data.art === "farben") {
+      farbenNeu(e.data);
     } else if (e.data.art === "glaetten") {
       nurGlaetten(e.data.lambda, e.data.mindestFlaeche);
     }
@@ -111,16 +122,17 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
   fortschritt("arbeit.garneSuchen", 0.6);
   const zuordnung = aufGarneAbbilden(cluster.zentren, garne);
 
-  // --- Abstandstabelle: die Grundlage für alles Weitere ---------------------
+  // --- Abstandsliste: die Grundlage für alles Weitere -----------------------
   fortschritt("arbeit.vorbereiten", 0.7);
-  const tabelle = abstandstabelleBauen(raster.lab, zuordnung.farben);
+  const tabelle = abstandslisteBauen(raster.lab, zuordnung.farben);
 
   // Ausgangszuordnung: jedes Feld bekommt die farblich nächste Palettenfarbe.
-  const startRaster = ohneGlaettungZuordnen(tabelle, zuordnung.farben.length);
+  const startRaster = ohneGlaettungZuordnen(tabelle);
 
   stand = {
     breite: raster.breite,
     hoehe: raster.hoehe,
+    lab: raster.lab,
     paletteLab: zuordnung.farben,
     garne: zuordnung.garne,
     tabelle,
@@ -130,6 +142,49 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
   };
 
   nurGlaetten(lambda, mindestFlaeche);
+}
+
+// ---------------------------------------------------------------------------
+// Nur die Farbzahl – das läuft bei jedem Zug am Farbregler
+// ---------------------------------------------------------------------------
+
+/**
+ * Ein neues k-Means auf demselben heruntergerechneten Raster.
+ *
+ * Alles, was vor der Farbreduktion liegt – Bild lesen, herunterrechnen,
+ * Medianfilter – hängt nicht an der Farbzahl und wird deshalb nicht noch
+ * einmal gerechnet. Übrig bleiben k-Means, die Garnzuordnung und die
+ * Abstandsliste; dahinter läuft dieselbe Glättung wie sonst auch.
+ */
+function farbenNeu(auftrag: Extract<AnWorker, { art: "farben" }>) {
+  if (!stand) {
+    melden({ art: "fehler", text: "arbeit.fehlerKeinMuster" });
+    return;
+  }
+
+  fortschritt("arbeit.farbenFassen", 0.25);
+  const cluster = kmeans(
+    { breite: stand.breite, hoehe: stand.hoehe, lab: stand.lab },
+    auftrag.farbanzahl,
+  );
+
+  fortschritt("arbeit.garneSuchen", 0.5);
+  const zuordnung = aufGarneAbbilden(cluster.zentren, auftrag.garne);
+
+  fortschritt("arbeit.vorbereiten", 0.7);
+  const tabelle = abstandslisteBauen(stand.lab, zuordnung.farben);
+
+  stand = {
+    ...stand,
+    paletteLab: zuordnung.farben,
+    garne: zuordnung.garne,
+    tabelle,
+    startRaster: ohneGlaettungZuordnen(tabelle),
+    farbenVorher: cluster.k,
+    garneZusammengelegt: zuordnung.zusammengelegt,
+  };
+
+  nurGlaetten(auftrag.lambda, auftrag.mindestFlaeche);
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +203,6 @@ function nurGlaetten(lambda: number, mindestFlaeche: number) {
   const { raster, kennzahlen } = glaetten(
     stand.startRaster,
     stand.tabelle,
-    k,
     stand.breite,
     lambda,
     mindestFlaeche,

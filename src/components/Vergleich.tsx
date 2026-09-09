@@ -32,7 +32,7 @@ const LUPE_STUFEN = [1, 1.5, 2, 3, 4, 6, 8] as const;
 type Geladen = {
   breite: number;
   hoehe: number;
-  raster: Uint8Array;
+  raster: Uint16Array;
   palette: PalettenEintrag[];
 };
 

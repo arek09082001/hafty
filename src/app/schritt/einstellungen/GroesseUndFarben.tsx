@@ -17,6 +17,7 @@ import {
   MIN_FARBEN,
   STOFFZAEHLUNGEN,
   cmText,
+  farbenSchritt,
   sticheInCm,
 } from "@/lib/muster/typen";
 
@@ -151,7 +152,7 @@ export function GroesseUndFarben() {
               wert={einstellungen.farbanzahl}
               min={MIN_FARBEN}
               max={MAX_FARBEN}
-              schritt={2}
+              schritt={farbenSchritt}
               einheit={t("einst.farbenEinheit")}
               onAendern={(v) => einstellungenSetzen({ farbanzahl: v })}
               hinweis={t("einst.farbanzahlHinweis")}

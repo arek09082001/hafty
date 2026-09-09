@@ -141,11 +141,15 @@ export const DE = {
   "editor.wiederholen": "Wiederholen",
   "editor.weiterDrucken": "Weiter zum Drucken",
   "editor.masse": "{breite} × {hoehe} Stiche · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
+  "editor.groesseTitel": "Größe",
+  "editor.malfarbe": "Farbe zum Malen",
+  "editor.malfarbeHinweis": "Tippen Sie eine Kachel an. Mit dieser Farbe wird gemalt und gefüllt.",
+  "editor.gewaehlteFarbe": "Gewählt: {garn}",
   "editor.leinwandBeschriftung": "Ihr Zählmuster, {breite} mal {hoehe} Stiche",
   "editor.ausgewaehlt": "{anzahl} Stiche ausgewählt",
   "editor.nichtsAusgewaehlt": "Noch nichts ausgewählt",
   "editor.tippenHinweis":
-    "Tippen Sie mit dem gewählten Werkzeug ins Muster, dann erscheinen hier die passenden Knöpfe.",
+    "Tippen Sie mit dem gewählten Werkzeug ins Muster. Dann lassen sich die Knöpfe hier benutzen.",
   "editor.auswahlFaerben": "Auswahl färben",
   "editor.auswahlKopieren": "Auswahl kopieren",
   "editor.alsMotivMerken": "Als Motiv merken",
@@ -205,13 +209,26 @@ export const DE = {
     "Dieser Stand ist gemerkt. Er bleibt Ihnen erhalten, auch wenn Sie noch viel weiterarbeiten.",
 
   // --- Bereiche im Editor ------------------------------------------------
-  "bereich.werkzeug": "Werkzeug",
-  "bereich.farbe": "Farbe",
+  "bereich.bearbeiten": "Ändern",
+  "bereich.garne": "Garne",
   "bereich.muster": "Muster",
-  "bereich.merken": "Merken",
+  "bereich.gemerkt": "Gemerkt",
 
   // --- Werkzeuge ---------------------------------------------------------
   "werkzeug.frage": "Womit möchten Sie arbeiten?",
+  "werkzeuggruppe.ansehen": "Ansehen",
+  "werkzeuggruppe.auswaehlen": "Auswählen",
+  "werkzeuggruppe.malen": "Malen",
+  "werkzeug.schieben": "Ansehen und verschieben",
+  "werkzeug.schiebenText":
+    "Ziehen Sie das Muster an die Stelle, die Sie ansehen möchten. Dabei wird nichts verändert.",
+  "werkzeug.schiebenKurz": "Schieben",
+  "werkzeug.motivKurz": "Motiv",
+  "werkzeug.flaecheKurz": "Fläche",
+  "werkzeug.rechteckKurz": "Rechteck",
+  "werkzeug.freihandKurz": "Freihand",
+  "werkzeug.malenKurz": "Malen",
+  "werkzeug.fuellenKurz": "Füllen",
   "werkzeug.motiv": "Ganzes Motiv auswählen",
   "werkzeug.motivText":
     "Tippen Sie mitten in die Blume. Es wird alles ausgewählt, was farblich dazugehört – auch mehrere Farbtöne. Jedes weitere Motiv kommt mit einem Tipp dazu.",
@@ -229,6 +246,16 @@ export const DE = {
     "Tippen oder fahren Sie über die Felder. Sie bekommen die gewählte Farbe.",
   "werkzeug.fuellen": "Fläche färben",
   "werkzeug.fuellenText": "Tippen Sie in eine Fläche. Die ganze Fläche bekommt die gewählte Farbe.",
+
+  // --- Im Muster bewegen -------------------------------------------------
+  "ansicht.titel": "So bewegen Sie sich im Muster",
+  "ansicht.mausrad":
+    "Mausrad drehen: das Muster wird größer und kleiner – genau dort, wo der Zeiger steht.",
+  "ansicht.ziehen": "Mit der Maus oder dem Finger ziehen: das Muster verschieben.",
+  "ansicht.zweiFinger":
+    "Zwei Finger auf dem Bildschirm: verschieben und zugleich größer oder kleiner ziehen.",
+  "ansicht.leertaste":
+    "Leertaste gedrückt halten: verschieben, ohne das Werkzeug zu wechseln.",
 
   // --- Motiv aussuchen ---------------------------------------------------
   "motivsuche.hinweis":
@@ -263,6 +290,15 @@ export const DE = {
   "glaettung.einzelsticheText": "So oft müssen Sie für nur ein oder zwei Kreuze neu einfädeln.",
   "glaettung.farbwechsel": "Farbwechsel pro Reihe",
   "glaettung.farbwechselText": "So oft wechselt in einer Reihe im Schnitt die Farbe.",
+
+  // --- Der Farbregler im Editor --------------------------------------------
+  "farben.frage": "Wie viele Farben soll das Muster haben?",
+  "farben.erklaerung":
+    "Mehr Farben heißt mehr Abstufungen und ein Bild, das dem Foto näher kommt. Weniger Farben heißt weniger Garn zu kaufen und ruhigere Flächen. Sie können hier so oft hin und her stellen, wie Sie mögen – Ihre eigenen Stiche bleiben dabei erhalten.",
+  "farben.gewuenscht": "{anzahl} Farben",
+  "farben.imMuster": "Farben im Muster",
+  "farben.imMusterText":
+    "So viele bleiben nach dem Glätten wirklich übrig. Sind es weniger als gewünscht, waren zwei Töne so ähnlich, dass sie dasselbe Garn bekommen haben.",
 
   // --- Legende ------------------------------------------------------------
   // --- Farben in Worten ----------------------------------------------------
@@ -397,8 +433,7 @@ export const DE = {
   "druck.ausDrucker": "Das kommt aus dem Drucker",
   "druck.seiteVorschau": "Eine Seite mit der Vorschau der fertigen Stickerei",
   "druck.seiteGarnliste": "Die Garnliste mit Symbol, Nummer, Farbname, Stichzahl und Garnbedarf",
-  "druck.seitenSchwarzweiss": "Das Muster auf {anzahl} Blättern in Schwarzweiß",
-  "druck.seitenFarbe": "Dasselbe noch einmal in Farbe, also {anzahl} Blätter zusammen",
+  "druck.seitenFarbe": "Das Muster in Farbe auf {anzahl} Blättern, also {gesamt} Blätter zusammen",
   "druck.blaetterHinweis":
     "Die Blätter überlappen sich um zwei Reihen. Jede zehnte Linie ist dicker, und an den Rändern stehen die Reihennummern.",
   "druck.brauchenSie": "Das brauchen Sie dafür",
@@ -433,12 +468,9 @@ export const DE = {
   "pdf.eigeneFarbe": "eigene Farbe",
   "pdf.summe": "Zusammen {stiche} Stiche und ungefähr {garn} Garn.",
   "pdf.freieFelder": "{anzahl} Felder bleiben frei",
-  "pdf.blattTitel": "{name} – {fassung}",
-  "pdf.inFarbe": "in Farbe",
-  "pdf.schwarzweiss": "schwarzweiß",
   "pdf.masseKurz": "{breite} cm × {hoehe} cm auf Aida {zaehlung}",
   "pdf.reihenSpalten": "Reihen {vonReihe} bis {bisReihe} · Spalten {vonSpalte} bis {bisSpalte}",
-  "pdf.blattFuss": "{fassung} · Blatt {spalte} von links, {reihe} von oben",
+  "pdf.blattFuss": "Blatt {spalte} von links, {reihe} von oben",
 
   // --- Fortschrittsmeldungen der Berechnung ---------------------------------
   "arbeit.bildLesen": "Das Bild wird gelesen.",
@@ -647,11 +679,16 @@ export const PL: Record<Textschluessel, string> = {
   "editor.wiederholen": "Ponów",
   "editor.weiterDrucken": "Dalej do drukowania",
   "editor.masse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
+  "editor.groesseTitel": "Rozmiar",
+  "editor.malfarbe": "Kolor do malowania",
+  "editor.malfarbeHinweis":
+    "Proszę dotknąć kafelka. Tym kolorem będzie malowane i wypełniane.",
+  "editor.gewaehlteFarbe": "Wybrany: {garn}",
   "editor.leinwandBeschriftung": "Pani wzór, {breite} na {hoehe} ściegów",
   "editor.ausgewaehlt": "Zaznaczono {anzahl} ściegów",
   "editor.nichtsAusgewaehlt": "Nic jeszcze nie zaznaczono",
   "editor.tippenHinweis":
-    "Proszę dotknąć wzoru wybranym narzędziem, wtedy pojawią się tutaj odpowiednie przyciski.",
+    "Proszę dotknąć wzoru wybranym narzędziem. Wtedy przyciski tutaj staną się aktywne.",
   "editor.auswahlFaerben": "Pokoloruj zaznaczenie",
   "editor.auswahlKopieren": "Skopiuj zaznaczenie",
   "editor.alsMotivMerken": "Zapamiętaj jako motyw",
@@ -708,12 +745,25 @@ export const PL: Record<Textschluessel, string> = {
   "editor.standGemerkt":
     "Ta wersja została zapamiętana. Zostanie zachowana, nawet jeśli będzie Pani jeszcze dużo pracować.",
 
-  "bereich.werkzeug": "Narzędzie",
-  "bereich.farbe": "Kolor",
+  "bereich.bearbeiten": "Zmiana",
+  "bereich.garne": "Nici",
   "bereich.muster": "Wzór",
-  "bereich.merken": "Zapamiętane",
+  "bereich.gemerkt": "Zapisane",
 
   "werkzeug.frage": "Czym chce Pani pracować?",
+  "werkzeuggruppe.ansehen": "Oglądanie",
+  "werkzeuggruppe.auswaehlen": "Zaznaczanie",
+  "werkzeuggruppe.malen": "Malowanie",
+  "werkzeug.schieben": "Oglądanie i przesuwanie",
+  "werkzeug.schiebenText":
+    "Proszę przeciągnąć wzór w miejsce, które chce Pani obejrzeć. Nic przy tym nie zostaje zmienione.",
+  "werkzeug.schiebenKurz": "Przesuń",
+  "werkzeug.motivKurz": "Motyw",
+  "werkzeug.flaecheKurz": "Obszar",
+  "werkzeug.rechteckKurz": "Prostokąt",
+  "werkzeug.freihandKurz": "Odręcznie",
+  "werkzeug.malenKurz": "Maluj",
+  "werkzeug.fuellenKurz": "Wypełnij",
   "werkzeug.motiv": "Zaznacz cały motyw",
   "werkzeug.motivText":
     "Proszę dotknąć środka kwiatka. Zaznaczy się wszystko, co pasuje do niego kolorem – także kilka odcieni. Każdy następny motyw dochodzi jednym dotknięciem.",
@@ -731,6 +781,14 @@ export const PL: Record<Textschluessel, string> = {
     "Proszę dotknąć pól albo przejechać po nich palcem. Dostaną wybrany kolor.",
   "werkzeug.fuellen": "Pokoloruj powierzchnię",
   "werkzeug.fuellenText": "Proszę dotknąć powierzchni. Cała dostanie wybrany kolor.",
+
+  "ansicht.titel": "Jak poruszać się po wzorze",
+  "ansicht.mausrad":
+    "Kółko myszy: wzór staje się większy i mniejszy – dokładnie tam, gdzie stoi wskaźnik.",
+  "ansicht.ziehen": "Przeciąganie myszą albo palcem: przesuwanie wzoru.",
+  "ansicht.zweiFinger":
+    "Dwa palce na ekranie: przesuwanie i jednoczesne powiększanie albo pomniejszanie.",
+  "ansicht.leertaste": "Przytrzymana spacja: przesuwanie bez zmiany narzędzia.",
 
   // --- Motiv aussuchen ---------------------------------------------------
   "motivsuche.hinweis":
@@ -764,6 +822,14 @@ export const PL: Record<Textschluessel, string> = {
     "Tyle razy trzeba będzie nawlekać igłę dla jednego lub dwóch krzyżyków.",
   "glaettung.farbwechsel": "Zmian koloru na rząd",
   "glaettung.farbwechselText": "Tyle razy średnio zmienia się kolor w jednym rzędzie.",
+
+  "farben.frage": "Ile kolorów ma mieć wzór?",
+  "farben.erklaerung":
+    "Więcej kolorów to więcej odcieni i obraz bliższy zdjęciu. Mniej kolorów to mniej nici do kupienia i spokojniejsze powierzchnie. Można przestawiać tam i z powrotem, ile się chce – własne ściegi przy tym zostają.",
+  "farben.gewuenscht": "kolorów: {anzahl}",
+  "farben.imMuster": "Kolorów we wzorze",
+  "farben.imMusterText":
+    "Tyle zostaje naprawdę po wygładzeniu. Jeśli jest ich mniej niż wybrano, dwa odcienie były tak podobne, że dostały tę samą nitkę.",
 
   // --- Farben in Worten ----------------------------------------------------
   // Im Polnischen steht die Stufe vor dem Farbwort und beide sind
@@ -893,8 +959,7 @@ export const PL: Record<Textschluessel, string> = {
   "druck.ausDrucker": "To wyjdzie z drukarki",
   "druck.seiteVorschau": "Strona z podglądem gotowego haftu",
   "druck.seiteGarnliste": "Lista nici z symbolem, numerem, nazwą koloru, liczbą ściegów i zapotrzebowaniem",
-  "druck.seitenSchwarzweiss": "Wzór na {anzahl} kartkach w czerni i bieli",
-  "druck.seitenFarbe": "To samo jeszcze raz w kolorze, czyli razem {anzahl} kartek",
+  "druck.seitenFarbe": "Wzór w kolorze na {anzahl} kartkach, czyli razem {gesamt} kartek",
   "druck.blaetterHinweis":
     "Kartki zachodzą na siebie o dwa rzędy. Co dziesiąta linia jest grubsza, a na brzegach stoją numery rzędów.",
   "druck.brauchenSie": "To będzie Pani potrzebne",
@@ -928,12 +993,9 @@ export const PL: Record<Textschluessel, string> = {
   "pdf.eigeneFarbe": "własny kolor",
   "pdf.summe": "Razem {stiche} ściegów i około {garn} nici.",
   "pdf.freieFelder": "{anzahl} pól zostaje pustych",
-  "pdf.blattTitel": "{name} – {fassung}",
-  "pdf.inFarbe": "w kolorze",
-  "pdf.schwarzweiss": "czarno-biały",
   "pdf.masseKurz": "{breite} cm × {hoehe} cm na kanwie Aida {zaehlung}",
   "pdf.reihenSpalten": "Rzędy {vonReihe} do {bisReihe} · kolumny {vonSpalte} do {bisSpalte}",
-  "pdf.blattFuss": "{fassung} · kartka {spalte} od lewej, {reihe} od góry",
+  "pdf.blattFuss": "kartka {spalte} od lewej, {reihe} od góry",
 
   "arbeit.bildLesen": "Wczytywanie zdjęcia.",
   "arbeit.herunterrechnen": "Przeliczanie zdjęcia na siatkę ściegów.",

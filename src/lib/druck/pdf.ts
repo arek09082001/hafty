@@ -10,8 +10,7 @@
  *      Muster über mehrere Blätter geht
  *   2. Garnliste mit Symbol, Garnnummer, Farbname, Anzahl der Stiche und
  *      geschätztem Garnverbrauch in Metern
- *   3. Das Muster in Schwarzweiß mit Symbolen, Blatt für Blatt
- *   4. Dasselbe noch einmal in Farbe
+ *   3. Das Muster in Farbe mit Symbolen, Blatt für Blatt
  *
  * Die Blätter überlappen sich um zwei Reihen, damit beim Zusammenlegen
  * nichts verlorengeht. Jede zehnte Rasterlinie ist dicker, und an allen
@@ -59,7 +58,7 @@ export type Druckauftrag = {
   name: string;
   breite: number;
   hoehe: number;
-  raster: Uint8Array;
+  raster: Uint16Array;
   /**
    * Nur die Farben, die im Muster wirklich vorkommen. Angesprochen wird sie
    * über `index` und nie über die Stelle in der Liste – Felder, die nicht
@@ -175,7 +174,7 @@ function kopfzeileZeichnen(
   }
 }
 
-/** Ein Rasterblatt zeichnen – wahlweise in Farbe oder schwarzweiß. */
+/** Ein Rasterblatt in Farbe zeichnen. */
 function rasterBlattZeichnen(
   seite: PDFPage,
   fett: PDFFont,
@@ -183,7 +182,6 @@ function rasterBlattZeichnen(
   auftrag: Druckauftrag,
   plan: Blattplan,
   blatt: Blattplan["blaetter"][number],
-  inFarbe: boolean,
 ) {
   const { kaestchen } = plan;
   const spalten = blatt.x1 - blatt.x0;
@@ -208,21 +206,20 @@ function rasterBlattZeichnen(
       const px = links + x * kaestchen;
       const py = oben - (y + 1) * kaestchen;
 
-      let dunkel = false;
-      if (inFarbe) {
-        const [r, g, b] = hexNachRgb(eintrag.hex);
-        seite.drawRectangle({
-          x: px,
-          y: py,
-          width: kaestchen,
-          height: kaestchen,
-          color: rgb(r / 255, g / 255, b / 255),
-        });
-        dunkel = istDunkel(r, g, b);
-      }
+      const [r, g, b] = hexNachRgb(eintrag.hex);
+      seite.drawRectangle({
+        x: px,
+        y: py,
+        width: kaestchen,
+        height: kaestchen,
+        color: rgb(r / 255, g / 255, b / 255),
+      });
+      const dunkel = istDunkel(r, g, b);
 
-      // Das Symbol steht auf beiden Fassungen: bei ähnlichen Farbtönen ist
-      // es das Einzige, woran sich die Farben sicher unterscheiden lassen.
+      // Das Symbol steht in jedem Kästchen: bei ähnlichen Farbtönen ist es
+      // das Einzige, woran sich die Farben sicher unterscheiden lassen – und
+      // es bleibt lesbar, wenn jemand das Muster doch am Graustufendrucker
+      // ausdruckt.
       const breiteText = normal.widthOfTextAtSize(eintrag.symbol, symbolGroesse);
       seite.drawText(eintrag.symbol, {
         x: px + (kaestchen - breiteText) / 2,
@@ -288,7 +285,6 @@ function rasterBlattZeichnen(
 
   // --- Fußzeile mit der Blattnummer ---------------------------------------
   const nummer = auftrag.t("pdf.blattFuss", {
-    fassung: auftrag.t(inFarbe ? "pdf.inFarbe" : "pdf.schwarzweiss"),
     spalte: String(blatt.spalte + 1),
     reihe: String(blatt.reihe + 1),
   });
@@ -614,42 +610,37 @@ export async function musterAlsPdf(auftrag: Druckauftrag): Promise<Blob> {
   melden("arbeit.garnlisteSchreiben", 0.25);
   legendeZeichnen(pdf, fett, normal, auftrag);
 
-  const gesamt = plan.blaetter.length * 2;
+  const gesamt = plan.blaetter.length;
   let fertig = 0;
 
-  for (const inFarbe of [false, true]) {
-    for (const blatt of plan.blaetter) {
-      const seite = pdf.addPage([SEITE_BREITE, SEITE_HOEHE]);
-      kopfzeileZeichnen(
-        seite,
-        fett,
-        normal,
-        auftrag.t("pdf.blattTitel", {
-          name: auftrag.name,
-          fassung: auftrag.t(inFarbe ? "pdf.inFarbe" : "pdf.schwarzweiss"),
-        }),
-        auftrag.t("pdf.masseKurz", {
-          breite: cmText(breiteCm, auftrag.landeskennung),
-          hoehe: cmText(hoeheCm, auftrag.landeskennung),
-          zaehlung: String(auftrag.stoffzaehlung),
-        }),
-        auftrag.t("pdf.reihenSpalten", {
-          vonReihe: String(blatt.y0 + 1),
-          bisReihe: String(blatt.y1),
-          vonSpalte: String(blatt.x0 + 1),
-          bisSpalte: String(blatt.x1),
-        }),
-      );
-      rasterBlattZeichnen(seite, fett, normal, auftrag, plan, blatt, inFarbe);
+  for (const blatt of plan.blaetter) {
+    const seite = pdf.addPage([SEITE_BREITE, SEITE_HOEHE]);
+    kopfzeileZeichnen(
+      seite,
+      fett,
+      normal,
+      auftrag.name,
+      auftrag.t("pdf.masseKurz", {
+        breite: cmText(breiteCm, auftrag.landeskennung),
+        hoehe: cmText(hoeheCm, auftrag.landeskennung),
+        zaehlung: String(auftrag.stoffzaehlung),
+      }),
+      auftrag.t("pdf.reihenSpalten", {
+        vonReihe: String(blatt.y0 + 1),
+        bisReihe: String(blatt.y1),
+        vonSpalte: String(blatt.x0 + 1),
+        bisSpalte: String(blatt.x1),
+      }),
+    );
+    rasterBlattZeichnen(seite, fett, normal, auftrag, plan, blatt);
 
-      fertig++;
-      melden(
-        "arbeit.blattZeichnen",
-        0.3 + (fertig / gesamt) * 0.6,
-      );
-      // Dem Browser kurz Luft lassen, damit die Anzeige nachkommt.
-      await new Promise((auf) => setTimeout(auf, 0));
-    }
+    fertig++;
+    melden(
+      "arbeit.blattZeichnen",
+      0.3 + (fertig / gesamt) * 0.6,
+    );
+    // Dem Browser kurz Luft lassen, damit die Anzeige nachkommt.
+    await new Promise((auf) => setTimeout(auf, 0));
   }
 
   melden("arbeit.dateiBauen", 0.95);
