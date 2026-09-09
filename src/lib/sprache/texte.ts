@@ -216,7 +216,7 @@ export const DE = {
   "werkzeug.frage": "Womit möchten Sie arbeiten?",
   "werkzeug.motiv": "Ganzes Motiv auswählen",
   "werkzeug.motivText":
-    "Tippen Sie mitten in die Blume. Es wird alles ausgewählt, was farblich dazugehört – auch mehrere Farbtöne.",
+    "Tippen Sie mitten in die Blume. Es wird alles ausgewählt, was farblich dazugehört – auch mehrere Farbtöne. Jedes weitere Motiv kommt mit einem Tipp dazu.",
   "werkzeug.flaeche": "Gleiche Fläche auswählen",
   "werkzeug.flaecheText":
     "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, wird ausgewählt.",
@@ -233,15 +233,10 @@ export const DE = {
   "werkzeug.fuellenText": "Tippen Sie in eine Fläche. Die ganze Fläche bekommt die gewählte Farbe.",
 
   // --- Motiv aussuchen ---------------------------------------------------
-  "motivsuche.titel": "Ganzes Motiv auswählen",
   "motivsuche.hinweis":
-    "Tippen Sie mitten in das Motiv, zum Beispiel in die Blüte. Passt die Auswahl nicht, ändern Sie sie mit den beiden Knöpfen.",
+    "Tippen Sie mitten in ein Motiv. Jedes weitere kommt dazu – noch einmal darauf tippen nimmt es wieder weg.",
   "motivsuche.mehr": "Mehr dazunehmen",
   "motivsuche.weniger": "Weniger dazunehmen",
-  "motivsuche.weitereDazu": "Noch ein Motiv dazunehmen",
-  "motivsuche.nurEines": "Nur ein Motiv auf einmal",
-  "motivsuche.dazuAn": "Jeder Tipp nimmt ein weiteres Motiv dazu.",
-  "motivsuche.dazuAus": "Jeder Tipp wählt ein neues Motiv aus.",
   "motivsuche.fastAlles":
     "Ausgewählt ist fast das ganze Muster. Tippen Sie auf „Weniger dazunehmen“, wenn Sie nur ein Motiv möchten.",
 
@@ -668,7 +663,7 @@ export const PL: Record<Textschluessel, string> = {
   "werkzeug.frage": "Czym chce Pani pracować?",
   "werkzeug.motiv": "Zaznacz cały motyw",
   "werkzeug.motivText":
-    "Proszę dotknąć środka kwiatka. Zaznaczy się wszystko, co pasuje do niego kolorem – także kilka odcieni.",
+    "Proszę dotknąć środka kwiatka. Zaznaczy się wszystko, co pasuje do niego kolorem – także kilka odcieni. Każdy następny motyw dochodzi jednym dotknięciem.",
   "werkzeug.flaeche": "Zaznacz tę samą powierzchnię",
   "werkzeug.flaecheText":
     "Proszę dotknąć powierzchni. Zaznaczy się wszystko, co się z nią łączy i ma ten sam kolor.",
@@ -685,15 +680,10 @@ export const PL: Record<Textschluessel, string> = {
   "werkzeug.fuellenText": "Proszę dotknąć powierzchni. Cała dostanie wybrany kolor.",
 
   // --- Motiv aussuchen ---------------------------------------------------
-  "motivsuche.titel": "Zaznacz cały motyw",
   "motivsuche.hinweis":
-    "Proszę dotknąć środka motywu, na przykład środka kwiatka. Jeśli zaznaczenie nie pasuje, można je zmienić dwoma przyciskami.",
+    "Proszę dotknąć środka motywu. Każdy następny dochodzi – dotknięcie go jeszcze raz usuwa go z zaznaczenia.",
   "motivsuche.mehr": "Weź więcej",
   "motivsuche.weniger": "Weź mniej",
-  "motivsuche.weitereDazu": "Dodaj jeszcze jeden motyw",
-  "motivsuche.nurEines": "Tylko jeden motyw naraz",
-  "motivsuche.dazuAn": "Każde dotknięcie dodaje kolejny motyw.",
-  "motivsuche.dazuAus": "Każde dotknięcie zaznacza nowy motyw.",
   "motivsuche.fastAlles":
     "Zaznaczony jest prawie cały wzór. Proszę dotknąć „Weź mniej”, jeśli chodzi tylko o jeden motyw.",
 

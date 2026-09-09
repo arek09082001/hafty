@@ -166,7 +166,14 @@ rund 4 ms – kein Grund für einen Worker.
 Von der angetippten Stelle aus wächst die Auswahl über die Nachbarfelder
 weiter, solange deren Farbe der angetippten ähnlich genug ist, gemessen in
 CIEDE2000. Wie ähnlich, sagen zwei Knöpfe („Mehr dazunehmen" / „Weniger"),
-nie eine Zahl. Über Eck geht es nur weiter, wenn auch eines der beiden Felder
+nie eine Zahl.
+
+Mehrere Elemente gehen ohne Schalter: **jeder Tipp nimmt eines dazu**, und ein
+Tipp auf ein schon ausgewähltes nimmt es wieder heraus. Dafür merkt sich der
+Editor zu jedem Tipp die Fläche, die er ausgewählt hat, und sucht beim
+nächsten Tipp, in welcher davon er liegt. Ein Schalter „mehrere auf einmal"
+wäre auf einem Handy genau der Knopf, den man erst suchen und dann verstehen
+müsste. Über Eck geht es nur weiter, wenn auch eines der beiden Felder
 daneben passt – sonst liefe die Auswahl durch eine einzelne Ecke hindurch, an
 der sich zwei Flächen nur berühren.
 

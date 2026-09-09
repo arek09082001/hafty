@@ -96,8 +96,6 @@ export function MusterAnsehen() {
    */
   const [aehnlichkeit, setAehnlichkeit] = useState(STANDARD_AEHNLICHKEIT);
   const [tipps, setTipps] = useState<Array<{ x: number; y: number }>>([]);
-  /** Nimmt jeder weitere Tipp ein Motiv dazu, statt ein neues zu wählen? */
-  const [mehrereMotive, setMehrereMotive] = useState(false);
   const [zwischenablage, setZwischenablage] = useState<Ausschnitt | null>(null);
   const [vorschau, setVorschau] = useState<{
     stueck: Ausschnitt;
@@ -179,6 +177,16 @@ export function MusterAnsehen() {
   const farbeSicher = paletteLaenge > 0 ? Math.min(farbe, paletteLaenge - 1) : 0;
 
   /**
+   * Zu jedem Tipp die Fläche, die er ausgewählt hat.
+   *
+   * Damit lässt sich ein Element wieder abwählen, indem man es noch einmal
+   * antippt: gesucht wird die Fläche, in der der Tipp liegt, und ihr Tipp
+   * fällt heraus. Das gehört in ein Ref und nicht in den Zustand – es wird
+   * nur beim nächsten Tipp gelesen und soll kein Neuzeichnen auslösen.
+   */
+  const teilmasken = useRef<Uint8Array[]>([]);
+
+  /**
    * Die Auswahl aus allen angetippten Stellen neu rechnen.
    *
    * Aus den Tipps und der Stufe entsteht die Auswahl immer von Neuem, statt
@@ -189,9 +197,11 @@ export function MusterAnsehen() {
   const motivWaehlen = useCallback(
     (punkte: Array<{ x: number; y: number }>, stufe: number) => {
       if (!muster || !raster || punkte.length === 0) {
+        teilmasken.current = [];
         setAuswahl(null);
         return;
       }
+      const masken: Uint8Array[] = [];
       let ergebnis: Auswahl | null = null;
       for (const punkt of punkte) {
         const teil = motivAuswaehlen(
@@ -203,12 +213,27 @@ export function MusterAnsehen() {
           punkt.y,
           stufe,
         );
+        masken.push(teil.maske);
         ergebnis = ergebnis ? auswahlVereinen(ergebnis, teil, muster.breite) : teil;
       }
+      teilmasken.current = masken;
       setAuswahl(ergebnis);
     },
     [muster, raster],
   );
+
+  /**
+   * Tipps und die dazu gerechneten Flächen zusammen vergessen.
+   *
+   * Beides muss immer gemeinsam verschwinden. Bliebe eine Fläche liegen,
+   * ohne dass es den Tipp dazu noch gibt, dann träfe der nächste Tipp
+   * darauf und wollte ein Element abwählen, das gar nicht mehr ausgewählt
+   * ist – für die Nutzerin sähe es aus, als täte der Tipp nichts.
+   */
+  const tippsVergessen = useCallback(() => {
+    teilmasken.current = [];
+    setTipps([]);
+  }, []);
 
   /** „Mehr dazunehmen" und „Weniger": eine Stufe weiter, Auswahl neu rechnen. */
   const aehnlichkeitAendern = (richtung: 1 | -1) => {
@@ -218,10 +243,10 @@ export function MusterAnsehen() {
     motivWaehlen(tipps, neueStufe);
   };
 
-  /** Beim Wechsel des Werkzeugs die gesammelten Tipps vergessen. */
-  const werkzeugWaehlen = (neu: Werkzeug) => {
-    setWerkzeug(neu);
-    setTipps([]);
+  /** Nichts mehr ausgewählt – auch die gemerkten Flächen sind dann hinfällig. */
+  const auswahlAufheben = () => {
+    setAuswahl(null);
+    tippsVergessen();
   };
 
   // ---------------------------------------------------------------------
@@ -245,7 +270,15 @@ export function MusterAnsehen() {
       switch (werkzeug) {
         case "motiv": {
           if (!e.beginn) return;
-          const punkte = mehrereMotive ? [...tipps, { x: e.x, y: e.y }] : [{ x: e.x, y: e.y }];
+          // Jeder Tipp nimmt ein Element dazu. Wer auf ein schon
+          // ausgewähltes tippt, nimmt es wieder heraus – dasselbe Tun in
+          // beide Richtungen, ohne Schalter, den man erst finden muss.
+          const feld = e.y * breite + e.x;
+          const schonDrin = teilmasken.current.findIndex((maske) => maske[feld] === 1);
+          const punkte =
+            schonDrin >= 0
+              ? tipps.filter((_, i) => i !== schonDrin)
+              : [...tipps, { x: e.x, y: e.y }];
           setTipps(punkte);
           motivWaehlen(punkte, aehnlichkeit);
           return;
@@ -253,12 +286,19 @@ export function MusterAnsehen() {
 
         case "flaeche": {
           if (!e.beginn) return;
+          // Ein anderes Auswahlwerkzeug setzt die Auswahl neu. Was die
+          // Motivsuche sich gemerkt hat, gehört dann nicht mehr zu dem, was
+          // auf der Leinwand umrandet ist.
+          if (tipps.length > 0) tippsVergessen();
           setAuswahl(gleicheFlaecheAuswaehlen(raster, breite, e.x, e.y));
           return;
         }
 
         case "rechteck": {
-          if (e.beginn) rechteckStart.current = { x: e.x, y: e.y };
+          if (e.beginn) {
+            rechteckStart.current = { x: e.x, y: e.y };
+            if (tipps.length > 0) tippsVergessen();
+          }
           const start = rechteckStart.current;
           if (!start) return;
           setAuswahl(rechteckAuswaehlen(breite, hoehe, start.x, start.y, e.x, e.y));
@@ -267,7 +307,10 @@ export function MusterAnsehen() {
         }
 
         case "freihand": {
-          if (e.beginn) spur.current = [];
+          if (e.beginn) {
+            spur.current = [];
+            if (tipps.length > 0) tippsVergessen();
+          }
           spur.current.push({ x: e.x, y: e.y });
           if (e.gedrueckt) {
             // Während des Ziehens nur die Spur zeigen, damit man sieht,
@@ -340,8 +383,8 @@ export function MusterAnsehen() {
       farbeSicher,
       malSpur,
       felderAendern,
-      mehrereMotive,
       tipps,
+      tippsVergessen,
       aehnlichkeit,
       motivWaehlen,
     ],
@@ -391,6 +434,7 @@ export function MusterAnsehen() {
       y: Math.max(0, Math.floor((muster.hoehe - stueck.h) / 2)),
     });
     setAuswahl(null);
+    tippsVergessen();
     setMeldung(t("editor.einsetzenMeldung"));
     // Die Knöpfe zum Einsetzen müssen sofort zu sehen sein.
     rechteSpalte.current?.scrollTo({ top: 0 });
@@ -444,7 +488,7 @@ export function MusterAnsehen() {
     if (indizes.length === 0) return;
     felderAendern("schrittname.freigestellt", indizes, werte);
     setAuswahl(null);
-    setTipps([]);
+    tippsVergessen();
     setMeldung(t("editor.nurDasGestickt"));
   };
 
@@ -455,7 +499,7 @@ export function MusterAnsehen() {
     if (indizes.length === 0) return;
     felderAendern("schrittname.nichtGestickt", indizes, werte);
     setAuswahl(null);
-    setTipps([]);
+    tippsVergessen();
     setMeldung(t("editor.auswahlWeggelassen"));
   };
 
@@ -520,6 +564,7 @@ export function MusterAnsehen() {
       bildKennung: muster.bildKennung,
     });
     setAuswahl(null);
+    tippsVergessen();
     setMeldung(t("editor.standWiederher"));
   };
 
@@ -811,55 +856,54 @@ export function MusterAnsehen() {
             >
               {bereich === "werkzeug" ? (
                 <>
-                  <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={werkzeugWaehlen} />
+                  {/*
+                    Die Auswahl steht oben und die Werkzeugliste darunter.
+                    Auf dem Handy liegt alles untereinander: wer ins Muster
+                    tippt, will als Nächstes wissen, was jetzt ausgewählt ist
+                    und was er damit tun kann – und nicht erst an fünf
+                    Werkzeugen vorbeiblättern. Das Werkzeug wählt man einmal,
+                    die Auswahl bei jedem Tipp neu.
 
-                  {/* Die Knöpfe zur automatischen Auswahl stehen nur da,
-                      solange auch dieses Werkzeug gewählt ist – sonst wären
-                      sie Zubehör ohne Zusammenhang. */}
-                  {werkzeug === "motiv" ? (
-                    <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-                      <h2 className="text-[1.2rem] font-bold">{t("motivsuche.titel")}</h2>
-                      <p className="text-[1.05rem]">{t("motivsuche.hinweis")}</p>
-                      <div className="flex flex-wrap gap-2">
-                        <Knopf
-                          art="neben"
-                          onClick={() => aehnlichkeitAendern(1)}
-                          disabled={
-                            tipps.length === 0 || aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1
-                          }
-                        >
-                          {t("motivsuche.mehr")}
-                        </Knopf>
-                        <Knopf
-                          art="neben"
-                          onClick={() => aehnlichkeitAendern(-1)}
-                          disabled={tipps.length === 0 || aehnlichkeit <= 0}
-                        >
-                          {t("motivsuche.weniger")}
-                        </Knopf>
-                      </div>
-                      <Knopf
-                        art="neben"
-                        aria-pressed={mehrereMotive}
-                        onClick={() => setMehrereMotive((an) => !an)}
-                      >
-                        {mehrereMotive ? t("motivsuche.nurEines") : t("motivsuche.weitereDazu")}
-                      </Knopf>
-                      <p className="text-[1rem] text-gedaempft">
-                        {mehrereMotive ? t("motivsuche.dazuAn") : t("motivsuche.dazuAus")}
-                      </p>
-                      {auswahl && auswahl.anzahl > 0.8 * muster.breite * muster.hoehe ? (
-                        <Hinweis>{t("motivsuche.fastAlles")}</Hinweis>
-                      ) : null}
-                    </section>
-                  ) : null}
-
+                    Die Reihenfolge steht fest, auch wenn nichts ausgewählt
+                    ist. Ein Bereich, der je nach Lage die Plätze tauscht,
+                    lässt die Knöpfe springen.
+                  */}
                   <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
                     <h2 className="text-[1.2rem] font-bold">
                       {auswahl && hatAuswahl
                         ? t("editor.ausgewaehlt", { anzahl: zahl(auswahl.anzahl) })
                         : t("editor.nichtsAusgewaehlt")}
                     </h2>
+
+                    {/* Was zur automatischen Auswahl gehört, steht nur da,
+                        solange auch dieses Werkzeug gewählt ist. */}
+                    {werkzeug === "motiv" ? (
+                      <>
+                        <p className="text-[1.05rem]">{t("motivsuche.hinweis")}</p>
+                        <div className="flex flex-wrap gap-2">
+                          <Knopf
+                            art="neben"
+                            onClick={() => aehnlichkeitAendern(1)}
+                            disabled={
+                              tipps.length === 0 || aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1
+                            }
+                          >
+                            {t("motivsuche.mehr")}
+                          </Knopf>
+                          <Knopf
+                            art="neben"
+                            onClick={() => aehnlichkeitAendern(-1)}
+                            disabled={tipps.length === 0 || aehnlichkeit <= 0}
+                          >
+                            {t("motivsuche.weniger")}
+                          </Knopf>
+                        </div>
+                        {auswahl && auswahl.anzahl > 0.8 * muster.breite * muster.hoehe ? (
+                          <Hinweis>{t("motivsuche.fastAlles")}</Hinweis>
+                        ) : null}
+                      </>
+                    ) : null}
+
                     {hatAuswahl ? (
                       <div className="flex flex-wrap gap-2">
                         {/* Freistellen steht vorn: das ist der Grund, aus dem
@@ -885,11 +929,13 @@ export function MusterAnsehen() {
                         >
                           {t("editor.alsMotivMerken")}
                         </Knopf>
-                        <Knopf art="neben" onClick={() => setAuswahl(null)}>
+                        <Knopf art="neben" onClick={auswahlAufheben}>
                           {t("editor.auswahlAufheben")}
                         </Knopf>
                       </div>
-                    ) : (
+                    ) : werkzeug === "motiv" ? null : (
+                      /* Beim Motivwerkzeug steht der Satz schon oben; zweimal
+                         dasselbe zu sagen macht die Seite nur länger. */
                       <p className="text-[1.05rem] text-gedaempft">{t("editor.tippenHinweis")}</p>
                     )}
 
@@ -922,6 +968,8 @@ export function MusterAnsehen() {
                       </div>
                     ) : null}
                   </section>
+
+                  <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
                 </>
               ) : null}
 
