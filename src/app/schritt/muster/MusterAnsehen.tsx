@@ -24,6 +24,7 @@ import {
 } from "@/components/Werkzeugleiste";
 import { Bereichswahl } from "@/components/Bereichswahl";
 import { useMeldungen } from "@/components/Meldungen";
+import { Auswahlbereich } from "@/components/Auswahlbereich";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { garnname } from "@/lib/farbe/farbwort";
 import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
@@ -53,7 +54,6 @@ import {
   type Auswahl,
 } from "@/lib/muster/raster";
 import {
-  AEHNLICHKEITSSTUFEN,
   STANDARD_AEHNLICHKEIT,
   auswahlVereinen,
   motivAuswaehlen,
@@ -1129,96 +1129,23 @@ export function MusterAnsehen() {
                     ) : null}
 
                     {waehltAus(werkzeug) ? (
-                      /*
-                        Die Knöpfe zur Auswahl stehen immer da, auch wenn noch
-                        nichts ausgewählt ist – dann grau. Vorher tauchten sie
-                        erst nach dem ersten Tipp auf; wer nicht wusste, dass
-                        es sie gibt, hat nie erfahren, wozu das Auswählen
-                        überhaupt gut ist.
-                      */
-                      <Abschnitt
-                        titel={
-                          hatAuswahl && auswahl
-                            ? t("editor.ausgewaehlt", { anzahl: zahl(auswahl.anzahl) })
-                            : t("editor.nichtsAusgewaehlt")
-                        }
-                        // Der Satz steht auch dann da, wenn schon etwas
-                        // ausgewählt ist: er stimmt weiterhin, und ohne ihn
-                        // spränge der Abschnitt beim ersten Tipp nach oben.
-                        hinweis={t("editor.tippenHinweis")}
-                      >
-                        {werkzeug === "motiv" ? (
-                          <div className="mb-3 grid grid-cols-2 gap-2">
-                            <Knopf
-                              art="neben"
-                              klein
-                              onClick={() => aehnlichkeitAendern(1)}
-                              disabled={
-                                tipps.length === 0 || aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1
-                              }
-                            >
-                              {t("motivsuche.mehr")}
-                            </Knopf>
-                            <Knopf
-                              art="neben"
-                              klein
-                              onClick={() => aehnlichkeitAendern(-1)}
-                              disabled={tipps.length === 0 || aehnlichkeit <= 0}
-                            >
-                              {t("motivsuche.weniger")}
-                            </Knopf>
-                          </div>
-                        ) : null}
-
-                        {auswahl && auswahl.anzahl > 0.8 * muster.breite * muster.hoehe ? (
-                          <div className="mb-3">
-                            <Hinweis>{t("motivsuche.fastAlles")}</Hinweis>
-                          </div>
-                        ) : null}
-
-                        <div className="flex flex-col gap-2">
-                          {/* Freistellen steht vorn und über die ganze Breite:
-                              das ist der Grund, aus dem man ein Motiv auswählt. */}
-                          <Knopf art="neben" onClick={nurAuswahlBehalten} disabled={!hatAuswahl}>
-                            {t("editor.nurDasSticken")}
-                          </Knopf>
-                          <Knopf art="neben" onClick={auswahlWeglassen} disabled={!hatAuswahl}>
-                            {t("editor.auswahlNichtSticken")}
-                          </Knopf>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Knopf art="neben" klein onClick={auswahlFaerben} disabled={!hatAuswahl}>
-                              {t("editor.auswahlFaerben")}
-                            </Knopf>
-                            <Knopf
-                              art="neben"
-                              klein
-                              onClick={auswahlKopieren}
-                              disabled={!hatAuswahl}
-                            >
-                              {t("editor.auswahlKopieren")}
-                            </Knopf>
-                            <Knopf
-                              art="neben"
-                              klein
-                              disabled={!hatAuswahl}
-                              onClick={() => {
-                                setMotivName("");
-                                setMotivNameOffen(true);
-                              }}
-                            >
-                              {t("editor.alsMotivMerken")}
-                            </Knopf>
-                            <Knopf
-                              art="neben"
-                              klein
-                              onClick={auswahlAufheben}
-                              disabled={!hatAuswahl}
-                            >
-                              {t("editor.auswahlAufheben")}
-                            </Knopf>
-                          </div>
-                        </div>
-                      </Abschnitt>
+                      <Auswahlbereich
+                        werkzeug={werkzeug}
+                        auswahl={auswahl}
+                        felderImMuster={muster.breite * muster.hoehe}
+                        aehnlichkeit={aehnlichkeit}
+                        hatTipps={tipps.length > 0}
+                        onAehnlichkeit={aehnlichkeitAendern}
+                        onNurDasSticken={nurAuswahlBehalten}
+                        onWeglassen={auswahlWeglassen}
+                        onFaerben={auswahlFaerben}
+                        onKopieren={auswahlKopieren}
+                        onAlsMotivMerken={() => {
+                          setMotivName("");
+                          setMotivNameOffen(true);
+                        }}
+                        onAufheben={auswahlAufheben}
+                      />
                     ) : null}
 
                     {/* Sobald etwas freigestellt ist, muss der Weg zurück
