@@ -34,25 +34,48 @@ type Abgelegt = {
   daten: Uint8Array;
   vorschau: Blob | null;
   angelegtAm: string;
+  /** Fehlt bei Motiven, die vor der zweiten Fassung gespeichert wurden. */
+  fassung?: number;
 };
+
+/**
+ * Fassung des gepackten Ausschnitts.
+ *
+ * In Fassung 1 stand je Lauf ein Byte für den Farbwert – mehr brauchte es
+ * nicht, solange ein Muster höchstens 255 Farben hatte. Seit die Farbanzahl
+ * bis an den Garnkatalog heranreicht, sind es zwei Byte, und das freie Feld
+ * heißt LEER statt 255. Ältere Motive werden beim Lesen umgeschrieben.
+ */
+const FASSUNG = 2;
+
+/** So hieß das freie Feld in Fassung 1. */
+const LEER_V1 = 255;
 
 /**
  * Ein Motiv besteht aus zwei gleich langen Ebenen: den Farbindizes und der
  * Maske. Beide werden hintereinander lauflängenkodiert.
+ *
+ * Ein Lauf sind fünf Byte: uint16 Wert, uint24 Länge.
  */
 function ausschnittPacken(a: Ausschnitt): Uint8Array {
   const kopf = new Uint8Array(8);
   new DataView(kopf.buffer).setUint32(0, a.w, true);
   new DataView(kopf.buffer).setUint32(4, a.h, true);
 
-  const laeufe = (werte: Uint8Array) => {
+  const laeufe = (werte: Uint16Array | Uint8Array) => {
     const teile: number[] = [];
     let i = 0;
     while (i < werte.length) {
       const wert = werte[i];
       let laenge = 1;
       while (i + laenge < werte.length && werte[i + laenge] === wert) laenge++;
-      teile.push(wert, laenge & 0xff, (laenge >> 8) & 0xff, (laenge >> 16) & 0xff);
+      teile.push(
+        wert & 0xff,
+        (wert >> 8) & 0xff,
+        laenge & 0xff,
+        (laenge >> 8) & 0xff,
+        (laenge >> 16) & 0xff,
+      );
       i += laenge;
     }
     return teile;
@@ -69,26 +92,35 @@ function ausschnittPacken(a: Ausschnitt): Uint8Array {
   return puffer;
 }
 
-function ausschnittEntpacken(roh: Uint8Array, palette: PalettenEintrag[]): Ausschnitt {
+function ausschnittEntpacken(
+  roh: Uint8Array,
+  palette: PalettenEintrag[],
+  fassung: number,
+): Ausschnitt {
   const sicht = new DataView(roh.buffer, roh.byteOffset, roh.byteLength);
   const w = sicht.getUint32(0, true);
   const h = sicht.getUint32(4, true);
   const datenLaenge = sicht.getUint32(8, true);
 
-  const lesen = (start: number, laenge: number, ziel: Uint8Array) => {
+  // Fassung 1: ein Byte Wert, drei Byte Länge. Fassung 2: zwei und drei.
+  const wertBytes = fassung >= 2 ? 2 : 1;
+
+  const lesen = (start: number, laenge: number, ziel: Uint16Array | Uint8Array) => {
     let pos = start;
     let schreib = 0;
     const ende = start + laenge;
     while (pos < ende && schreib < ziel.length) {
-      const wert = roh[pos];
-      const anzahl = roh[pos + 1] | (roh[pos + 2] << 8) | (roh[pos + 3] << 16);
-      pos += 4;
+      let wert = wertBytes === 2 ? roh[pos] | (roh[pos + 1] << 8) : roh[pos];
+      if (fassung < 2 && wert === LEER_V1) wert = LEER;
+      const p = pos + wertBytes;
+      const anzahl = roh[p] | (roh[p + 1] << 8) | (roh[p + 2] << 16);
+      pos = p + 3;
       ziel.fill(wert, schreib, Math.min(ziel.length, schreib + anzahl));
       schreib += anzahl;
     }
   };
 
-  const daten = new Uint8Array(w * h);
+  const daten = new Uint16Array(w * h);
   const maske = new Uint8Array(w * h);
   lesen(16, datenLaenge, daten);
   lesen(16 + datenLaenge, roh.length - 16 - datenLaenge, maske);
@@ -160,6 +192,7 @@ export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv
       daten: await packen(ausschnittPacken(a)),
       vorschau,
       angelegtAm: new Date().toISOString(),
+      fassung: FASSUNG,
     };
     await db.put(LADEN_MOTIVE, satz);
     return {
@@ -181,7 +214,7 @@ export async function motivHolen(motiv: Motiv): Promise<Ausschnitt | null> {
     const db = await browserdatenbank();
     const satz = (await db.get(LADEN_MOTIVE, motiv.id)) as Abgelegt | undefined;
     if (!satz) return null;
-    return ausschnittEntpacken(await entpacken(satz.daten), satz.palette);
+    return ausschnittEntpacken(await entpacken(satz.daten), satz.palette, satz.fassung ?? 1);
   } catch {
     return null;
   }

@@ -7,6 +7,11 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  * Eine Zahl einstellen – mit zwei großen Knöpfen statt eines Drehfeldes.
  * Ein Zahleneingabefeld mit winzigen Pfeilen ist auf einem Tablet nicht zu
  * treffen; „Weniger" und „Mehr" sind es immer.
+ *
+ * `schritt` darf auch eine Funktion sein. Das wird bei einem weiten Bereich
+ * gebraucht: bei der Farbanzahl reicht unten die feine Stufe, oben käme man
+ * damit nie an. Beim Zurückgehen zählt die Stufe des **Zielbereichs** – sonst
+ * landete „Weniger" nach „Mehr" nicht wieder auf demselben Wert.
  */
 export function Zahlenwahl({
   beschriftung,
@@ -22,13 +27,14 @@ export function Zahlenwahl({
   wert: number;
   min: number;
   max: number;
-  schritt?: number;
+  schritt?: number | ((wert: number) => number);
   einheit: string;
   onAendern: (neu: number) => void;
   hinweis?: string;
 }) {
   const { t } = useSprache();
   const begrenzen = (v: number) => Math.max(min, Math.min(max, v));
+  const stufe = (v: number) => (typeof schritt === "function" ? schritt(v) : schritt);
 
   return (
     <div className="flex flex-col gap-3">
@@ -36,7 +42,7 @@ export function Zahlenwahl({
       <div className="flex flex-wrap items-center gap-4">
         <Knopf
           art="neben"
-          onClick={() => onAendern(begrenzen(wert - schritt))}
+          onClick={() => onAendern(begrenzen(wert - stufe(wert - 1)))}
           disabled={wert <= min}
           aria-label={t("einst.wenigerVon", { was: beschriftung })}
         >
@@ -47,7 +53,7 @@ export function Zahlenwahl({
         </output>
         <Knopf
           art="neben"
-          onClick={() => onAendern(begrenzen(wert + schritt))}
+          onClick={() => onAendern(begrenzen(wert + stufe(wert)))}
           disabled={wert >= max}
           aria-label={t("einst.mehrVon", { was: beschriftung })}
         >

@@ -10,7 +10,7 @@
  * Format (alles little endian):
  *
  *   Byte 0..3    Kennung "STMR"
- *   Byte 4       Version (1)
+ *   Byte 4       Version (2)
  *   Byte 5       Anzahl Ebenen (2: Basis und Bearbeitung)
  *   Byte 6..9    Breite  (uint32)
  *   Byte 10..13  Höhe    (uint32)
@@ -18,15 +18,26 @@
  *
  * Ein Lauf ist: int16 Wert (-1 = unberührt, sonst Palettenindex),
  * uint32 Länge. Sechs Byte je Lauf, dafür ohne jede Begrenzung der Lauflänge.
+ *
+ * Version 2 ist nötig geworden, als die Farbanzahl über 255 hinausgehen
+ * durfte: seither hält das Raster zwei Byte je Feld, und „wird nicht
+ * gestickt" heißt nicht mehr 255, sondern LEER (siehe muster/typen.ts).
+ * Gelesen werden beide Fassungen – wer ein Muster gespeichert hat, findet es
+ * nach dem Aktualisieren wieder.
  */
 
+import { LEER } from "@/lib/muster/typen";
+
 const KENNUNG = 0x524d5453; // "STMR" als uint32 little endian
-const VERSION = 1;
+const VERSION = 2;
+
+/** So hieß das freie Feld in Version 1, als ein Byte je Feld reichte. */
+const LEER_V1 = 255;
 
 export type Rasterdatei = {
   breite: number;
   hoehe: number;
-  basis: Uint8Array;
+  basis: Uint16Array;
   bearbeitung: Int16Array;
 };
 
@@ -66,7 +77,7 @@ function ebeneSchreiben(sicht: DataView, offset: number, werte: ArrayLike<number
   return pos;
 }
 
-function ebeneLesen(sicht: DataView, offset: number, ziel: Int16Array | Uint8Array): number {
+function ebeneLesen(sicht: DataView, offset: number, ziel: Int16Array | Uint16Array): number {
   const anzahl = sicht.getUint32(offset, true);
   let pos = offset + 4;
   let schreib = 0;
@@ -110,7 +121,7 @@ export function rasterEntpacken(daten: Uint8Array): Rasterdatei {
     throw new Error("Die Datei enthält kein Stickmuster.");
   }
   const version = sicht.getUint8(4);
-  if (version !== VERSION) {
+  if (version > VERSION) {
     throw new Error(`Diese Datei stammt aus einer neueren Fassung (Version ${version}).`);
   }
 
@@ -118,11 +129,19 @@ export function rasterEntpacken(daten: Uint8Array): Rasterdatei {
   const hoehe = sicht.getUint32(10, true);
   const felder = breite * hoehe;
 
-  const basis = new Uint8Array(felder);
+  const basis = new Uint16Array(felder);
   const bearbeitung = new Int16Array(felder);
 
   const nachBasis = ebeneLesen(sicht, 14, basis);
   ebeneLesen(sicht, nachBasis, bearbeitung);
+
+  // Version 1 kannte nur 255 Farben; die 255 stand darin für das freie Feld.
+  if (version === 1) {
+    for (let i = 0; i < felder; i++) {
+      if (basis[i] === LEER_V1) basis[i] = LEER;
+      if (bearbeitung[i] === LEER_V1) bearbeitung[i] = LEER;
+    }
+  }
 
   return { breite, hoehe, basis, bearbeitung };
 }

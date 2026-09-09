@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
-import { LEER, STOFFFARBE, type PalettenEintrag } from "@/lib/muster/typen";
+import { FARBINDIZES, LEER, STOFFFARBE, type PalettenEintrag } from "@/lib/muster/typen";
 
 export type Zeigerereignis = {
   x: number;
@@ -18,7 +18,7 @@ export type Einfuegevorschau = {
   y: number;
   w: number;
   h: number;
-  daten: Uint8Array;
+  daten: Uint16Array;
   maske: Uint8Array;
 };
 
@@ -45,7 +45,7 @@ export function Rasteransicht({
 }: {
   breite: number;
   hoehe: number;
-  raster: Uint8Array;
+  raster: Uint16Array;
   palette: PalettenEintrag[];
   /** Bildpunkte je Stich. */
   zoom: number;
@@ -85,8 +85,8 @@ export function Rasteransicht({
     // (Farben ohne Stiche fallen heraus), und dann stimmen beide nicht mehr
     // überein. Ein Feld mit einer falschen Farbe wäre der schlimmste
     // denkbare Fehler in dieser App.
-    const farben: Array<[number, number, number] | undefined> = [];
-    const eintraege: Array<PalettenEintrag | undefined> = [];
+    const farben = new Array<[number, number, number] | undefined>(FARBINDIZES);
+    const eintraege = new Array<PalettenEintrag | undefined>(FARBINDIZES);
     for (const eintrag of palette) {
       farben[eintrag.index] = hexNachRgb(eintrag.hex);
       eintraege[eintrag.index] = eintrag;

@@ -35,28 +35,88 @@
  * gerade noch aufwiegt – gestickt werden will das trotzdem niemand.
  */
 
-import { ciede2000 } from "@/lib/farbe/ciede2000";
+import { ciede2000, labAbstandQuadrat } from "@/lib/farbe/ciede2000";
 import type { Lab } from "@/lib/farbe/lab";
 import type { Kennzahlen } from "./typen";
 
 /**
- * Die Abstandstabelle: für jedes Feld der Farbabstand zu jeder Palettenfarbe.
+ * Die Abstandsliste: je Feld die farblich nächstliegenden Palettenfarben.
+ * ---------------------------------------------------------------------------
  *
  * Sie wird einmal berechnet und bei jeder Änderung des Schiebereglers
  * wiederverwendet. Das ist der Grund, warum sich der Regler live anfühlt: die
- * teuren CIEDE2000-Aufrufe stecken alle in dieser Tabelle, das eigentliche
- * ICM danach besteht nur noch aus Nachschlagen und Vergleichen.
+ * teuren CIEDE2000-Aufrufe stecken alle in dieser Liste, das eigentliche ICM
+ * danach besteht nur noch aus Nachschlagen und Vergleichen.
  *
- * Speicher: Felder × Farben × 4 Byte. Bei 160.000 Feldern und 48 Farben sind
- * das 30 MB – vertretbar, und die Mustergröße ist genau deshalb begrenzt.
+ * Warum nur die nächsten zwölf und nicht der Abstand zu **jeder** Farbe?
+ * Weil eine volle Tabelle mit der Farbanzahl wächst: Felder × Farben × 4 Byte
+ * sind bei 160.000 Feldern und 48 Farben 30 MB, bei 375 Farben aber 240 MB.
+ * Das überlebt kein Tablet. Die kurze Liste kostet dagegen immer gleich viel
+ * (rund 12 MB), egal wie viele Farben die Nutzerin einstellt.
+ *
+ * Und sie reicht auch aus. Die Kosten eines Feldes sind
+ *
+ *     Kosten(c) = ΔE(c) + lambda * (Nachbarn − Nachbarn mit Farbe c)
+ *
+ * Für jede Farbe, die in der Nachbarschaft **nicht** vorkommt, ist der zweite
+ * Term derselbe. Unter diesen Farben gewinnt also immer die farbtreueste –
+ * und die steht in der Liste. Zu prüfen bleiben damit nur noch die höchstens
+ * acht Farben der Nachbarschaft selbst. Deswegen zwölf Plätze: acht mögliche
+ * Nachbarfarben plus Luft, damit die beste Nicht-Nachbarfarbe immer noch
+ * darunter ist. Das Ergebnis ist Feld für Feld dasselbe wie mit der vollen
+ * Tabelle, nur ohne deren Speicher.
  */
-export function abstandstabelleBauen(
-  quellLab: Float32Array,
-  palette: Lab[],
-): Float32Array {
+export const KANDIDATEN = 12;
+
+/**
+ * Ab dieser Palettengröße wird vorgefiltert: statt CIEDE2000 gegen jede
+ * Farbe zu rechnen, kommen erst die 32 im Lab-Raum nächstliegenden in die
+ * engere Wahl und nur für die wird genau gerechnet.
+ *
+ * Der Grund ist die Zeit: CIEDE2000 ist teuer (Wurzeln, Winkel, e-Funktion),
+ * und 160.000 Felder × 375 Farben wären 60 Millionen Aufrufe. Der euklidische
+ * Lab-Abstand kostet einen Bruchteil davon und ordnet fast gleich; die 32
+ * engsten enthalten die zwölf besten praktisch immer.
+ *
+ * „Praktisch immer" reicht für kleine Paletten nicht – da wird ohnehin nicht
+ * gespart, deshalb die Grenze. Bis 64 Farben rechnet die App genau, und alles,
+ * was diese App bisher konnte, liegt darunter.
+ */
+const GENAU_BIS = 64;
+const VORAUSWAHL = 32;
+
+/** Je Feld die nächstliegenden Palettenfarben, nach Abstand aufsteigend. */
+export type Abstandsliste = {
+  /** `je` Palettenindizes für jedes Feld, hintereinander. */
+  farben: Uint16Array;
+  /** Die zugehörigen CIEDE2000-Abstände, in derselben Reihenfolge. */
+  abstaende: Float32Array;
+  /** Einträge je Feld: `min(k, KANDIDATEN)`. */
+  je: number;
+  /** Anzahl Palettenfarben. */
+  k: number;
+  /** Die Palette – für den seltenen Nachschlag einer Nachbarfarbe. */
+  palette: Lab[];
+  /** Die Originalfarben des Rasters – ebenfalls für den Nachschlag. */
+  quellLab: Float32Array;
+};
+
+export function abstandslisteBauen(quellLab: Float32Array, palette: Lab[]): Abstandsliste {
   const felder = quellLab.length / 3;
   const k = palette.length;
-  const tabelle = new Float32Array(felder * k);
+  const je = Math.max(1, Math.min(k, KANDIDATEN));
+
+  const farben = new Uint16Array(felder * je);
+  const abstaende = new Float32Array(felder * je);
+
+  // Die laufende Bestenliste eines Feldes, wiederverwendet statt allokiert.
+  const besteD = new Float64Array(je);
+  const besteC = new Int32Array(je);
+
+  // Nur für die Vorauswahl bei großen Paletten.
+  const engereD = new Float64Array(VORAUSWAHL);
+  const engereC = new Int32Array(VORAUSWAHL);
+  const vorfiltern = k > GENAU_BIS;
 
   for (let i = 0; i < felder; i++) {
     const farbe: Lab = {
@@ -64,40 +124,115 @@ export function abstandstabelleBauen(
       a: quellLab[i * 3 + 1],
       b: quellLab[i * 3 + 2],
     };
-    for (let c = 0; c < k; c++) {
-      tabelle[i * k + c] = ciede2000(farbe, palette[c]);
+
+    let anzahl = 0;
+
+    if (vorfiltern) {
+      // Erst grob im Lab-Raum aussieben …
+      let eng = 0;
+      for (let c = 0; c < k; c++) {
+        const d = labAbstandQuadrat(farbe, palette[c]);
+        if (eng === VORAUSWAHL && d >= engereD[eng - 1]) continue;
+        let pos = eng < VORAUSWAHL ? eng : VORAUSWAHL - 1;
+        while (pos > 0 && engereD[pos - 1] > d) {
+          engereD[pos] = engereD[pos - 1];
+          engereC[pos] = engereC[pos - 1];
+          pos--;
+        }
+        engereD[pos] = d;
+        engereC[pos] = c;
+        if (eng < VORAUSWAHL) eng++;
+      }
+      // … und nur für die engere Wahl genau rechnen.
+      for (let e = 0; e < eng; e++) {
+        anzahl = einsortieren(besteD, besteC, je, anzahl, engereC[e], farbe, palette);
+      }
+    } else {
+      for (let c = 0; c < k; c++) {
+        anzahl = einsortieren(besteD, besteC, je, anzahl, c, farbe, palette);
+      }
+    }
+
+    const basis = i * je;
+    for (let m = 0; m < je; m++) {
+      // Bei einer Palette, die kürzer ist als die Liste, bleibt hinten die
+      // letzte Farbe stehen – gelesen wird nur, was auch gefüllt wurde.
+      const gueltig = m < anzahl ? m : Math.max(0, anzahl - 1);
+      farben[basis + m] = besteC[gueltig];
+      abstaende[basis + m] = besteD[gueltig];
     }
   }
 
-  return tabelle;
+  return { farben, abstaende, je, k, palette, quellLab };
+}
+
+/**
+ * Eine Farbe in die Bestenliste eines Feldes einsortieren.
+ *
+ * Gerundet wird auf 32 Bit, weil die Liste in einem Float32Array landet:
+ * so entscheidet beim Vergleichen später genau derselbe Wert, mit dem hier
+ * sortiert wurde. Bei gleichem Abstand bleibt der kleinere Farbindex vorn –
+ * zwei Garne mit demselben Farbwert gibt es im Katalog wirklich, und ohne
+ * diese Regel hinge es vom Zufall ab, welches von beiden gewählt wird.
+ */
+function einsortieren(
+  besteD: Float64Array,
+  besteC: Int32Array,
+  je: number,
+  anzahl: number,
+  c: number,
+  farbe: Lab,
+  palette: Lab[],
+): number {
+  const d = Math.fround(ciede2000(farbe, palette[c]));
+  if (anzahl === je && d >= besteD[je - 1]) return anzahl;
+
+  let pos = anzahl < je ? anzahl : je - 1;
+  while (pos > 0 && besteD[pos - 1] > d) {
+    besteD[pos] = besteD[pos - 1];
+    besteC[pos] = besteC[pos - 1];
+    pos--;
+  }
+  besteD[pos] = d;
+  besteC[pos] = c;
+  return anzahl < je ? anzahl + 1 : anzahl;
+}
+
+/**
+ * Der Abstand eines Feldes zu einer bestimmten Farbe.
+ *
+ * Fast immer steht er in der Liste. Nur wenn eine Nachbarfarbe so weit weg
+ * ist, dass sie es nicht unter die zwölf geschafft hat, wird sie hier
+ * nachgerechnet – an einer Kante zwischen zwei sehr verschiedenen Flächen
+ * kommt das vor, sonst kaum.
+ */
+function abstandVon(liste: Abstandsliste, i: number, c: number): number {
+  const basis = i * liste.je;
+  for (let m = 0; m < liste.je; m++) {
+    if (liste.farben[basis + m] === c) return liste.abstaende[basis + m];
+  }
+  const j = i * 3;
+  return Math.fround(
+    ciede2000(
+      { L: liste.quellLab[j], a: liste.quellLab[j + 1], b: liste.quellLab[j + 2] },
+      liste.palette[c],
+    ),
+  );
 }
 
 /**
  * Jedes Feld bekommt die Palettenfarbe mit dem kleinsten Farbabstand –
  * das Ergebnis ohne jede Glättung (lambda = 0), also der Ausgangspunkt.
  */
-export function ohneGlaettungZuordnen(tabelle: Float32Array, k: number): Uint8Array {
-  const felder = tabelle.length / k;
-  const raster = new Uint8Array(felder);
-
-  for (let i = 0; i < felder; i++) {
-    let bester = 0;
-    let besterAbstand = Infinity;
-    for (let c = 0; c < k; c++) {
-      const d = tabelle[i * k + c];
-      if (d < besterAbstand) {
-        besterAbstand = d;
-        bester = c;
-      }
-    }
-    raster[i] = bester;
-  }
-
+export function ohneGlaettungZuordnen(liste: Abstandsliste): Uint16Array {
+  const felder = liste.farben.length / liste.je;
+  const raster = new Uint16Array(felder);
+  for (let i = 0; i < felder; i++) raster[i] = liste.farben[i * liste.je];
   return raster;
 }
 
 export type GlaettungsErgebnis = {
-  raster: Uint8Array;
+  raster: Uint16Array;
   kennzahlen: Kennzahlen;
 };
 
@@ -105,30 +240,34 @@ export type GlaettungsErgebnis = {
  * Die eigentliche Glättung.
  *
  * @param start     Raster vor der Glättung (Palettenindizes)
- * @param tabelle   Abstandstabelle aus `abstandstabelleBauen`
- * @param k         Anzahl Palettenfarben
+ * @param liste     Abstandsliste aus `abstandslisteBauen`
  * @param breite    Rasterbreite
  * @param lambda    Gewicht der Nachbarschaftsstrafe
  * @param mindestGroesse  Flächen darunter werden anschließend aufgelöst
  * @param durchlaeufe  3 bis 5 – mehr bringt praktisch nichts mehr
  */
 export function glaetten(
-  start: Uint8Array,
-  tabelle: Float32Array,
-  k: number,
+  start: Uint16Array,
+  liste: Abstandsliste,
   breite: number,
   lambda: number,
   mindestGroesse = 1,
   durchlaeufe = 4,
 ): GlaettungsErgebnis {
-  const raster = Uint8Array.from(start);
+  const raster = Uint16Array.from(start);
   const hoehe = raster.length / breite;
+  const k = liste.k;
+  const je = liste.je;
 
   // lambda = 0 heißt: keine Glättung. Dann bleibt alles, wie es ist, und
   // es werden nur noch die Kennzahlen gezählt.
   if (lambda > 0) {
-    // Zähler für die 8er-Nachbarschaft, bei jedem Feld neu gefüllt.
+    // Zähler für die 8er-Nachbarschaft. Genullt wird er nicht am Stück,
+    // sondern gezielt an den höchstens acht Stellen, die ein Feld angefasst
+    // hat: ein `fill(0)` über die ganze Palette wäre bei 375 Farben teurer
+    // als die Rechnung selbst.
     const nachbarZaehler = new Int32Array(k);
+    const nachbarFarben = new Int32Array(8);
 
     for (let durchlauf = 0; durchlauf < durchlaeufe; durchlauf++) {
       let veraendert = 0;
@@ -138,8 +277,8 @@ export function glaetten(
           const i = y * breite + x;
 
           // Wie oft kommt jede Farbe in der 8er-Nachbarschaft vor?
-          nachbarZaehler.fill(0);
           let nachbarn = 0;
+          let verschiedene = 0;
 
           for (let dy = -1; dy <= 1; dy++) {
             const yy = y + dy;
@@ -148,25 +287,46 @@ export function glaetten(
               if (dx === 0 && dy === 0) continue;
               const xx = x + dx;
               if (xx < 0 || xx >= breite) continue;
-              nachbarZaehler[raster[yy * breite + xx]]++;
+              const farbe = raster[yy * breite + xx];
+              if (nachbarZaehler[farbe]++ === 0) nachbarFarben[verschiedene++] = farbe;
               nachbarn++;
             }
           }
 
           // Kosten je Farbe: Farbabstand plus Strafe für jeden Nachbarn,
-          // der anders aussehen würde.
+          // der anders aussehen würde. Bei gleichen Kosten gewinnt der
+          // kleinere Index – das hält das Ergebnis eindeutig.
           let besteFarbe = raster[i];
           let besteKosten = Infinity;
-          const basis = i * k;
 
-          for (let c = 0; c < k; c++) {
-            const abweichendeNachbarn = nachbarn - nachbarZaehler[c];
-            const kosten = tabelle[basis + c] + lambda * abweichendeNachbarn;
-            if (kosten < besteKosten) {
+          // Erst die Farben, die in der Nachbarschaft schon vorkommen: nur
+          // sie bekommen die Strafe ermäßigt.
+          for (let n = 0; n < verschiedene; n++) {
+            const c = nachbarFarben[n];
+            const kosten = abstandVon(liste, i, c) + lambda * (nachbarn - nachbarZaehler[c]);
+            if (kosten < besteKosten || (kosten === besteKosten && c < besteFarbe)) {
               besteKosten = kosten;
               besteFarbe = c;
             }
           }
+
+          // Und dann die farbtreueste Farbe, die **nicht** vorkommt. Für alle
+          // anderen wäre die Strafe genauso hoch, also kann keine von ihnen
+          // billiger sein – die Liste ist nach Abstand sortiert, damit ist
+          // die erste passende auch die beste.
+          const basis = i * je;
+          for (let m = 0; m < je; m++) {
+            const c = liste.farben[basis + m];
+            if (nachbarZaehler[c] > 0) continue;
+            const kosten = liste.abstaende[basis + m] + lambda * nachbarn;
+            if (kosten < besteKosten || (kosten === besteKosten && c < besteFarbe)) {
+              besteKosten = kosten;
+              besteFarbe = c;
+            }
+            break;
+          }
+
+          for (let n = 0; n < verschiedene; n++) nachbarZaehler[nachbarFarben[n]] = 0;
 
           if (raster[i] !== besteFarbe) {
             raster[i] = besteFarbe;
@@ -184,7 +344,7 @@ export function glaetten(
   // Erst die harte Regel für Felder ohne jeden gleichfarbigen Nachbarn …
   aufraeumen(raster, breite, k);
   // … danach die gröberen Flecken, deren Größe am Schieberegler hängt.
-  kleineFlaechenAufloesen(raster, breite, k, mindestGroesse);
+  kleineFlaechenAufloesen(raster, breite, mindestGroesse);
 
   return { raster, kennzahlen: kennzahlenBerechnen(raster, breite) };
 }
@@ -197,10 +357,11 @@ export function glaetten(
  * Farbe sofort die Entscheidung des nächsten Feldes beeinflussen, und aus
  * einem Einzelstich könnte sich eine Kette durch das halbe Bild fressen.
  */
-export function aufraeumen(raster: Uint8Array, breite: number, k: number): number {
+export function aufraeumen(raster: Uint16Array, breite: number, k: number): number {
   const hoehe = raster.length / breite;
-  const vorlage = Uint8Array.from(raster);
+  const vorlage = Uint16Array.from(raster);
   const zaehler = new Int32Array(k);
+  const nachbarFarben = new Int32Array(8);
   let bereinigt = 0;
 
   for (let y = 0; y < hoehe; y++) {
@@ -208,8 +369,8 @@ export function aufraeumen(raster: Uint8Array, breite: number, k: number): numbe
       const i = y * breite + x;
       const eigene = vorlage[i];
 
-      zaehler.fill(0);
       let gleicheNachbarn = 0;
+      let verschiedene = 0;
 
       for (let dy = -1; dy <= 1; dy++) {
         const yy = y + dy;
@@ -219,23 +380,28 @@ export function aufraeumen(raster: Uint8Array, breite: number, k: number): numbe
           const xx = x + dx;
           if (xx < 0 || xx >= breite) continue;
           const nachbar = vorlage[yy * breite + xx];
-          zaehler[nachbar]++;
+          if (zaehler[nachbar]++ === 0) nachbarFarben[verschiedene++] = nachbar;
           if (nachbar === eigene) gleicheNachbarn++;
         }
       }
 
-      if (gleicheNachbarn > 0) continue; // kein Einzelstich
-
-      // Häufigste Nachbarfarbe suchen.
+      // Häufigste Nachbarfarbe suchen; bei Gleichstand die mit dem kleineren
+      // Index. Kein Einzelstich – dann bleibt alles, wie es ist.
       let haeufigste = eigene;
       let hoechste = 0;
-      for (let c = 0; c < k; c++) {
-        if (zaehler[c] > hoechste) {
-          hoechste = zaehler[c];
-          haeufigste = c;
+      if (gleicheNachbarn === 0) {
+        for (let n = 0; n < verschiedene; n++) {
+          const c = nachbarFarben[n];
+          if (zaehler[c] > hoechste || (zaehler[c] === hoechste && c < haeufigste)) {
+            hoechste = zaehler[c];
+            haeufigste = c;
+          }
         }
       }
 
+      for (let n = 0; n < verschiedene; n++) zaehler[nachbarFarben[n]] = 0;
+
+      if (gleicheNachbarn > 0) continue;
       if (hoechste > 0 && haeufigste !== eigene) {
         raster[i] = haeufigste;
         bereinigt++;
@@ -258,7 +424,7 @@ export function aufraeumen(raster: Uint8Array, breite: number, k: number): numbe
  * Auflösen kleiner Flecken.
  */
 export function flaechenFinden(
-  raster: Uint8Array,
+  raster: Uint16Array,
   breite: number,
 ): { flaeche: Int32Array; groessen: Int32Array } {
   const hoehe = raster.length / breite;
@@ -328,9 +494,8 @@ export function flaechenFinden(
  * nach dem Auflösen eine größere werden kann, die dann stehen bleiben darf.
  */
 export function kleineFlaechenAufloesen(
-  raster: Uint8Array,
+  raster: Uint16Array,
   breite: number,
-  k: number,
   mindestGroesse: number,
   maxDurchlaeufe = 6,
 ): number {
@@ -341,10 +506,14 @@ export function kleineFlaechenAufloesen(
   for (let durchlauf = 0; durchlauf < maxDurchlaeufe; durchlauf++) {
     const { flaeche, groessen } = flaechenFinden(raster, breite);
 
-    // Für jede zu kleine Fläche zählen, an welche Farbe sie am längsten grenzt.
-    const zuKlein = new Map<number, Int32Array>();
+    // Für jede zu kleine Fläche zählen, an welche Farbe sie am längsten
+    // grenzt. Gezählt wird in einer Zuordnung und nicht in einem Feld über
+    // die ganze Palette: eine kleine Fläche grenzt an eine Handvoll Farben,
+    // und bei vielen kleinen Flächen wäre je ein Feld über 375 Farben ein
+    // Vielfaches an Speicher.
+    const zuKlein = new Map<number, Map<number, number>>();
     for (let f = 0; f < groessen.length; f++) {
-      if (groessen[f] < mindestGroesse) zuKlein.set(f, new Int32Array(k));
+      if (groessen[f] < mindestGroesse) zuKlein.set(f, new Map());
     }
     if (zuKlein.size === 0) break;
 
@@ -363,20 +532,22 @@ export function kleineFlaechenAufloesen(
             if (xx < 0 || xx >= breite) continue;
             const j = yy * breite + xx;
             if (flaeche[j] === flaeche[i]) continue; // gehört zur Fläche selbst
-            zaehler[raster[j]]++;
+            const farbe = raster[j];
+            zaehler.set(farbe, (zaehler.get(farbe) ?? 0) + 1);
           }
         }
       }
     }
 
-    // Die Ersatzfarbe je Fläche bestimmen.
+    // Die Ersatzfarbe je Fläche bestimmen; bei Gleichstand die mit dem
+    // kleineren Index.
     const ersatz = new Map<number, number>();
     for (const [f, zaehler] of zuKlein) {
       let beste = -1;
       let hoechste = 0;
-      for (let c = 0; c < k; c++) {
-        if (zaehler[c] > hoechste) {
-          hoechste = zaehler[c];
+      for (const [c, anzahl] of zaehler) {
+        if (anzahl > hoechste || (anzahl === hoechste && c < beste)) {
+          hoechste = anzahl;
           beste = c;
         }
       }
@@ -413,7 +584,7 @@ export function kleineFlaechenAufloesen(
  *   sich beim Sticken einer Reihe von links nach rechts die Farbe ändert.
  *   Das ist das Maß dafür, wie anstrengend eine Reihe zu sticken ist.
  */
-export function kennzahlenBerechnen(raster: Uint8Array, breite: number): Kennzahlen {
+export function kennzahlenBerechnen(raster: Uint16Array, breite: number): Kennzahlen {
   const hoehe = raster.length / breite;
 
   const { flaeche, groessen } = flaechenFinden(raster, breite);
@@ -445,7 +616,7 @@ export function kennzahlenBerechnen(raster: Uint8Array, breite: number): Kennzah
  * Stichzahl je verbleibender Farbe.
  */
 export function paletteNeuZaehlen(
-  raster: Uint8Array,
+  raster: Uint16Array,
   k: number,
 ): { abbildung: Int32Array; stiche: number[]; anzahl: number } {
   const zaehler = new Int32Array(k);

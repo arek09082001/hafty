@@ -14,12 +14,12 @@
  *   5. kmeans()            – Farbreduktion auf k Farben im Lab-Raum
  *   6. aufGarneAbbilden()  – Clusterzentren auf reale Garne, CIEDE2000
  *   7. glaetten()          – Regularisierung gegen Einzelstiche (glaettung.ts)
- *   8. Ergebnis: Uint8Array mit Palettenindizes plus Legende
+ *   8. Ergebnis: Uint16Array mit Palettenindizes plus Legende
  */
 
 import { byteNachLinear, labNachRgb, linearNachLab, rgbNachHex, type Lab } from "@/lib/farbe/lab";
 import { ciede2000, labAbstandQuadrat } from "@/lib/farbe/ciede2000";
-import type { Garn } from "./typen";
+import { LEER, type Garn } from "./typen";
 
 /**
  * Das heruntergerechnete Raster. Für jedes Feld stehen der Lab-Wert (für alle
@@ -218,7 +218,7 @@ export type KmeansErgebnis = {
   /** k Zentren, je 3 Werte (L, a, b). */
   zentren: Float32Array;
   /** Für jedes Feld der Index seines Zentrums. */
-  zuordnung: Uint8Array;
+  zuordnung: Uint16Array;
   /** Tatsächliche Anzahl Zentren (kann kleiner als k sein). */
   k: number;
 };
@@ -248,12 +248,15 @@ export function kmeans(
   k: number,
   optionen: { maxDurchlaeufe?: number; saat?: number } = {},
 ): KmeansErgebnis {
-  const maxDurchlaeufe = optionen.maxDurchlaeufe ?? 40;
   const zufall = zufallsgenerator(optionen.saat ?? 20240917);
 
   const { lab } = bild;
   const felder = lab.length / 3;
-  const kEcht = Math.max(1, Math.min(k, felder, 255));
+  // Nach oben begrenzt nicht der Garnkatalog (das tut die Oberfläche mit
+  // MAX_FARBEN), sondern das Raster: es kann nur die Indizes 0 bis LEER-1
+  // auseinanderhalten.
+  const kEcht = Math.max(1, Math.min(k, felder, LEER));
+  const maxDurchlaeufe = optionen.maxDurchlaeufe ?? durchlaeufeFuer(kEcht);
 
   const zentren = new Float32Array(kEcht * 3);
 
@@ -300,7 +303,7 @@ export function kmeans(
   }
 
   // --- Lloyd-Iteration ------------------------------------------------------
-  const zuordnung = new Uint8Array(felder);
+  const zuordnung = new Uint16Array(felder);
   const summeL = new Float64Array(kEcht);
   const summeA = new Float64Array(kEcht);
   const summeB = new Float64Array(kEcht);
@@ -363,10 +366,29 @@ export function kmeans(
   return leereClusterEntfernen(zentren, zuordnung, kEcht);
 }
 
+/**
+ * Wie oft die Lloyd-Iteration höchstens läuft.
+ *
+ * Ein Durchlauf kostet Felder × Farben Abstände. Bei 20 Farben ist das
+ * nichts; bei 375 Farben auf 160.000 Feldern sind es 60 Millionen, und
+ * vierzig Durchläufe davon dauern auf einem Rechner über acht Sekunden, auf
+ * einem Tablet ein Mehrfaches.
+ *
+ * Die späten Durchläufe bringen bei einer großen Palette aber nichts mehr.
+ * Gemessen an einer fotoartigen Vorlage in voller Größe liegt zwischen zwölf
+ * und vierzig Durchläufen bei 375 Farben ein mittlerer Farbabstand von
+ * 0,002 ΔE – unsichtbar, bemerkt wird ein Unterschied erst ab etwa 1 ΔE.
+ * Deshalb ein Budget statt einer festen Zahl: bis 48 Farben bleibt es bei den
+ * vierzig Durchläufen, darüber werden es weniger, mindestens aber zehn.
+ */
+function durchlaeufeFuer(k: number): number {
+  return Math.max(10, Math.min(40, Math.round((40 * 48) / k)));
+}
+
 /** Cluster ohne ein einziges Feld werden aus der Palette gestrichen. */
 function leereClusterEntfernen(
   zentren: Float32Array,
-  zuordnung: Uint8Array,
+  zuordnung: Uint16Array,
   k: number,
 ): KmeansErgebnis {
   const belegt = new Int32Array(k);

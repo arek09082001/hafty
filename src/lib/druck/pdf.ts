@@ -59,7 +59,7 @@ export type Druckauftrag = {
   name: string;
   breite: number;
   hoehe: number;
-  raster: Uint8Array;
+  raster: Uint16Array;
   /**
    * Nur die Farben, die im Muster wirklich vorkommen. Angesprochen wird sie
    * über `index` und nie über die Stelle in der Liste – Felder, die nicht

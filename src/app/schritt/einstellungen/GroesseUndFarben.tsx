@@ -20,6 +20,21 @@ import {
   sticheInCm,
 } from "@/lib/muster/typen";
 
+/**
+ * Wie viele Farben ein Tipp auf „Mehr" dazugibt.
+ *
+ * Unten in Zweierschritten: da entscheidet jede einzelne Farbe darüber, wie
+ * das Bild aussieht. Weiter oben in größeren – von 20 bis an den ganzen
+ * Katalog wären es sonst fast zweihundert Tipps, und zwischen 300 und 302
+ * Farben liegt ohnehin kein sichtbarer Unterschied.
+ */
+function farbenSchritt(wert: number): number {
+  if (wert < 24) return 2;
+  if (wert < 60) return 4;
+  if (wert < 150) return 10;
+  return 25;
+}
+
 export function GroesseUndFarben() {
   const { bild, einstellungen, einstellungenSetzen, erzeugen, laeuft, fortschritt, fehler, alleGarne } =
     useMuster();
@@ -151,7 +166,7 @@ export function GroesseUndFarben() {
               wert={einstellungen.farbanzahl}
               min={MIN_FARBEN}
               max={MAX_FARBEN}
-              schritt={2}
+              schritt={farbenSchritt}
               einheit={t("einst.farbenEinheit")}
               onAendern={(v) => einstellungenSetzen({ farbanzahl: v })}
               hinweis={t("einst.farbanzahlHinweis")}

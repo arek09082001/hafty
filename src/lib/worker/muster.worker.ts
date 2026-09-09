@@ -9,7 +9,7 @@
  *
  * Zwischen zwei Aufträgen behält der Worker seine Zwischenergebnisse. Das ist
  * der Grund, warum sich der Glättungsregler live anfühlt: Herunterrechnen,
- * Filtern, k-Means und die Abstandstabelle laufen einmal, danach kostet eine
+ * Filtern, k-Means und die Abstandsliste laufen einmal, danach kostet eine
  * Änderung des Reglers nur noch die vier ICM-Durchläufe.
  */
 
@@ -23,10 +23,11 @@ import {
   type Rasterbild,
 } from "@/lib/muster/pipeline";
 import {
-  abstandstabelleBauen,
+  abstandslisteBauen,
   glaetten,
   ohneGlaettungZuordnen,
   paletteNeuZaehlen,
+  type Abstandsliste,
 } from "@/lib/muster/glaettung";
 import { symboleVerteilen } from "@/lib/muster/symbole";
 import type { Garn, PalettenEintrag } from "@/lib/muster/typen";
@@ -44,10 +45,10 @@ type Zwischenstand = {
   paletteLab: Lab[];
   /** Die zugehörigen Garne, oder lauter null ohne Katalog. */
   garne: (Garn | null)[];
-  /** Abstand jedes Feldes zu jeder Palettenfarbe. */
-  tabelle: Float32Array;
+  /** Je Feld die nächstliegenden Palettenfarben mit ihrem Abstand. */
+  tabelle: Abstandsliste;
   /** Zuordnung ohne jede Glättung – Ausgangspunkt jedes ICM-Laufs. */
-  startRaster: Uint8Array;
+  startRaster: Uint16Array;
   /** Wie viele Farben das k-Means gefunden hat. */
   farbenVorher: number;
   garneZusammengelegt: number;
@@ -113,14 +114,14 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
   fortschritt("arbeit.garneSuchen", 0.6);
   const zuordnung = aufGarneAbbilden(cluster.zentren, garne);
 
-  // --- Abstandstabelle: die Grundlage für alles Weitere ---------------------
+  // --- Abstandsliste: die Grundlage für alles Weitere -----------------------
   fortschritt("arbeit.vorbereiten", 0.7);
-  const tabelle = abstandstabelleBauen(raster.lab, zuordnung.farben);
+  const tabelle = abstandslisteBauen(raster.lab, zuordnung.farben);
 
   // Ausgangszuordnung: jedes Feld bekommt die farblich nächste Palettenfarbe.
   const startRaster = dithering
     ? mitDitheringZuordnen(raster, zuordnung.farben)
-    : ohneGlaettungZuordnen(tabelle, zuordnung.farben.length);
+    : ohneGlaettungZuordnen(tabelle);
 
   stand = {
     breite: raster.breite,
@@ -152,7 +153,6 @@ function nurGlaetten(lambda: number, mindestFlaeche: number) {
   const { raster, kennzahlen } = glaetten(
     stand.startRaster,
     stand.tabelle,
-    k,
     stand.breite,
     lambda,
     mindestFlaeche,
@@ -215,11 +215,11 @@ function nurGlaetten(lambda: number, mindestFlaeche: number) {
  * genau die einzelnen Fremdstiche, gegen die die Glättung antritt. Deshalb
  * ist es voreingestellt **aus** und nur als abschaltbare Zusatzoption da.
  */
-function mitDitheringZuordnen(bild: Rasterbild, palette: Lab[]): Uint8Array {
+function mitDitheringZuordnen(bild: Rasterbild, palette: Lab[]): Uint16Array {
   const { breite, hoehe } = bild;
   // Auf einer Kopie arbeiten, in die der Fehler eingerechnet wird.
   const arbeit = Float32Array.from(bild.lab);
-  const raster = new Uint8Array(breite * hoehe);
+  const raster = new Uint16Array(breite * hoehe);
 
   const streuen = (x: number, y: number, dL: number, da: number, db: number, anteil: number) => {
     if (x < 0 || x >= breite || y < 0 || y >= hoehe) return;
