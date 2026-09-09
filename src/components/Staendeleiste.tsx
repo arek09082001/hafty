@@ -115,7 +115,7 @@ export function Staendeleiste({
                   onClick={() => setVorschau(stand)}
                   className={`flex min-h-[56px] w-[150px] flex-col items-center gap-2 rounded-xl border p-2 ${
                     ist
-                      ? "border-hauptaktion bg-[#e8f3ee]"
+                      ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief"
                       : "border-linie bg-white hover:bg-hinweis"
                   }`}
                 >

@@ -269,12 +269,17 @@ export function Rasteransicht({
     [breite, hoehe],
   );
 
+  // Mit `onZeiger` wird auf dem Raster gearbeitet – dann steht dort das
+  // Fadenkreuz, mit dem sich ein einzelnes Kästchen treffen lässt. Ohne
+  // Zeigerbehandlung ist das Raster nur ein Bild und bleibt es auch.
   return (
     <canvas
       ref={leinwand}
       role="img"
       aria-label={beschriftung}
-      className="raster block h-auto max-w-none touch-none select-none"
+      className={`raster block h-auto max-w-none touch-none select-none ${
+        onZeiger ? "cursor-crosshair" : ""
+      }`}
       style={{ width: Math.round(breite * zoom), height: Math.round(hoehe * zoom) }}
       onPointerDown={(e) => {
         if (!onZeiger) return;

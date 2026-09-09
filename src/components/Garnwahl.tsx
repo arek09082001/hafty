@@ -88,7 +88,9 @@ export function Garnwahl({
                   onClick={() => onWaehlen(garn)}
                   aria-pressed={markiert ? ist : undefined}
                   className={`flex min-h-[110px] w-full flex-col items-stretch gap-1 overflow-hidden rounded-xl border-2 text-left ${
-                    ist ? "border-hauptaktion" : "border-linie hover:border-tinte"
+                    ist
+                      ? "border-hauptaktion hover:border-hauptaktion-hell"
+                      : "border-linie hover:border-tinte"
                   }`}
                 >
                   <span

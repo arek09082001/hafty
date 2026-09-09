@@ -4,11 +4,15 @@ import { useCallback, useRef, useState } from "react";
 import { Knopf } from "./Knopf";
 import {
   VERHAELTNISSE,
+  ausRechteck,
   einpassen,
   groesseAendern,
   groesstesRechteck,
+  kanteZiehen,
+  seiteAendern,
   verschieben,
   type Ausschnitt,
+  type Kante,
 } from "@/lib/muster/ausschnitt";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
@@ -16,17 +20,73 @@ import type { Textschluessel } from "@/lib/sprache/texte";
 /**
  * Den Bildausschnitt wählen.
  *
- * So einfach wie möglich gehalten:
+ * Es führen bewusst mehrere Wege zum selben Ziel:
  *
  *  - Ein Antippen auf „Quadrat“, „Hochkant“ … legt den größten Ausschnitt
- *    dieser Form mittig auf das Bild. Für die meisten Bilder ist das schon
- *    das Ergebnis, und man muss nichts weiter tun.
+ *    dieser Form mittig auf das Bild. Für viele Bilder ist das schon das
+ *    Ergebnis, und man muss nichts weiter tun.
+ *  - **Freihand** geht mit dem Finger: an einer Ecke oder Kante ziehen macht
+ *    den Ausschnitt schmaler, breiter, höher oder flacher, ganz ohne festes
+ *    Seitenverhältnis. Und wer neben dem Rahmen auf dem Bild aufsetzt und
+ *    zieht, spannt einfach einen neuen Rahmen auf.
  *  - Verschoben wird mit dem Finger – **oder** mit den vier Pfeilknöpfen.
- *    Ziehen ist nie der einzige Weg; wer eine Maus hat oder unsicher greift,
- *    kommt genauso ans Ziel.
- *  - Größer und kleiner geht nur über Knöpfe. Kleine Anfasser an den Ecken
- *    wären auf einem Tablet mit älteren Fingern nicht zu treffen.
+ *  - Auch die Freihandgröße geht über Knöpfe: „Breiter“, „Schmaler“,
+ *    „Höher“, „Flacher“. Ziehen ist nie der einzige Weg; wer eine Maus hat
+ *    oder unsicher greift, kommt genauso ans Ziel.
+ *
+ * Die Anfasser sind deshalb auch keine kleinen Punkte: sichtbar sind 24
+ * Bildschirmpunkte, treffen kann man ein Feld von 48 – das ist auf einem
+ * Tablet auch mit älteren Fingern zu schaffen.
  */
+
+/**
+ * Die acht Anfasser: Kürzel, Lage am Rahmen in Prozent und der passende
+ * Mauszeiger.
+ *
+ * Die Prozentzahl ist zugleich die Verschiebung: bei 0 % liegt der Anfasser
+ * mit seiner linken Kante am Rahmen, bei 100 % mit seiner rechten. Dadurch
+ * liegt jeder Anfasser **innerhalb** des Rahmens statt zur Hälfte darüber
+ * hinaus – am Bildrand würde er sonst abgeschnitten und wäre kaum zu treffen.
+ */
+const GRIFFE: { kante: Kante; links: number; oben: number; zeiger: string }[] = [
+  { kante: "nw", links: 0, oben: 0, zeiger: "nwse-resize" },
+  { kante: "n", links: 50, oben: 0, zeiger: "ns-resize" },
+  { kante: "no", links: 100, oben: 0, zeiger: "nesw-resize" },
+  { kante: "o", links: 100, oben: 50, zeiger: "ew-resize" },
+  { kante: "so", links: 100, oben: 100, zeiger: "nwse-resize" },
+  { kante: "s", links: 50, oben: 100, zeiger: "ns-resize" },
+  { kante: "sw", links: 0, oben: 100, zeiger: "nesw-resize" },
+  { kante: "w", links: 0, oben: 50, zeiger: "ew-resize" },
+];
+
+/**
+ * So weit muss der Finger wandern, bevor aus einem Aufsetzen neben dem
+ * Rahmen ein neuer Rahmen wird. Ohne diese Schwelle würde jedes versehentliche
+ * Antippen des Bildes den Ausschnitt auf einen Punkt zusammenziehen.
+ */
+const SCHWELLE = 10;
+
+/** Was gerade am Zeiger hängt. */
+type Ziehen =
+  | { art: "verschieben"; zeigerId: number; startX: number; startY: number; start: Ausschnitt }
+  | {
+      art: "kante";
+      kante: Kante;
+      zeigerId: number;
+      startX: number;
+      startY: number;
+      start: Ausschnitt;
+    }
+  | {
+      art: "neu";
+      zeigerId: number;
+      startX: number;
+      startY: number;
+      /** Der Aufsetzpunkt in Bildpunkten – die eine Ecke des neuen Rahmens. */
+      ecke: { x: number; y: number };
+      begonnen: boolean;
+    };
+
 export function Zuschnitt({
   bildUrl,
   bildBreite,
@@ -42,23 +102,61 @@ export function Zuschnitt({
 }) {
   const { t, zahl } = useSprache();
   const bildRef = useRef<HTMLImageElement | null>(null);
-  const ziehtRef = useRef<{ zeigerId: number; startX: number; startY: number; start: Ausschnitt } | null>(null);
+  const ziehtRef = useRef<Ziehen | null>(null);
   const [zieht, setZieht] = useState(false);
 
   /** Wie viele Bildpunkte entspricht ein Bildschirmpunkt gerade? */
   const massstab = useCallback(() => {
     const b = bildRef.current?.getBoundingClientRect();
-    return b && b.width > 0 ? bildBreite / b.width : 1;
-  }, [bildBreite]);
+    if (!b || b.width <= 0 || b.height <= 0) return { x: 1, y: 1 };
+    return { x: bildBreite / b.width, y: bildHoehe / b.height };
+  }, [bildBreite, bildHoehe]);
+
+  /** Einen Punkt auf dem Schirm in Bildpunkte des Quellbildes umrechnen. */
+  const punktImBild = useCallback(
+    (clientX: number, clientY: number) => {
+      const b = bildRef.current?.getBoundingClientRect();
+      if (!b) return { x: 0, y: 0 };
+      const m = massstab();
+      return { x: (clientX - b.left) * m.x, y: (clientY - b.top) * m.y };
+    },
+    [massstab],
+  );
 
   function zeigerRunter(e: React.PointerEvent<HTMLDivElement>) {
+    const ziel = e.target as HTMLElement;
+    const kante = ziel.dataset.griff as Kante | undefined;
     e.currentTarget.setPointerCapture(e.pointerId);
-    ziehtRef.current = {
-      zeigerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      start: ausschnitt,
-    };
+
+    if (kante) {
+      // Freihand an einer Ecke oder Kante.
+      ziehtRef.current = {
+        art: "kante",
+        kante,
+        zeigerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        start: ausschnitt,
+      };
+    } else if (ziel.dataset.rahmen) {
+      ziehtRef.current = {
+        art: "verschieben",
+        zeigerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        start: ausschnitt,
+      };
+    } else {
+      // Neben dem Rahmen aufgesetzt: von hier aus wird ein neuer aufgezogen.
+      ziehtRef.current = {
+        art: "neu",
+        zeigerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        ecke: punktImBild(e.clientX, e.clientY),
+        begonnen: false,
+      };
+    }
     setZieht(true);
   }
 
@@ -66,17 +164,30 @@ export function Zuschnitt({
     const z = ziehtRef.current;
     if (!z || z.zeigerId !== e.pointerId) return;
     const m = massstab();
-    onAendern(
-      einpassen(
-        {
-          ...z.start,
-          x: z.start.x + (e.clientX - z.startX) * m,
-          y: z.start.y + (e.clientY - z.startY) * m,
-        },
-        bildBreite,
-        bildHoehe,
-      ),
-    );
+    const dx = e.clientX - z.startX;
+    const dy = e.clientY - z.startY;
+
+    if (z.art === "verschieben") {
+      onAendern(
+        einpassen(
+          { ...z.start, x: z.start.x + dx * m.x, y: z.start.y + dy * m.y },
+          bildBreite,
+          bildHoehe,
+        ),
+      );
+      return;
+    }
+
+    if (z.art === "kante") {
+      onAendern(kanteZiehen(z.start, z.kante, dx * m.x, dy * m.y, bildBreite, bildHoehe));
+      return;
+    }
+
+    // Ein neuer Rahmen entsteht erst, wenn wirklich gezogen wird.
+    if (!z.begonnen && Math.abs(dx) < SCHWELLE && Math.abs(dy) < SCHWELLE) return;
+    z.begonnen = true;
+    const jetzt = punktImBild(e.clientX, e.clientY);
+    onAendern(ausRechteck(z.ecke.x, z.ecke.y, jetzt.x, jetzt.y, bildBreite, bildHoehe));
   }
 
   function zeigerHoch(e: React.PointerEvent<HTMLDivElement>) {
@@ -94,12 +205,22 @@ export function Zuschnitt({
        rechts daneben. Untereinander wurde die Seite so hoch, dass man vom
        Bild zu den Knöpfen blättern musste – und dabei sieht man nicht mehr,
        was der Knopf gerade bewirkt. */
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] lg:items-start">
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
       {/* --- Das Bild mit dem Rahmen --------------------------------------- */}
       {/* overflow-hidden ist wichtig: der Schleier um den Rahmen entsteht aus
           einem sehr weiten Schlagschatten. Ohne diese Klammer legt er sich
-          über die ganze Seite statt nur über das Bild. */}
-      <div className="relative w-full touch-none overflow-hidden rounded-xl select-none">
+          über die ganze Seite statt nur über das Bild.
+
+          Alle Zeigerereignisse hängen an dieser einen Klammer und nicht an
+          Rahmen und Anfassern einzeln: so bleibt der Finger auch dann am
+          Rahmen, wenn er beim Ziehen über den Bildrand hinausrutscht. */}
+      <div
+        className="relative w-full touch-none overflow-hidden rounded-xl select-none"
+        onPointerDown={zeigerRunter}
+        onPointerMove={zeigerBewegt}
+        onPointerUp={zeigerHoch}
+        onPointerCancel={zeigerHoch}
+      >
         {/* Kein next/image: die Adresse ist eine Objekt-URL aus dem Browser
             der Nutzerin. Da gibt es nichts zu optimieren, der Hoster sieht
             dieses Bild nie. */}
@@ -108,12 +229,13 @@ export function Zuschnitt({
           ref={bildRef}
           src={bildUrl}
           alt={t("zuschnitt.bildBeschriftung")}
-          className="block w-full rounded-xl border border-linie"
+          className="block w-full cursor-crosshair rounded-xl border border-linie"
           draggable={false}
         />
         {/* Was wegfällt, liegt unter einem Schleier – so ist auf einen Blick
             zu sehen, was übrig bleibt. */}
         <div
+          data-rahmen="ja"
           className={`absolute cursor-move rounded-sm border-[3px] border-white shadow-[0_0_0_3px_#0f4c35,0_0_0_9999px_rgba(0,0,0,0.45)] ${
             zieht ? "border-hauptaktion" : ""
           }`}
@@ -123,11 +245,25 @@ export function Zuschnitt({
             width: anteil(ausschnitt.breite, bildBreite),
             height: anteil(ausschnitt.hoehe, bildHoehe),
           }}
-          onPointerDown={zeigerRunter}
-          onPointerMove={zeigerBewegt}
-          onPointerUp={zeigerHoch}
-          onPointerCancel={zeigerHoch}
-        />
+        >
+          {/* Die Anfasser für Freihand. Sie sind nur zum Ziehen da und für
+              Vorlesegeräte unsichtbar – über die Knöpfe rechts kommt man
+              ohne Ziehen zum selben Ergebnis. */}
+          {GRIFFE.map((griff) => (
+            <span
+              key={griff.kante}
+              data-griff={griff.kante}
+              aria-hidden="true"
+              style={{
+                left: `${griff.links}%`,
+                top: `${griff.oben}%`,
+                transform: `translate(-${griff.links}%, -${griff.oben}%)`,
+                cursor: griff.zeiger,
+              }}
+              className="absolute p-3 after:block after:h-6 after:w-6 after:rounded-[3px] after:border-2 after:border-hauptaktion after:bg-white after:shadow-[0_0_0_1px_rgba(0,0,0,0.35)] after:content-['']"
+            />
+          ))}
+        </div>
       </div>
 
       {/* --- Alles zum Einstellen ------------------------------------------ */}
@@ -146,6 +282,7 @@ export function Zuschnitt({
               </Knopf>
             ))}
           </div>
+          <p className="max-w-[52ch] text-[1rem] text-gedaempft">{t("zuschnitt.freihandText")}</p>
         </div>
 
         <p className="text-[1rem] text-gedaempft">
@@ -158,7 +295,7 @@ export function Zuschnitt({
         <div className="flex flex-wrap items-start gap-8">
         <div className="flex flex-col gap-2">
           <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.schieben")}</h3>
-          <div className="grid w-[220px] grid-cols-3 gap-2">
+          <div className="grid w-[330px] grid-cols-3 gap-2">
             <span />
             <Knopf art="neben" klein onClick={() => onAendern(verschieben(ausschnitt, 0, -0.2, bildBreite, bildHoehe))}>
               {t("editor.hoch")}
@@ -179,9 +316,10 @@ export function Zuschnitt({
           </div>
         </div>
 
+        <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.groesse")}</h3>
-          <div className="flex gap-2">
+          <div className="grid w-[260px] grid-cols-2 gap-2">
             <Knopf
               art="neben"
               klein
@@ -197,6 +335,47 @@ export function Zuschnitt({
               {t("zuschnitt.groesser")}
             </Knopf>
           </div>
+        </div>
+
+        {/* Freihand ohne Ziehen: Breite und Höhe lassen sich einzeln ändern,
+            das Seitenverhältnis darf dabei alles werden. */}
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.freihand")}</h3>
+          <div className="grid w-[260px] grid-cols-2 gap-2">
+            <Knopf
+              art="neben"
+              klein
+              onClick={() => onAendern(seiteAendern(ausschnitt, "breite", 0.85, bildBreite, bildHoehe))}
+            >
+              {t("zuschnitt.schmaler")}
+            </Knopf>
+            <Knopf
+              art="neben"
+              klein
+              onClick={() =>
+                onAendern(seiteAendern(ausschnitt, "breite", 1 / 0.85, bildBreite, bildHoehe))
+              }
+            >
+              {t("zuschnitt.breiter")}
+            </Knopf>
+            <Knopf
+              art="neben"
+              klein
+              onClick={() => onAendern(seiteAendern(ausschnitt, "hoehe", 0.85, bildBreite, bildHoehe))}
+            >
+              {t("zuschnitt.flacher")}
+            </Knopf>
+            <Knopf
+              art="neben"
+              klein
+              onClick={() =>
+                onAendern(seiteAendern(ausschnitt, "hoehe", 1 / 0.85, bildBreite, bildHoehe))
+              }
+            >
+              {t("zuschnitt.hoeher")}
+            </Knopf>
+          </div>
+        </div>
         </div>
         </div>
       </div>

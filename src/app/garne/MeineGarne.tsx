@@ -159,7 +159,7 @@ export function MeineGarne() {
                     art="neben"
                     aria-pressed={nurMeine}
                     onClick={() => setNurMeine((n) => !n)}
-                    className={nurMeine ? "border-hauptaktion bg-[#e8f3ee]" : ""}
+                    className={nurMeine ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief" : ""}
                   >
                     {nurMeine
                       ? t("garne.alleZeigen", { anzahl: zahl(garne.length) })

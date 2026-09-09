@@ -83,7 +83,7 @@ export function Legende({
                 aria-pressed={istGewaehlt}
                 className={`flex min-h-[56px] w-full items-center gap-3 rounded-xl border px-3 py-2 ${
                   istGewaehlt
-                    ? "border-hauptaktion bg-[#e8f3ee]"
+                    ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief"
                     : "border-linie bg-white hover:bg-hinweis"
                 }`}
               >
