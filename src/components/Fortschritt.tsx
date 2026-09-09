@@ -21,6 +21,11 @@ export const SCHRITTE = [
  * Der Garnvorrat und die Sprachwahl sitzen in derselben Zeile. Vorher waren
  * das zwei Leisten übereinander, und die haben dem Muster fast achtzig
  * Bildpunkte Höhe weggenommen – auf einem Tablet im Querformat ist das viel.
+ *
+ * Flach ist sie aus demselben Grund: die Leiste steht auf jeder der vier
+ * Seiten, jeder Punkt Höhe fehlt in Schritt 3 dem Muster. Die Ziffern sind
+ * deshalb kleiner geworden, die Schrift bleibt lesbar, und die Ziele bleiben
+ * mit 44 Punkten groß genug für einen Finger.
  */
 export function Fortschritt() {
   const { t } = useSprache();
@@ -31,9 +36,9 @@ export function Fortschritt() {
   );
 
   return (
-    <nav aria-label={t("schritt.fortschritt")} className="shrink-0 border-b-2 border-linie bg-white">
-      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-3 px-4 py-2">
-        <ol className="flex min-w-0 flex-1 flex-wrap items-stretch gap-2">
+    <nav aria-label={t("schritt.fortschritt")} className="shrink-0 border-b border-linie bg-white">
+      <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 px-4 py-1">
+        <ol className="flex min-w-0 flex-1 flex-wrap items-stretch gap-1">
         {SCHRITTE.map((schritt, i) => {
           const erledigt = i < aktuell;
           const jetzt = i === aktuell;
@@ -43,7 +48,7 @@ export function Fortschritt() {
             <>
               <span
                 aria-hidden
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-2 text-[1rem] font-bold ${
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-[0.9rem] font-bold ${
                   jetzt
                     ? "border-hauptaktion bg-hauptaktion text-white"
                     : erledigt
@@ -53,14 +58,14 @@ export function Fortschritt() {
               >
                 {i + 1}
               </span>
-              <span className="text-left text-[0.9rem] font-semibold leading-tight">
+              <span className="text-left text-[0.85rem] font-semibold leading-tight">
                 {t(schritt.titel)}
               </span>
             </>
           );
 
           const stil =
-            "flex min-h-[52px] flex-1 items-center gap-2 rounded-xl px-2 py-1 " +
+            "flex min-h-[44px] flex-1 items-center gap-2 rounded-xl px-2 py-0.5 " +
             (jetzt ? "bg-hinweis" : "");
 
           return (
@@ -85,11 +90,11 @@ export function Fortschritt() {
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/garne"
-            className="flex min-h-[48px] items-center rounded-xl px-3 text-[0.95rem] font-semibold underline hover:bg-hinweis"
+            className="flex min-h-[44px] items-center rounded-xl px-3 text-[0.9rem] font-semibold underline hover:bg-hinweis"
           >
             {t("kopf.meineGarne")}
           </Link>
-          <Sprachwahl />
+          <Sprachwahl klein />
         </div>
       </div>
     </nav>

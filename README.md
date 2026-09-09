@@ -233,11 +233,13 @@ Jetzt gilt:
   nicht gefüllt wurde.
 - **Zwei Seitenarten** (`src/components/Seite.tsx`): Leseseiten haben eine
   Spalte, die schmal genug zum Lesen bleibt; Arbeitsseiten (Muster, Drucken)
-  füllen den Bildschirm, links das Muster, rechts 440 Punkte Bedienung.
+  füllen den Bildschirm. Schritt 3 hat drei Spalten: links die Werkzeuge, in
+  der Mitte das Muster, rechts 420 Punkte Bedienung.
 - **Was man anfassen kann, sagt das auch** (`src/app/globals.css`): Zeigefinger
   auf allem Anklickbaren, „verboten" auf allem Gesperrten, Fadenkreuz über dem
-  Raster, und jeder Zustand antwortet auf den Mauszeiger – auch die schon
-  gewählte Zeile, die sonst als einzige tot wirkte.
+  Raster (und die offene Hand, wo geschoben wird), und jeder Zustand antwortet
+  auf den Mauszeiger – auch die schon gewählte Zeile, die sonst als einzige
+  tot wirkte.
 - **Der Glättungsregler hat keine Rastpunkte** (`src/lib/muster/typen.ts`): er
   läuft stufenlos von „jedes Kästchen darf seine eigene Farbe haben" bis zu
   einer Farbe je 10 × 10 Kästchen, und unter ihm steht in Kästchen, was die
@@ -246,7 +248,73 @@ Jetzt gilt:
 
 Was davon unberührt bleibt, sind die Regeln für die Nutzerin: Grundschrift
 20px, jede Schaltfläche mindestens 56px hoch, jede mit Text beschriftet, pro
-Bildschirm genau eine Hauptaktion.
+Bildschirm genau eine Hauptaktion. Nur zwei Leisten dürfen flacher sein: die
+Fortschrittsleiste oben und die schwebenden Ansichtsknöpfe auf der Leinwand
+haben 44 Punkte. Beide stehen auf jeder Arbeitsseite ständig im Bild, und
+jeder Punkt Höhe fehlt dem Muster.
+
+## Im Muster bewegen
+
+Schritt 3 ist die Seite, auf der wirklich gearbeitet wird – deshalb gehört
+dort so viel Bildschirm wie möglich dem Muster. Weggefallen sind: die
+Überschriftenzeile mit den Maßen (sie ändern sich beim Arbeiten nie und
+stehen jetzt im Reiter „Muster"), die Knopfleiste über der Leinwand (die
+Knöpfe schweben jetzt unten links **auf** der Leinwand) und die Rollbalken.
+Zusammen mit der flacheren Fortschritts- und Fußleiste sind das rund 180
+Punkte Höhe, die das Muster dazubekommen hat.
+
+Bewegt wird wie auf einer Landkarte (`src/components/Arbeitsflaeche.tsx`):
+
+| Was | Tut |
+| --- | --- |
+| Mausrad | größer und kleiner, **zum Zeiger hin** |
+| Ziehen mit dem Werkzeug „Verschieben" | das Muster schieben |
+| Mittlere Maustaste, Leertaste festhalten | schieben, ohne das Werkzeug zu wechseln |
+| Zwei Finger | schieben und zugleich zoomen |
+
+Vorher lag das Muster in einem Kasten mit Rollbalken. Auf einem großen Muster
+hieß das: mit der einen Hand am Balken ziehen, mit der anderen die Lupe
+suchen – und nach jedem Vergrößern war man an einer anderen Stelle als
+gedacht, weil ein Rollbalken die Mitte nicht kennt.
+
+Gezeichnet wird dabei **nur der sichtbare Ausschnitt** auf eine Leinwand in
+Fenstergröße (`src/lib/muster/leinwand.ts`). Das ist nicht nur schneller,
+sondern überhaupt die Voraussetzung für freies Zoomen: ein Muster mit
+400 × 400 Stichen bei vierzigfacher Vergrößerung wäre sonst eine Leinwand von
+16 000 Punkten Kantenlänge, und die legt kein Browser mehr an. Rasterlinien,
+Symbole und die Auswahl laufen aus demselben Grund nur über die Felder, die
+gerade im Fenster liegen.
+
+Aus dem Bild schieben lässt sich das Muster nicht: 120 Punkte davon bleiben
+immer sichtbar. Sonst zieht man einmal zu weit und sieht nur noch leere
+Fläche, ohne zu wissen, in welche Richtung das Muster liegt.
+
+## Die Werkzeuge und die Bedienspalte
+
+Die Werkzeuge stehen als Schiene an der Leinwand
+(`src/components/Werkzeugleiste.tsx`): Sinnbild und kurzes Wort, in drei
+Gruppen – Ansehen, Auswählen, Malen. Vorher waren sie eine Liste ganzer Sätze
+im Reiter „Werkzeug": sieben Zeilen, die den halben Bedienbereich füllten,
+und sobald man auf „Farbe" wechselte, war nicht mehr zu sehen, womit man
+eigentlich arbeitet.
+
+Rechts steht ganz oben – **fest über den Reitern** – der volle Name des
+gewählten Werkzeugs und ein Satz dazu, was ein Tipp ins Muster bewirkt. Das
+ist die Frage, auf die die alte Oberfläche keine Antwort gab: „Was soll ich
+hier eigentlich tun?"
+
+Darunter zeigen vier Reiter, was zum Werkzeug gehört:
+
+- **Ändern** richtet sich nach dem Werkzeug. Bei den Auswahlwerkzeugen stehen
+  dort die Knöpfe für das Ausgewählte – **immer sichtbar**, ohne Auswahl grau.
+  Vorher tauchten sie erst nach dem ersten Tipp auf; wer nicht wusste, dass es
+  sie gibt, erfuhr nie, wozu das Auswählen überhaupt gut ist. Bei Pinsel und
+  Farbeimer steht dort die Farbwahl als Kacheln, denn die Farbe gehört zum
+  Malen und nicht in einen anderen Reiter.
+- **Garne** ist die ausführliche Liste mit Marke, Nummer und Verbrauch.
+- **Muster** trägt die Maße, den Glättungsregler und die Meldung über
+  zusammengelegte Farben.
+- **Gemerkt** hält frühere Stände und eigene Motive.
 
 ## Aufbau des Projekts
 

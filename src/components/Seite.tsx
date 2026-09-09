@@ -26,6 +26,7 @@ export function Seite({
   fuss,
   kopfEnde,
   dicht = false,
+  ohneKopf = false,
   weit = false,
 }: {
   titel: string;
@@ -40,6 +41,16 @@ export function Seite({
   kopfEnde?: ReactNode;
   dicht?: boolean;
   /**
+   * Nur für `dicht`: gar keine sichtbare Kopfzeile.
+   *
+   * Beim Bearbeiten in Schritt 3 stand dort die Überschrift und daneben die
+   * Maße des Musters. Beides ändert sich beim Arbeiten nie – wo man ist,
+   * sagt schon der Fortschritt oben, und die Maße stehen im Reiter „Muster".
+   * Die Zeile hat also nur Höhe gekostet, die dem Muster fehlte. Die
+   * Überschrift bleibt für Vorleseprogramme erhalten.
+   */
+  ohneKopf?: boolean;
+  /**
    * Für Seiten, deren Inhalt ein Raster ist und von Breite profitiert – die
    * Garnliste zum Beispiel. Fließtext bleibt sonst in einer Spalte, die
    * schmal genug zum Lesen ist.
@@ -49,16 +60,20 @@ export function Seite({
   if (dicht) {
     return (
       <div className="flex h-full min-h-0 w-full flex-col">
-        <header className="flex shrink-0 flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-3 pb-2">
-          <h1 className="text-[1.25rem] font-bold leading-tight">{titel}</h1>
-          {kopfEnde}
-        </header>
+        {ohneKopf ? (
+          <h1 className="sr-only">{titel}</h1>
+        ) : (
+          <header className="flex shrink-0 flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-3 pb-2">
+            <h1 className="text-[1.25rem] font-bold leading-tight">{titel}</h1>
+            {kopfEnde}
+          </header>
+        )}
 
         <div className="min-h-0 flex-1">{children}</div>
 
         {fuss ? (
-          <footer className="shrink-0 border-t border-linie bg-papier px-6 py-3">
-            <div className="flex flex-wrap items-center justify-between gap-4">{fuss}</div>
+          <footer className="shrink-0 border-t border-linie bg-papier px-4 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-3">{fuss}</div>
           </footer>
         ) : null}
       </div>
