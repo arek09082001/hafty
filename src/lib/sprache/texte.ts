@@ -511,7 +511,7 @@ export const DE = {
   "start.standEiner": "1 gespeicherter Stand",
   "start.farben": "{anzahl} Farben",
   "start.oeffnen": "Öffnen",
-  "start.vergleichen": "Versionen vergleichen",
+  "start.vergleichen": "Alle Versionen",
   "start.loeschen": "Löschen",
   "start.loeschenTitel": "„{name}“ löschen?",
   "start.loeschenText":
@@ -524,27 +524,22 @@ export const DE = {
   "sicherung.fehler":
     "Die Sicherung im Internet klappt gerade nicht. Auf diesem Gerät ist alles da.",
 
-  // --- Zwei Stände nebeneinander ------------------------------------------
-  "vergleich.titel": "Versionen vergleichen",
+  // --- Alle Versionen auf einen Blick --------------------------------------
+  "vergleich.titel": "Alle Versionen",
   "vergleich.erklaerung":
-    "Links die eine Fassung, rechts die andere. Vergrößern und Schieben gilt immer für beide.",
+    "Jede gespeicherte Fassung dieses Bildes. Tippen Sie eine an, um sie groß zu sehen.",
   "vergleich.lupeKleiner": "Kleiner",
   "vergleich.lupeGroesser": "Größer",
   "vergleich.einpassen": "Ganzes Muster",
-  "vergleich.tauschen": "Seiten tauschen",
   "vergleich.fertig": "Fertig",
-  "vergleich.frueher": "Früherer Stand",
-  "vergleich.spaeter": "Späterer Stand",
-  "vergleich.nehmen": "Diesen nehmen",
+  "vergleich.zurueck": "Zurück zur Übersicht",
+  "vergleich.wievielte": "Version {nummer} von {gesamt}",
+  "vergleich.frueher": "Frühere Version",
+  "vergleich.spaeter": "Spätere Version",
+  "vergleich.nehmen": "Diese Version nehmen",
+  "vergleich.schonHier": "Daran arbeiten Sie gerade",
   "vergleich.angaben": "{farben} Farben · {breite} × {hoehe} Stiche",
-  "vergleich.zuWenige":
-    "Zum Vergleichen braucht es zwei Stände. Den ersten haben Sie – der zweite entsteht, sobald Sie die Farbanzahl oder die Größe ändern.",
-  "vergleich.gleich": "Beide haben gleich viele Farben und dieselbe Größe.",
-  "vergleich.mehrFarben": "Rechts {anzahl} Farben mehr",
-  "vergleich.wenigerFarben": "Rechts {anzahl} Farben weniger",
-  "vergleich.breiter": "Rechts {anzahl} Stiche breiter",
-  "vergleich.schmaler": "Rechts {anzahl} Stiche schmaler",
-  "staende.vergleichen": "Zwei Stände vergleichen",
+  "staende.vergleichen": "Alle Versionen ansehen",
   "bild.schonBekannt":
     "Dieses Bild war schon einmal da: die neue Fassung kommt zu „{name}“ dazu. Die früheren Stände bleiben und lassen sich damit vergleichen.",
 } as const;
@@ -1035,7 +1030,7 @@ export const PL: Record<Textschluessel, string> = {
   "start.standEiner": "Zapisana wersja: 1",
   "start.farben": "{anzahl} kolorów",
   "start.oeffnen": "Otwórz",
-  "start.vergleichen": "Porównaj wersje",
+  "start.vergleichen": "Wszystkie wersje",
   "start.loeschen": "Usuń",
   "start.loeschenTitel": "Usunąć „{name}”?",
   "start.loeschenText":
@@ -1048,27 +1043,22 @@ export const PL: Record<Textschluessel, string> = {
   "sicherung.fehler":
     "Kopia w internecie w tej chwili nie działa. Na tym urządzeniu wszystko jest.",
 
-  // --- Dwie wersje obok siebie ---------------------------------------------
-  "vergleich.titel": "Porównanie wersji",
+  // --- Wszystkie wersje na raz ---------------------------------------------
+  "vergleich.titel": "Wszystkie wersje",
   "vergleich.erklaerung":
-    "Po lewej jedna wersja, po prawej druga. Powiększanie i przesuwanie działa zawsze na obu.",
+    "Każda zapisana wersja tego zdjęcia. Proszę dotknąć jednej, żeby zobaczyć ją w dużym widoku.",
   "vergleich.lupeKleiner": "Mniejsze",
   "vergleich.lupeGroesser": "Większe",
   "vergleich.einpassen": "Cały wzór",
-  "vergleich.tauschen": "Zamień strony",
   "vergleich.fertig": "Gotowe",
+  "vergleich.zurueck": "Wróć do przeglądu",
+  "vergleich.wievielte": "Wersja {nummer} z {gesamt}",
   "vergleich.frueher": "Wcześniejsza wersja",
   "vergleich.spaeter": "Późniejsza wersja",
   "vergleich.nehmen": "Weź tę wersję",
+  "vergleich.schonHier": "Tu Pani właśnie pracuje",
   "vergleich.angaben": "{farben} kolorów · {breite} × {hoehe} ściegów",
-  "vergleich.zuWenige":
-    "Do porównania potrzebne są dwie wersje. Pierwsza już jest – druga powstanie, gdy zmieni Pani liczbę kolorów albo rozmiar.",
-  "vergleich.gleich": "Obie mają tyle samo kolorów i ten sam rozmiar.",
-  "vergleich.mehrFarben": "Po prawej o {anzahl} kolorów więcej",
-  "vergleich.wenigerFarben": "Po prawej o {anzahl} kolorów mniej",
-  "vergleich.breiter": "Po prawej o {anzahl} ściegów szersza",
-  "vergleich.schmaler": "Po prawej o {anzahl} ściegów węższa",
-  "staende.vergleichen": "Porównaj dwie wersje",
+  "staende.vergleichen": "Zobacz wszystkie wersje",
   "bild.schonBekannt":
     "To zdjęcie już tu było: nowa wersja dołączy do „{name}”. Wcześniejsze wersje zostają i można je porównać.",
 };

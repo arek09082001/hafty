@@ -277,30 +277,44 @@ Die Zuordnung geht über den Dateinamen, ohne Rücksicht auf Groß- und
 Kleinschreibung. Das ist die Ordnung, die beim Benennen der Fotos ohnehin
 entsteht; eine zweite, die die App sich ausdenkt, bräuchte niemand.
 
-## Versionen vergleichen
+## Alle Versionen ansehen
 
 „Einmal habe ich mehr Farben genommen, einmal die Größe geändert – welches
 war besser?" An zwei Bildchen von 140 Punkten Breite lässt sich das nicht
-beantworten. „Zwei Stände vergleichen" legt deshalb zwei Stände über den
-ganzen Bildschirm nebeneinander (`src/components/Vergleich.tsx`), aus dem
-Editor heraus und von der Startseite aus.
+beantworten. „Alle Versionen ansehen" macht daraus einen ganzen Bildschirm –
+aus dem Editor heraus und von der Startseite aus
+(`src/components/Vergleich.tsx`).
 
-Drei Entscheidungen stecken darin:
+Zuerst standen dort zwei Fassungen nebeneinander, jede mit eigenen
+Blätterknöpfen. Das war nicht zu bedienen: wer wissen will, welche der acht
+Fassungen ihm gefällt, müsste sie paarweise durchgehen und dabei im Kopf
+behalten, welche er schon gesehen hat. Zwei Bilder nebeneinander helfen,
+wenn man die beiden schon kennt – nicht beim Suchen.
 
-- **Vergrößern und Schieben gelten für beide Seiten.** Verglichen wird sonst
-  nicht dieselbe Stelle. Geschoben wird in Anteilen der Musterbreite, damit
-  auch zwei verschieden große Muster an derselben Stelle stehen.
-- **Geblättert wird je Seite einzeln** („Früherer Stand" / „Späterer
-  Stand"), damit sich einer festhalten und am anderen entlanggehen lässt. Die
-  Knöpfe heißen nach der Zeit und nicht nach einer Richtung: eine Nutzerin
-  denkt in „vorher" und „nachher", nicht in „vorwärts".
-- **Unten steht der Unterschied in Worten**: „Rechts 8 Farben mehr · Rechts
-  40 Stiche breiter". Das ist die Antwort auf die Frage, die zum Vergleichen
-  geführt hat.
+Deshalb jetzt: **erst die Übersicht, dann das Einzelne.**
 
-Gezeichnet wird aus den vollen Rasterdaten und nicht aus den Vorschaubildern:
-bei sechsfacher Vergrößerung will man die Kästchen sehen. Ein einmal geholter
-Stand bleibt liegen, damit das Hin- und Herblättern nicht wartet.
+- **Alle Versionen liegen als Kacheln da**, so wie Fotos auf dem Tisch. Man
+  sieht auf einen Schlag, wo es dunkler wurde, wo mehr Farben dazukamen,
+  welche die schmale war. Unter jeder steht, wann sie entstanden ist, wie
+  viele Farben und wie viele Stiche sie hat und warum es sie gibt („Neu
+  erzeugt", „Gemerkt"). Die Fassung, an der gerade gearbeitet wird, ist
+  grün hinterlegt.
+- **Drei Kachelgrößen** über „Kleiner" und „Größer" – auf einem Tablet will
+  man große Bilder, auf einem breiten Bildschirm lieber alle gleichzeitig.
+  Das Bild sitzt in einem festen Rahmen, etwas höher als breit: sonst
+  verrutschten in einer Reihe aus einem hochkanten und einem querformatigen
+  Muster die Beschriftungen gegeneinander.
+- **Ein Tipp macht eine Version groß.** Dort wird aus den vollen
+  Rasterdaten gezeichnet und nicht aus dem Vorschaubildchen – wer eine
+  Fassung groß ansieht, will die Kästchen zählen können –, es lässt sich
+  vergrößern und schieben, und mit „Frühere Version" / „Spätere Version"
+  geht es dieselbe Reihe entlang. „Diese Version nehmen" holt sie zurück in
+  die Arbeit; ist es die, an der ohnehin gearbeitet wird, steht das da,
+  statt dass der Knopf nichts täte.
+
+Die Kacheln zeigen das gespeicherte Vorschaubild – es liegt neben jedem
+Stand und ist sofort da. Erst die große Ansicht holt das volle Raster, und
+ein einmal geholtes bleibt liegen, damit das Durchblättern nicht wartet.
 
 ## Sicherung im Internet
 

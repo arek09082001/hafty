@@ -99,10 +99,10 @@ export function Staendeleiste({
         {merktGerade ? t("staende.wirdGemerkt") : t("staende.merken")}
       </Knopf>
 
-      {/* Zwei Stände nebeneinander – dafür ist ein Bildchen von 140 Punkten
-          zu klein, das braucht den ganzen Bildschirm. */}
+      {/* Alle Versionen als Kacheln – dafür ist die Leiste hier zu schmal,
+          das braucht den ganzen Bildschirm. */}
       {onVergleichen ? (
-        <Knopf art="neben" onClick={onVergleichen} disabled={staende.length < 2} className="w-full">
+        <Knopf art="neben" onClick={onVergleichen} disabled={staende.length === 0} className="w-full">
           {t("staende.vergleichen")}
         </Knopf>
       ) : null}
