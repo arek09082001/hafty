@@ -272,10 +272,48 @@ export function MusterAnsehen() {
   };
 
   /** Nichts mehr ausgewählt – auch die gemerkten Flächen sind dann hinfällig. */
-  const auswahlAufheben = () => {
+  const auswahlAufheben = useCallback(() => {
     setAuswahl(null);
     tippsVergessen();
-  };
+  }, [tippsVergessen]);
+
+  /**
+   * Escape räumt auf.
+   *
+   * Was markiert ist, ist auf dem Bildschirm blau umrandet, und wer damit
+   * fertig ist, sucht den Weg zurück. „Auswahl aufheben" steht zwar in der
+   * Spalte, aber nur wenn man im richtigen Reiter ist – Escape geht immer.
+   *
+   * Der Reihe nach: Liegt ein Stück zum Einsetzen bereit, ist **das** das
+   * Vordringliche und wird abgebrochen; sonst fällt die Auswahl weg. Zwei
+   * Dinge auf einmal wegzuräumen wäre für die Nutzerin nicht mehr
+   * nachvollziehbar.
+   *
+   * Steht ein Fenster offen, gehört Escape dem Fenster (siehe `Dialog.tsx`) –
+   * sonst schlösse ein einziger Tastendruck das Fenster und hübe zugleich
+   * eine Auswahl auf, die man gar nicht gemeint hat. Dasselbe gilt, während
+   * in einem Feld geschrieben wird.
+   */
+  const einFensterOffen =
+    vergleichOffen || garnwechsel !== null || motivNameOffen || motivZumLoeschen !== null;
+
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || einFensterOffen) return;
+      const ziel = e.target as HTMLElement | null;
+      if (ziel && (ziel.tagName === "INPUT" || ziel.tagName === "TEXTAREA" || ziel.isContentEditable)) {
+        return;
+      }
+      if (vorschau) {
+        setVorschau(null);
+        alleWeg();
+        return;
+      }
+      auswahlAufheben();
+    };
+    window.addEventListener("keydown", taste);
+    return () => window.removeEventListener("keydown", taste);
+  }, [einFensterOffen, vorschau, auswahlAufheben, alleWeg]);
 
   /**
    * Ein anderes Werkzeug wählen.
