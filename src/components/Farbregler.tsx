@@ -92,7 +92,12 @@ export function Farbregler({
 
   return (
     <div className="flex flex-col gap-3">
-      <label htmlFor="farbanzahl" className="text-[1.3rem] font-bold text-hauptaktion">
+      {/* Wie beim Glättungsregler: fester Platz, damit die Zeile beim Ziehen
+          nicht zwischen ein und zwei Zeilen springt. */}
+      <label
+        htmlFor="farbanzahl"
+        className="flex min-h-[3.2rem] items-end text-[1.3rem] font-bold text-hauptaktion"
+      >
         {t("farben.gewuenscht", { anzahl: zahl(gezeigt) })}
       </label>
 

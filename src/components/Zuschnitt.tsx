@@ -10,7 +10,6 @@ import {
   groesstesRechteck,
   kanteZiehen,
   seiteAendern,
-  verschieben,
   type Ausschnitt,
   type Kante,
 } from "@/lib/muster/ausschnitt";
@@ -292,30 +291,10 @@ export function Zuschnitt({
           })}
         </p>
 
+        {/* Ein Kreuz aus vier Knöpfen zum Schieben stand hier einmal. Der
+            Ausschnitt lässt sich mit dem Finger verschieben und an den Ecken
+            ziehen; die neun Kästchen haben nur Platz gekostet. */}
         <div className="flex flex-wrap items-start gap-8">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.schieben")}</h3>
-          <div className="grid w-[330px] grid-cols-3 gap-2">
-            <span />
-            <Knopf art="neben" klein onClick={() => onAendern(verschieben(ausschnitt, 0, -0.2, bildBreite, bildHoehe))}>
-              {t("editor.hoch")}
-            </Knopf>
-            <span />
-            <Knopf art="neben" klein onClick={() => onAendern(verschieben(ausschnitt, -0.2, 0, bildBreite, bildHoehe))}>
-              {t("editor.links")}
-            </Knopf>
-            <span />
-            <Knopf art="neben" klein onClick={() => onAendern(verschieben(ausschnitt, 0.2, 0, bildBreite, bildHoehe))}>
-              {t("editor.rechts")}
-            </Knopf>
-            <span />
-            <Knopf art="neben" klein onClick={() => onAendern(verschieben(ausschnitt, 0, 0.2, bildBreite, bildHoehe))}>
-              {t("editor.runter")}
-            </Knopf>
-            <span />
-          </div>
-        </div>
-
         <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.groesse")}</h3>

@@ -53,14 +53,13 @@ export const DE = {
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Ausschnitt wählen",
   "zuschnitt.erklaerung":
-    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben, an den Ecken frei in jede Form ziehen oder die Knöpfe darunter benutzen.",
+    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben und an den Ecken frei in jede Form ziehen.",
   "zuschnitt.formWaehlen": "Form des Ausschnitts",
   "zuschnitt.ganzesBild": "Ganzes Bild",
   "zuschnitt.quadrat": "Quadrat 1:1",
   "zuschnitt.hochkant": "Hochkant 3:4",
   "zuschnitt.quer": "Quer 4:3",
   "zuschnitt.breit": "Breit 16:9",
-  "zuschnitt.schieben": "Verschieben",
   "zuschnitt.groesse": "Größe",
   "zuschnitt.kleiner": "Kleiner",
   "zuschnitt.groesser": "Größer",
@@ -171,13 +170,9 @@ export const DE = {
     "{anzahl} Stiche wurden kopiert. Tippen Sie jetzt auf „Kopie einfügen“.",
   "editor.stueckEinsetzen": "Stück einsetzen",
   "editor.stueckSchieben":
-    "Schieben Sie das Stück mit dem Finger an die richtige Stelle oder rücken Sie es mit den Knöpfen weiter. Mit „Stück kleiner“ und „Stück größer“ ändern Sie seine Größe.",
+    "Schieben Sie das Stück mit dem Finger an die richtige Stelle. Mit „Stück kleiner“ und „Stück größer“ ändern Sie seine Größe.",
   "editor.einsetzenMeldung":
     "Schieben Sie das Stück mit dem Finger an die richtige Stelle. Erst „Hier einsetzen“ schreibt es fest.",
-  "editor.hoch": "Hoch",
-  "editor.runter": "Runter",
-  "editor.links": "Links",
-  "editor.rechts": "Rechts",
   // „Kleiner"/„Größer" allein wären zweideutig: so heißen schon die Knöpfe
   // an der Leinwand, mit denen man das ganze Muster näher heranholt.
   "editor.stueckKleiner": "Stück kleiner",
@@ -578,14 +573,13 @@ export const PL: Record<Textschluessel, string> = {
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Wybór wycinka",
   "zuschnitt.erklaerung":
-    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem, dowolnie uformować za rogi albo użyć przycisków poniżej.",
+    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem i dowolnie uformować za rogi.",
   "zuschnitt.formWaehlen": "Kształt wycinka",
   "zuschnitt.ganzesBild": "Całe zdjęcie",
   "zuschnitt.quadrat": "Kwadrat 1:1",
   "zuschnitt.hochkant": "Pionowo 3:4",
   "zuschnitt.quer": "Poziomo 4:3",
   "zuschnitt.breit": "Szeroko 16:9",
-  "zuschnitt.schieben": "Przesuwanie",
   "zuschnitt.groesse": "Wielkość",
   "zuschnitt.kleiner": "Mniejszy",
   "zuschnitt.groesser": "Większy",
@@ -694,13 +688,9 @@ export const PL: Record<Textschluessel, string> = {
   "editor.kopiertMeldung": "Skopiowano {anzahl} ściegów. Proszę teraz dotknąć „Wstaw kopię”.",
   "editor.stueckEinsetzen": "Wstawianie kawałka",
   "editor.stueckSchieben":
-    "Proszę przesunąć kawałek palcem we właściwe miejsce albo przestawić go przyciskami. Przyciskami „Zmniejsz kawałek” i „Powiększ kawałek” zmienia się jego rozmiar.",
+    "Proszę przesunąć kawałek palcem we właściwe miejsce. Przyciskami „Zmniejsz kawałek” i „Powiększ kawałek” zmienia się jego rozmiar.",
   "editor.einsetzenMeldung":
     "Proszę przesunąć kawałek palcem we właściwe miejsce. Dopiero „Wstaw tutaj” zapisuje go na stałe.",
-  "editor.hoch": "Do góry",
-  "editor.runter": "W dół",
-  "editor.links": "W lewo",
-  "editor.rechts": "W prawo",
   "editor.stueckKleiner": "Zmniejsz kawałek",
   "editor.stueckGroesser": "Powiększ kawałek",
   "editor.stueckMasse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm",

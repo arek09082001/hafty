@@ -23,10 +23,10 @@ import {
   type Werkzeug,
 } from "@/components/Werkzeugleiste";
 import { Bereichswahl } from "@/components/Bereichswahl";
+import { useMeldungen } from "@/components/Meldungen";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { garnname } from "@/lib/farbe/farbwort";
 import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
-import type { Textschluessel } from "@/lib/sprache/texte";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { cmText, sticheInCm } from "@/lib/muster/typen";
 import {
@@ -79,8 +79,6 @@ export function MusterAnsehen() {
     glaettungSetzen,
     farbanzahlSetzen,
     laeuft,
-    fehler,
-    fehlerSetzen,
     felderAendern,
     rueckgaengig,
     wiederholen,
@@ -143,7 +141,7 @@ export function MusterAnsehen() {
     ausMotiv: boolean;
   } | null>(null);
   const [mitSymbolen, setMitSymbolen] = useState(false);
-  const [meldung, setMeldung] = useState<string | null>(null);
+  const { melden, alleWeg } = useMeldungen();
 
   const [motive, setMotive] = useState<Motiv[]>([]);
   const [motiveLaufen, setMotiveLaufen] = useState(true);
@@ -151,7 +149,7 @@ export function MusterAnsehen() {
   const [motivName, setMotivName] = useState("");
   const [motivZumLoeschen, setMotivZumLoeschen] = useState<Motiv | null>(null);
   /** Eigene Meldung dieser Seite, unabhängig vom Fehler aus dem Provider. */
-  const [eigenerFehler, setFehler] = useState<Textschluessel | null>(null);
+
   /** Für welchen Palettenindex gerade ein anderes Garn gesucht wird. */
   const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
   /** Ob gerade zwei Stände nebeneinander liegen. */
@@ -175,6 +173,14 @@ export function MusterAnsehen() {
   const [malSpur, setMalSpur] = useState<Map<number, number> | null>(null);
 
   // Motive einmal holen.
+  // Das Laden läuft genau einmal beim Öffnen. Damit der Fehlerfall trotzdem
+  // die heutige Sprache erwischt, geht er über einen Ref und nicht über die
+  // Abhängigkeiten – sonst lüde die Liste bei jedem Sprachwechsel neu.
+  const meldenRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    meldenRef.current = () => melden(t("motive.fehlerLaden"), "fehler");
+  }, [melden, t]);
+
   useEffect(() => {
     let abgebrochen = false;
     motiveLaden()
@@ -182,9 +188,7 @@ export function MusterAnsehen() {
         if (!abgebrochen) setMotive(liste);
       })
       .catch(() => {
-        if (!abgebrochen) {
-          setFehler("motive.fehlerLaden");
-        }
+        if (!abgebrochen) meldenRef.current();
       })
       .finally(() => {
         if (!abgebrochen) setMotiveLaufen(false);
@@ -485,7 +489,7 @@ export function MusterAnsehen() {
     const stueck = ausschnittHerausloesen(raster, muster.breite, auswahl, muster.palette);
     if (!stueck) return;
     setZwischenablage(stueck);
-    setMeldung(t("editor.kopiertMeldung", { anzahl: zahl(auswahl.anzahl) }));
+    melden(t("editor.kopiertMeldung", { anzahl: zahl(auswahl.anzahl) }), "erfolg");
   };
 
   const einfuegenStarten = (stueck: Ausschnitt, ausMotiv = false) => {
@@ -499,7 +503,7 @@ export function MusterAnsehen() {
     });
     setAuswahl(null);
     tippsVergessen();
-    setMeldung(t("editor.einsetzenMeldung"));
+    melden(t("editor.einsetzenMeldung"));
   };
 
   const vorschauFestschreiben = () => {
@@ -515,14 +519,10 @@ export function MusterAnsehen() {
     // Ein eingesetztes Motiv ist ein großer Schritt und wird gesichert.
     const warMotiv = vorschau.ausMotiv;
     setVorschau(null);
-    setMeldung(null);
+    alleWeg();
     if (warMotiv && indizes.length > 0) {
       window.setTimeout(() => void standAnlegen("staende.motivEingesetzt"), 0);
     }
-  };
-
-  const vorschauVerschieben = (dx: number, dy: number) => {
-    setVorschau((v) => (v ? { ...v, x: v.x + dx, y: v.y + dy } : v));
   };
 
   const vorschauDrehen = () => {
@@ -591,7 +591,7 @@ export function MusterAnsehen() {
     felderAendern("schrittname.freigestellt", indizes, werte);
     setAuswahl(null);
     tippsVergessen();
-    setMeldung(t("editor.nurDasGestickt"));
+    melden(t("editor.nurDasGestickt"), "erfolg");
   };
 
   /** Der umgekehrte Weg: genau das Ausgewählte bleibt frei. */
@@ -602,7 +602,7 @@ export function MusterAnsehen() {
     felderAendern("schrittname.nichtGestickt", indizes, werte);
     setAuswahl(null);
     tippsVergessen();
-    setMeldung(t("editor.auswahlWeggelassen"));
+    melden(t("editor.auswahlWeggelassen"), "erfolg");
   };
 
   /** Alle freien Stellen wieder sticken. */
@@ -611,7 +611,7 @@ export function MusterAnsehen() {
     const { indizes, werte } = allesWiederSticken(muster.bearbeitung);
     if (indizes.length === 0) return;
     felderAendern("schrittname.wiederGestickt", indizes, werte);
-    setMeldung(t("editor.wiederAllesGestickt"));
+    melden(t("editor.wiederAllesGestickt"), "erfolg");
   };
 
   const motivMerken = async () => {
@@ -623,16 +623,16 @@ export function MusterAnsehen() {
     setMotivName("");
     if (gespeichert) {
       setMotive((liste) => [gespeichert, ...liste]);
-      setMeldung(t("editor.motivGemerkt", { name: gespeichert.name }));
+      melden(t("editor.motivGemerkt", { name: gespeichert.name }), "erfolg");
     } else {
-      fehlerSetzen("motive.fehlerMerken");
+      melden(t("motive.fehlerMerken"), "fehler");
     }
   };
 
   const motivEinsetzen = async (motiv: Motiv) => {
     const stueck = await motivHolen(motiv);
     if (!stueck) {
-      fehlerSetzen("motive.fehlerHolen");
+      melden(t("motive.fehlerHolen"), "fehler");
       return;
     }
     einfuegenStarten(stueck, true);
@@ -646,7 +646,7 @@ export function MusterAnsehen() {
     if (!muster) return;
     const inhalt = await standHolen(stand);
     if (!inhalt) {
-      fehlerSetzen("staende.fehlerHolen");
+      melden(t("staende.fehlerHolen"), "fehler");
       return;
     }
     standUebernehmen(stand, {
@@ -667,13 +667,13 @@ export function MusterAnsehen() {
     });
     setAuswahl(null);
     tippsVergessen();
-    setMeldung(t("editor.standWiederher"));
+    melden(t("editor.standWiederher"), "erfolg");
   };
 
   const standGemerkt = async () => {
     const geklappt = await standAnlegen("staende.vonHandGemerkt", true);
-    setMeldung(geklappt ? t("editor.standGemerkt") : null);
-    if (!geklappt) fehlerSetzen("staende.fehlerMerken");
+    if (geklappt) melden(t("editor.standGemerkt"), "erfolg");
+    if (!geklappt) melden(t("staende.fehlerMerken"), "fehler");
   };
 
   /**
@@ -711,12 +711,13 @@ export function MusterAnsehen() {
     );
     paletteErsetzen(neuePalette);
     setGarnwechsel(null);
-    setMeldung(
+    melden(
       t("editor.garnGewechselt", {
         marke: garn.marke,
         code: garn.code,
         name: garnname(garn.name, garn.hex, t),
       }),
+      "erfolg",
     );
 
     // Früher ging das gewechselte Garn zusätzlich in eine eigene Tabelle.
@@ -728,7 +729,7 @@ export function MusterAnsehen() {
     if (!motivZumLoeschen) return;
     const weg = await motivLoeschen(motivZumLoeschen);
     if (weg) setMotive((liste) => liste.filter((m) => m.id !== motivZumLoeschen.id));
-    else fehlerSetzen("motive.fehlerLoeschen");
+    else melden(t("motive.fehlerLoeschen"), "fehler");
     setMotivZumLoeschen(null);
   };
 
@@ -879,58 +880,20 @@ export function MusterAnsehen() {
             heran. Schmal darf sie deshalb nicht schrumpfen: sie bekommt ihre
             volle Höhe, und gerollt wird im Rahmen darum. */}
         <aside className="flex shrink-0 flex-col border-t border-linie bg-white lg:min-h-0 lg:shrink lg:border-t-0 lg:border-l">
-          {fehler || eigenerFehler ? (
-            <div className="shrink-0 border-b border-linie p-4">
-              <Hinweis art="fehler">{t((fehler ?? eigenerFehler) as Textschluessel)}</Hinweis>
-              <Knopf
-                art="still"
-                klein
-                className="mt-1"
-                onClick={() => {
-                  fehlerSetzen(null);
-                  setFehler(null);
-                }}
-              >
-                {t("allgemein.meldungSchliessen")}
-              </Knopf>
-            </div>
-          ) : null}
-
-          {meldung ? (
-            <div className="shrink-0 border-b border-linie p-4">
-              <Hinweis art="erfolg">{meldung}</Hinweis>
-            </div>
-          ) : null}
-
           {vorschau ? (
             /* Solange ein Stück eingesetzt wird, verdrängt es alles andere –
                es gibt dann genau eine Sache zu tun. */
             <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <Abschnitt titel={t("editor.stueckEinsetzen")} hinweis={t("editor.stueckSchieben")}>
-                <div className="grid w-full max-w-[300px] grid-cols-3 gap-2 self-center">
-                  <span />
-                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(0, -1)}>
-                    {t("editor.hoch")}
-                  </Knopf>
-                  <span />
-                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(-1, 0)}>
-                    {t("editor.links")}
-                  </Knopf>
-                  <span />
-                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(1, 0)}>
-                    {t("editor.rechts")}
-                  </Knopf>
-                  <span />
-                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(0, 1)}>
-                    {t("editor.runter")}
-                  </Knopf>
-                  <span />
-                </div>
-
                 {/* Größe: zwei Knöpfe und darunter, was dabei herauskommt.
                     Die Zentimeter stehen dabei, weil bei einem Motiv genau
-                    das die Frage ist – ob es auf den Stoff passt. */}
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                    das die Frage ist – ob es auf den Stoff passt.
+
+                    Ein Kreuz aus vier Knöpfen zum feldweisen Rücken stand
+                    hier einmal darüber. Verschoben wird mit dem Finger, das
+                    kann jede – die neun Kästchen haben nur Platz gekostet
+                    und den Blick vom Muster weggezogen. */}
+                <div className="grid grid-cols-2 gap-2">
                   <Knopf
                     art="neben"
                     klein
@@ -999,7 +962,7 @@ export function MusterAnsehen() {
                     art="neben"
                     onClick={() => {
                       setVorschau(null);
-                      setMeldung(null);
+                      alleWeg();
                     }}
                   >
                     {t("allgemein.abbrechen")}
@@ -1024,19 +987,38 @@ export function MusterAnsehen() {
                   aria-controls="werkzeugerklaerung"
                   className="flex min-h-[56px] w-full items-center gap-3 px-5 py-2 text-left hover:bg-hinweis"
                 >
-                  <h2 className="min-w-0 flex-1 text-[1.15rem] font-bold leading-tight">
+                  {/* Zwei Zeilen fest: die Werkzeugnamen sind verschieden
+                      lang, „Gleiche Fläche auswählen" bricht in der schmalen
+                      Spalte um, „Malen" nicht. Ohne festen Platz rückten
+                      Reiterzeile und Winkel bei jedem Werkzeugwechsel eine
+                      Zeile auf und ab. */}
+                  <h2 className="flex min-h-[2.6rem] min-w-0 flex-1 items-center text-[1.15rem] font-bold leading-tight">
                     {t(werkzeugJetzt.titel)}
                   </h2>
                   {/* Ein Winkel statt eines Wortes: er zeigt, wohin es geht,
-                      und kostet keine Zeile. Die Vorlesesoftware bekommt den
-                      Zustand über aria-expanded und den Namen darunter. */}
+                      und kostet keine Zeile. Als Schriftzeichen („⌄") sprang
+                      er beim Drehen, weil ein Glyph nicht in der Mitte seines
+                      Kastens sitzt – gedreht wurde um einen Punkt, der neben
+                      dem Zeichen lag. Als Zeichnung in einem festen Quadrat
+                      dreht er sich um seine eigene Mitte und bleibt stehen,
+                      wo er steht. */}
                   <span
                     aria-hidden
-                    className={`shrink-0 text-[1.4rem] leading-none text-gedaempft transition-transform ${
+                    className={`grid h-6 w-6 shrink-0 place-items-center text-gedaempft transition-transform duration-200 ${
                       hinweisOffen ? "rotate-180" : ""
                     }`}
                   >
-                    ⌄
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M5 9l7 7 7-7" />
+                    </svg>
                   </span>
                   <span className="sr-only">
                     {hinweisOffen ? t("editor.hinweisZuklappen") : t("editor.hinweisAufklappen")}
@@ -1092,16 +1074,19 @@ export function MusterAnsehen() {
                             })}
                           </p>
                         ) : null}
-                        {hatAuswahl ? (
-                          <div className="mt-3 grid grid-cols-2 gap-2">
-                            <Knopf art="neben" klein onClick={auswahlFaerben}>
-                              {t("editor.auswahlFaerben")}
-                            </Knopf>
-                            <Knopf art="neben" klein onClick={auswahlAufheben}>
-                              {t("editor.auswahlAufheben")}
-                            </Knopf>
-                          </div>
-                        ) : null}
+                        {/* Auch diese beiden stehen immer da und sind ohne
+                            Auswahl nur grau – wie die Knöpfe im Abschnitt
+                            darunter. Tauchten sie erst mit der Auswahl auf,
+                            rückte alles darunter im selben Augenblick ein
+                            Stück tiefer. */}
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <Knopf art="neben" klein onClick={auswahlFaerben} disabled={!hatAuswahl}>
+                            {t("editor.auswahlFaerben")}
+                          </Knopf>
+                          <Knopf art="neben" klein onClick={auswahlAufheben} disabled={!hatAuswahl}>
+                            {t("editor.auswahlAufheben")}
+                          </Knopf>
+                        </div>
                       </Abschnitt>
                     ) : null}
 
@@ -1119,7 +1104,10 @@ export function MusterAnsehen() {
                             ? t("editor.ausgewaehlt", { anzahl: zahl(auswahl.anzahl) })
                             : t("editor.nichtsAusgewaehlt")
                         }
-                        hinweis={hatAuswahl ? undefined : t("editor.tippenHinweis")}
+                        // Der Satz steht auch dann da, wenn schon etwas
+                        // ausgewählt ist: er stimmt weiterhin, und ohne ihn
+                        // spränge der Abschnitt beim ersten Tipp nach oben.
+                        hinweis={t("editor.tippenHinweis")}
                       >
                         {werkzeug === "motiv" ? (
                           <div className="mb-3 grid grid-cols-2 gap-2">

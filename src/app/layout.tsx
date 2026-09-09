@@ -3,6 +3,7 @@ import "./globals.css";
 import { SprachProvider } from "@/lib/sprache/SprachProvider";
 import { AbgleichProvider } from "@/lib/ferne/AbgleichProvider";
 import { OhneNetz } from "@/components/OhneNetz";
+import { MeldungenProvider } from "@/components/Meldungen";
 
 export const metadata: Metadata = {
   title: "Stickmuster · Wzory do haftu",
@@ -28,7 +29,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="flex h-full flex-col overflow-hidden bg-papier text-tinte antialiased">
         <OhneNetz />
         <SprachProvider>
-          <AbgleichProvider>{children}</AbgleichProvider>
+          <MeldungenProvider>
+            <AbgleichProvider>{children}</AbgleichProvider>
+          </MeldungenProvider>
         </SprachProvider>
       </body>
     </html>

@@ -82,7 +82,14 @@ export function Glaettungsregler({
 
   return (
     <div className="flex flex-col gap-3">
-      <label htmlFor="glaettung" className="text-[1.3rem] font-bold text-hauptaktion">
+      {/* Zwei Zeilen sind fest reserviert. Die Stufennamen sind verschieden
+          lang – „ausgewogen" braucht eine Zeile, „ruhig und einfach zu
+          sticken" auf einem schmalen Fenster zwei. Ohne festen Platz sprang
+          der Regler beim Ziehen unter dem Finger weg. */}
+      <label
+        htmlFor="glaettung"
+        className="flex min-h-[3.2rem] items-end text-[1.3rem] font-bold text-hauptaktion"
+      >
         {t(titel)}
       </label>
 
@@ -104,9 +111,9 @@ export function Glaettungsregler({
         ))}
       </datalist>
 
-      <div className="flex justify-between gap-4 text-[0.95rem] text-gedaempft">
-        <span>{t("glaettung.stufe0")}</span>
-        <span className="text-right">{t("glaettung.stufe4")}</span>
+      <div className="flex items-start justify-between gap-4 text-[0.95rem] text-gedaempft">
+        <span className="basis-0 grow">{t("glaettung.stufe0")}</span>
+        <span className="basis-0 grow text-right">{t("glaettung.stufe4")}</span>
       </div>
     </div>
   );

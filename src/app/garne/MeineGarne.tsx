@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
@@ -15,7 +15,7 @@ import {
   type GarnMitVorrat,
 } from "@/lib/speicher/garne";
 import { useSprache } from "@/lib/sprache/SprachProvider";
-import type { Textschluessel } from "@/lib/sprache/texte";
+import { useMeldungen } from "@/components/Meldungen";
 
 /**
  * Der eigene Garnvorrat: welche Garne die Nutzerin zu Hause hat.
@@ -31,10 +31,18 @@ export function MeineGarne() {
   const [geladen, setGeladen] = useState(false);
   const [gingSchief, setGingSchief] = useState(false);
   const { t, zahl } = useSprache();
-  const [fehler, setFehler] = useState<Textschluessel | null>(null);
+  const { melden } = useMeldungen();
   const [nurMeine, setNurMeine] = useState(false);
   const [leerenFragen, setLeerenFragen] = useState(false);
   const [arbeitet, setArbeitet] = useState(false);
+
+  // Geladen wird genau einmal beim Öffnen. Damit der Fehlerfall trotzdem die
+  // heutige Sprache erwischt, geht er über einen Ref und nicht über die
+  // Abhängigkeiten des Effekts.
+  const meldenRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    meldenRef.current = () => melden(t("garne.fehlerLaden"), "fehler");
+  }, [melden, t]);
 
   useEffect(() => {
     let abgebrochen = false;
@@ -48,7 +56,7 @@ export function MeineGarne() {
       .catch(() => {
         if (!abgebrochen) {
           setGingSchief(true);
-          setFehler("garne.fehlerLaden");
+          meldenRef.current();
         }
       })
       .finally(() => {
@@ -66,7 +74,7 @@ export function MeineGarne() {
     const geklappt = neu ? await vorratAufnehmen(garn.id) : await vorratEntfernen(garn.id);
     if (!geklappt) {
       setGarne((liste) => liste.map((g) => (g.id === garn.id ? { ...g, imVorrat: !neu } : g)));
-      setFehler("garne.fehlerAendern");
+      melden(t("garne.fehlerAendern"), "fehler");
     }
   }
 
@@ -77,7 +85,7 @@ export function MeineGarne() {
     const geklappt = await vorratAlleAufnehmen(garne.map((g) => g.id));
     if (!geklappt) {
       setGarne(vorher);
-      setFehler("garne.fehlerAendern");
+      melden(t("garne.fehlerAendern"), "fehler");
     }
     setArbeitet(false);
   }
@@ -90,7 +98,7 @@ export function MeineGarne() {
     const geklappt = await vorratLeeren();
     if (!geklappt) {
       setGarne(vorher);
-      setFehler("garne.fehlerAendern");
+      melden(t("garne.fehlerAendern"), "fehler");
     }
     setArbeitet(false);
   }
@@ -118,15 +126,6 @@ export function MeineGarne() {
       }
     >
       <div className="flex flex-col gap-6">
-        {fehler ? (
-          <div className="flex flex-col gap-3">
-            <Hinweis art="fehler">{t(fehler)}</Hinweis>
-            <Knopf art="neben" onClick={() => setFehler(null)}>
-              {t("allgemein.meldungSchliessen")}
-            </Knopf>
-          </div>
-        ) : null}
-
         <section className="flex flex-col gap-4">
           <h2 className="text-[1.4rem] font-bold">{t("garne.hinzufuegen")}</h2>
 
