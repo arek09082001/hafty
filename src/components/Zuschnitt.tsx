@@ -90,29 +90,16 @@ export function Zuschnitt({
   const anteil = (wert: number, ganz: number) => `${(wert / ganz) * 100}%`;
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* --- Die Formen ---------------------------------------------------- */}
-      <div className="flex flex-col gap-2">
-        <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.formWaehlen")}</h3>
-        <div className="flex flex-wrap gap-2">
-          {VERHAELTNISSE.map((v) => (
-            <Knopf
-              key={v.schluessel}
-              art="neben"
-              klein
-              onClick={() => onAendern(groesstesRechteck(bildBreite, bildHoehe, v.verhaeltnis))}
-            >
-              {t(v.titel as Textschluessel)}
-            </Knopf>
-          ))}
-        </div>
-      </div>
-
+    /* Auf breiten Schirmen steht das Bild links und alles zum Einstellen
+       rechts daneben. Untereinander wurde die Seite so hoch, dass man vom
+       Bild zu den Knöpfen blättern musste – und dabei sieht man nicht mehr,
+       was der Knopf gerade bewirkt. */
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] lg:items-start">
       {/* --- Das Bild mit dem Rahmen --------------------------------------- */}
       {/* overflow-hidden ist wichtig: der Schleier um den Rahmen entsteht aus
           einem sehr weiten Schlagschatten. Ohne diese Klammer legt er sich
           über die ganze Seite statt nur über das Bild. */}
-      <div className="relative mx-auto w-full max-w-[520px] touch-none overflow-hidden rounded-xl select-none">
+      <div className="relative w-full touch-none overflow-hidden rounded-xl select-none">
         {/* Kein next/image: die Adresse ist eine Objekt-URL aus dem Browser
             der Nutzerin. Da gibt es nichts zu optimieren, der Hoster sieht
             dieses Bild nie. */}
@@ -121,7 +108,7 @@ export function Zuschnitt({
           ref={bildRef}
           src={bildUrl}
           alt={t("zuschnitt.bildBeschriftung")}
-          className="block w-full rounded-xl border-2 border-tinte"
+          className="block w-full rounded-xl border border-linie"
           draggable={false}
         />
         {/* Was wegfällt, liegt unter einem Schleier – so ist auf einen Blick
@@ -143,17 +130,34 @@ export function Zuschnitt({
         />
       </div>
 
-      <p className="text-center text-[1rem] text-gedaempft">
-        {t("zuschnitt.masse", {
-          breite: zahl(ausschnitt.breite),
-          hoehe: zahl(ausschnitt.hoehe),
-        })}
-      </p>
-
-      {/* --- Verschieben und Größe ----------------------------------------- */}
-      <div className="flex flex-wrap items-start justify-center gap-6">
+      {/* --- Alles zum Einstellen ------------------------------------------ */}
+      <div className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <h3 className="text-center text-[1.1rem] font-semibold">{t("zuschnitt.schieben")}</h3>
+          <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.formWaehlen")}</h3>
+          <div className="flex flex-wrap gap-2">
+            {VERHAELTNISSE.map((v) => (
+              <Knopf
+                key={v.schluessel}
+                art="neben"
+                klein
+                onClick={() => onAendern(groesstesRechteck(bildBreite, bildHoehe, v.verhaeltnis))}
+              >
+                {t(v.titel as Textschluessel)}
+              </Knopf>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-[1rem] text-gedaempft">
+          {t("zuschnitt.masse", {
+            breite: zahl(ausschnitt.breite),
+            hoehe: zahl(ausschnitt.hoehe),
+          })}
+        </p>
+
+        <div className="flex flex-wrap items-start gap-8">
+        <div className="flex flex-col gap-2">
+          <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.schieben")}</h3>
           <div className="grid w-[220px] grid-cols-3 gap-2">
             <span />
             <Knopf art="neben" klein onClick={() => onAendern(verschieben(ausschnitt, 0, -0.2, bildBreite, bildHoehe))}>
@@ -176,15 +180,24 @@ export function Zuschnitt({
         </div>
 
         <div className="flex flex-col gap-2">
-          <h3 className="text-center text-[1.1rem] font-semibold">{t("zuschnitt.groesse")}</h3>
+          <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.groesse")}</h3>
           <div className="flex gap-2">
-            <Knopf art="neben" klein onClick={() => onAendern(groesseAendern(ausschnitt, 0.85, bildBreite, bildHoehe))}>
+            <Knopf
+              art="neben"
+              klein
+              onClick={() => onAendern(groesseAendern(ausschnitt, 0.85, bildBreite, bildHoehe))}
+            >
               {t("zuschnitt.kleiner")}
             </Knopf>
-            <Knopf art="neben" klein onClick={() => onAendern(groesseAendern(ausschnitt, 1 / 0.85, bildBreite, bildHoehe))}>
+            <Knopf
+              art="neben"
+              klein
+              onClick={() => onAendern(groesseAendern(ausschnitt, 1 / 0.85, bildBreite, bildHoehe))}
+            >
               {t("zuschnitt.groesser")}
             </Knopf>
           </div>
+        </div>
         </div>
       </div>
     </div>

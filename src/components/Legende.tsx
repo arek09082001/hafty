@@ -10,18 +10,22 @@ import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
  * Die Legende: welches Symbol steht für welches Garn, und wie oft kommt es
  * vor. Sie ist gleichzeitig die Farbauswahl im Editor – deshalb kann jeder
  * Eintrag angetippt werden, wenn `onWaehlen` gesetzt ist.
+ *
+ * Neben jeder Zeile stand früher ein Knopf „Anderes Garn". Bei fünfzehn
+ * Farben waren das fünfzehn gleich aussehende Knöpfe, und in der Spalte des
+ * Editors passten sie nicht mehr neben die Zeile – die Liste lief über den
+ * Rand hinaus. Das Wechseln hängt jetzt an der **gewählten** Farbe und steht
+ * als ein einziger Knopf unter der Liste.
  */
 export function Legende({
   palette,
   gewaehlt,
   onWaehlen,
-  onGarnAendern,
   stoffzaehlung,
 }: {
   palette: PalettenEintrag[];
   gewaehlt?: number | null;
   onWaehlen?: (index: number) => void;
-  onGarnAendern?: (index: number) => void;
   /**
    * Ist sie gesetzt, steht neben jeder Farbe auch, wie viel Garn davon
    * gebraucht wird. Ohne die Stoffzaehlung laesst sich das nicht rechnen,
@@ -41,7 +45,7 @@ export function Legende({
           <>
             <span
               aria-hidden
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border-2 border-tinte text-[1.15rem] font-bold"
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-tinte text-[1.15rem] font-bold"
               style={{
                 backgroundColor: eintrag.hex,
                 color: istDunkel(rgb[0], rgb[1], rgb[2]) ? "#ffffff" : "#000000",
@@ -71,13 +75,13 @@ export function Legende({
         );
 
         return (
-          <li key={eintrag.index} className="flex items-stretch gap-2">
+          <li key={eintrag.index}>
             {onWaehlen ? (
               <button
                 type="button"
                 onClick={() => onWaehlen(eintrag.index)}
                 aria-pressed={istGewaehlt}
-                className={`flex min-h-[56px] flex-1 items-center gap-3 rounded-xl border-2 px-3 py-2 ${
+                className={`flex min-h-[56px] w-full items-center gap-3 rounded-xl border px-3 py-2 ${
                   istGewaehlt
                     ? "border-hauptaktion bg-[#e8f3ee]"
                     : "border-linie bg-white hover:bg-hinweis"
@@ -86,19 +90,10 @@ export function Legende({
                 {inhalt}
               </button>
             ) : (
-              <div className="flex min-h-[56px] flex-1 items-center gap-3 rounded-xl border-2 border-linie bg-white px-3 py-2">
+              <div className="flex min-h-[56px] w-full items-center gap-3 rounded-xl border border-linie bg-white px-3 py-2">
                 {inhalt}
               </div>
             )}
-            {onGarnAendern ? (
-              <button
-                type="button"
-                onClick={() => onGarnAendern(eintrag.index)}
-                className="min-h-[56px] shrink-0 rounded-xl border-2 border-linie bg-white px-3 text-[0.95rem] font-semibold underline hover:bg-hinweis"
-              >
-                {t("legende.anderesGarn")}
-              </button>
-            ) : null}
           </li>
         );
       })}

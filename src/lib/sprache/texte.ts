@@ -145,6 +145,7 @@ export const DE = {
   "editor.rueckgaengig": "Rückgängig",
   "editor.wiederholen": "Wiederholen",
   "editor.weiterDrucken": "Weiter zum Drucken",
+  "editor.masse": "{breite} × {hoehe} Stiche · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
   "editor.leinwandBeschriftung": "Ihr Zählmuster, {breite} mal {hoehe} Stiche",
   "editor.ausgewaehlt": "{anzahl} Stiche ausgewählt",
   "editor.nichtsAusgewaehlt": "Noch nichts ausgewählt",
@@ -161,8 +162,10 @@ export const DE = {
     "Diese Stelle bleibt jetzt freier Stoff. Mit „Rückgängig“ holen Sie sie zurück.",
   "editor.wiederAllesSticken": "Wieder alles sticken",
   "editor.wiederAllesGestickt": "Es wird wieder alles gestickt.",
+  "editor.freieFelderTitel": "Freigestellt",
   "editor.freieFelder": "{anzahl} Felder bleiben frei – dort wird nicht gestickt.",
   "editor.auswahlAufheben": "Auswahl aufheben",
+  "editor.kopiert": "Kopiertes Stück",
   "editor.kopiertHinweis": "Sie haben ein Stück von {w} × {h} Stichen kopiert.",
   "editor.kopieEinfuegen": "Kopie einfügen",
   "editor.kopiertMeldung":
@@ -293,6 +296,7 @@ export const DE = {
   "legende.stiche": "Stiche",
   "legende.sticheUndGarn": "Garn · {stiche} Stiche",
   "legende.anderesGarn": "Anderes Garn",
+  "legende.anderesGarnFuer": "Anderes Garn statt {garn}",
 
   // --- Motive -------------------------------------------------------------
   "motive.titel": "Meine Motive",
@@ -596,6 +600,7 @@ export const PL: Record<Textschluessel, string> = {
   "editor.rueckgaengig": "Cofnij",
   "editor.wiederholen": "Ponów",
   "editor.weiterDrucken": "Dalej do drukowania",
+  "editor.masse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
   "editor.leinwandBeschriftung": "Pani wzór, {breite} na {hoehe} ściegów",
   "editor.ausgewaehlt": "Zaznaczono {anzahl} ściegów",
   "editor.nichtsAusgewaehlt": "Nic jeszcze nie zaznaczono",
@@ -612,8 +617,10 @@ export const PL: Record<Textschluessel, string> = {
     "To miejsce zostaje pustą kanwą. Przyciskiem „Cofnij” można je przywrócić.",
   "editor.wiederAllesSticken": "Znów haftuj wszystko",
   "editor.wiederAllesGestickt": "Znów haftowane jest wszystko.",
+  "editor.freieFelderTitel": "Wybrany sam motyw",
   "editor.freieFelder": "{anzahl} pól zostaje pustych – tam się nie haftuje.",
   "editor.auswahlAufheben": "Usuń zaznaczenie",
+  "editor.kopiert": "Skopiowany kawałek",
   "editor.kopiertHinweis": "Skopiowano kawałek {w} × {h} ściegów.",
   "editor.kopieEinfuegen": "Wstaw kopię",
   "editor.kopiertMeldung": "Skopiowano {anzahl} ściegów. Proszę teraz dotknąć „Wstaw kopię”.",
@@ -738,6 +745,7 @@ export const PL: Record<Textschluessel, string> = {
   "legende.stiche": "ściegów",
   "legende.sticheUndGarn": "nici · {stiche} ściegów",
   "legende.anderesGarn": "Inna nitka",
+  "legende.anderesGarnFuer": "Inna nitka zamiast {garn}",
 
   "motive.titel": "Moje motywy",
   "motive.wirdGeholt": "Pobieranie motywów …",

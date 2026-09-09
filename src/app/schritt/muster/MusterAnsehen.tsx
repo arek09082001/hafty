@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Seite } from "@/components/Seite";
+import { Abschnitt } from "@/components/Abschnitt";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Dialog } from "@/components/Dialog";
@@ -657,25 +658,18 @@ export function MusterAnsehen() {
       dicht
       titel={t("editor.titel")}
       kopfEnde={
-        <div className="flex flex-wrap items-center gap-2">
-          <Knopf art="neben" onClick={zoom.kleiner} disabled={!zoom.kannKleiner} klein>
-            {t("editor.kleiner")}
-          </Knopf>
-          <Knopf art="neben" onClick={zoom.groesser} disabled={!zoom.kannGroesser} klein>
-            {t("editor.groesser")}
-          </Knopf>
-          <Knopf art="neben" onClick={ganzZeigen} klein>
-            {t("editor.allesZeigen")}
-          </Knopf>
-          <Knopf
-            art="neben"
-            onClick={() => setMitSymbolen((a) => !a)}
-            aria-pressed={mitSymbolen}
-            klein
-          >
-            {mitSymbolen ? t("editor.symboleAus") : t("editor.symboleAn")}
-          </Knopf>
-        </div>
+        /* Die Maße stehen ab jetzt dauerhaft oben und nicht mehr in einem
+           eigenen Kasten hinter einem Reiter. Sie ändern sich beim Arbeiten
+           nicht und beantworten die häufigste Frage sofort. */
+        <p className="text-[1.05rem] text-gedaempft">
+          {t("editor.masse", {
+            breite: String(muster.breite),
+            hoehe: String(muster.hoehe),
+            cmBreite: cmText(breiteCm, landeskennung),
+            cmHoehe: cmText(hoeheCm, landeskennung),
+            zaehlung: String(einstellungen.stoffzaehlung),
+          })}
+        </p>
       }
       fuss={
         <>
@@ -713,56 +707,92 @@ export function MusterAnsehen() {
       }
     >
       {/*
-        Ab einem breiten Bildschirm stehen Leinwand und Bedienung
-        nebeneinander und alles passt ohne Blättern auf den Schirm.
+        Zwei Spalten: links die Arbeitsfläche mit dem Muster, rechts die
+        Bedienung. Getrennt sind sie durch eine Haarlinie und nicht durch zwei
+        gerahmte Kästen – der Bildschirm soll als ein Stück Arbeit lesbar sein
+        und nicht als Stapel Karten.
 
-        Darunter liegen sie übereinander – und dann darf die Höhe **nicht**
-        starr aufgeteilt werden: die Leinwand nahm sich die Hälfte, die vier
-        Reiter den Rest, und für die Garnliste blieb ein Streifen von wenigen
-        Pixeln übrig, in dem nichts mehr zu lesen war. Deshalb bekommt die
-        Leinwand hier eine feste Höhe und der ganze Bereich darf blättern.
+        Die Bedienspalte ist mit 440 Punkten deutlich breiter als vorher. Bei
+        360 Punkten brach jede zweite Beschriftung um („Weniger dazu- nehmen"),
+        und die wichtigen Knöpfe rutschten unter den Rand. Der Platz war da,
+        er lag nur ungenutzt neben der Leinwand.
+
+        Unter 1024 Punkten Breite liegen beide untereinander; die Leinwand
+        bekommt dann eine feste Höhe, damit die Bedienung darunter nicht auf
+        einen Streifen zusammenschrumpft.
       */}
-      <div className="grid h-full min-h-0 gap-4 overflow-y-auto lg:overflow-y-visible lg:grid-cols-[minmax(0,1fr)_minmax(320px,360px)]">
-        {/* Die Leinwand bekommt so viel Platz wie irgend möglich. */}
-        <div
-          ref={flaeche}
-          className="grid h-[46vh] min-h-0 place-items-center overflow-auto rounded-2xl border-2 border-tinte bg-white p-2 lg:h-auto"
-        >
-          <Rasteransicht
-            breite={muster.breite}
-            hoehe={muster.hoehe}
-            raster={anzeigeRaster}
-            palette={muster.palette}
-            zoom={zoom.zoom}
-            mitSymbolen={mitSymbolen}
-            auswahl={auswahl?.maske ?? null}
-            vorschau={
-              vorschau
-                ? {
-                    x: vorschau.x,
-                    y: vorschau.y,
-                    w: vorschau.stueck.w,
-                    h: vorschau.stueck.h,
-                    daten: vorschau.stueck.daten,
-                    maske: vorschau.stueck.maske,
-                  }
-                : null
-            }
-            onZeiger={zeiger}
-            beschriftung={t("editor.leinwandBeschriftung", {
-              breite: String(muster.breite),
-              hoehe: String(muster.hoehe),
-            })}
-          />
-        </div>
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto border-t border-linie lg:grid lg:grid-cols-[minmax(0,1fr)_440px] lg:overflow-hidden">
+        {/* --- Die Arbeitsfläche ------------------------------------------ */}
+        <section className="flex min-h-0 shrink-0 flex-col lg:shrink">
+          <div className="flex shrink-0 flex-wrap items-center gap-2 px-6 py-3">
+            <Knopf art="neben" onClick={zoom.kleiner} disabled={!zoom.kannKleiner} klein>
+              {t("editor.kleiner")}
+            </Knopf>
+            <Knopf art="neben" onClick={zoom.groesser} disabled={!zoom.kannGroesser} klein>
+              {t("editor.groesser")}
+            </Knopf>
+            <Knopf art="neben" onClick={ganzZeigen} klein>
+              {t("editor.allesZeigen")}
+            </Knopf>
+            <Knopf
+              art="neben"
+              onClick={() => setMitSymbolen((a) => !a)}
+              aria-pressed={mitSymbolen}
+              klein
+              className="ml-4"
+            >
+              {mitSymbolen ? t("editor.symboleAus") : t("editor.symboleAn")}
+            </Knopf>
+          </div>
 
-        {/* Rechts die Bedienung, in vier immer sichtbare Bereiche geteilt. */}
-        <div ref={rechteSpalte} className="flex min-h-0 flex-col gap-3 lg:overflow-hidden">
+          <div
+            ref={flaeche}
+            className="grid h-[46vh] min-h-0 shrink-0 place-items-center overflow-auto px-6 pb-6 lg:h-auto lg:flex-1 lg:shrink"
+          >
+            {/* Das Muster liegt wie ein Blatt auf dem Tisch: feine Kante,
+                weicher Schatten. Vorher stand es in einer weißen Karte, die
+                bei einem hochkanten Muster links und rechts breite leere
+                Flächen ließ – die Karte sah dann aus wie ein Fehler. */}
+            <div className="w-fit border border-linie bg-white shadow-[0_2px_12px_rgba(0,0,0,0.10)]">
+              <Rasteransicht
+                breite={muster.breite}
+                hoehe={muster.hoehe}
+                raster={anzeigeRaster}
+                palette={muster.palette}
+                zoom={zoom.zoom}
+                mitSymbolen={mitSymbolen}
+                auswahl={auswahl?.maske ?? null}
+                vorschau={
+                  vorschau
+                    ? {
+                        x: vorschau.x,
+                        y: vorschau.y,
+                        w: vorschau.stueck.w,
+                        h: vorschau.stueck.h,
+                        daten: vorschau.stueck.daten,
+                        maske: vorschau.stueck.maske,
+                      }
+                    : null
+                }
+                onZeiger={zeiger}
+                beschriftung={t("editor.leinwandBeschriftung", {
+                  breite: String(muster.breite),
+                  hoehe: String(muster.hoehe),
+                })}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* --- Die Bedienung ---------------------------------------------- */}
+        <aside className="flex min-h-0 flex-col border-t border-linie bg-white lg:border-t-0 lg:border-l">
           {fehler || eigenerFehler ? (
-            <div className="flex shrink-0 flex-col gap-2">
+            <div className="shrink-0 border-b border-linie p-4">
               <Hinweis art="fehler">{t((fehler ?? eigenerFehler) as Textschluessel)}</Hinweis>
               <Knopf
-                art="neben"
+                art="still"
+                klein
+                className="mt-1"
                 onClick={() => {
                   fehlerSetzen(null);
                   setFehler(null);
@@ -774,7 +804,7 @@ export function MusterAnsehen() {
           ) : null}
 
           {meldung ? (
-            <div className="shrink-0">
+            <div className="shrink-0 border-b border-linie p-4">
               <Hinweis art="erfolg">{meldung}</Hinweis>
             </div>
           ) : null}
@@ -782,67 +812,70 @@ export function MusterAnsehen() {
           {vorschau ? (
             /* Solange ein Stück eingesetzt wird, verdrängt es alles andere –
                es gibt dann genau eine Sache zu tun. */
-            <section className="flex min-h-0 flex-col gap-4 rounded-2xl border-2 border-warnung bg-white p-5 lg:flex-1 lg:overflow-y-auto">
-              <h2 className="text-[1.3rem] font-bold">{t("editor.stueckEinsetzen")}</h2>
-              <p className="text-[1.05rem]">{t("editor.stueckSchieben")}</p>
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+              <Abschnitt titel={t("editor.stueckEinsetzen")} hinweis={t("editor.stueckSchieben")}>
+                <div className="grid w-[220px] grid-cols-3 gap-2 self-center">
+                  <span />
+                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(0, -1)}>
+                    {t("editor.hoch")}
+                  </Knopf>
+                  <span />
+                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(-1, 0)}>
+                    {t("editor.links")}
+                  </Knopf>
+                  <span />
+                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(1, 0)}>
+                    {t("editor.rechts")}
+                  </Knopf>
+                  <span />
+                  <Knopf art="neben" klein onClick={() => vorschauVerschieben(0, 1)}>
+                    {t("editor.runter")}
+                  </Knopf>
+                  <span />
+                </div>
 
-              <div className="grid w-[220px] grid-cols-3 gap-2 self-center">
-                <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(0, -1)}>
-                  {t("editor.hoch")}
-                </Knopf>
-                <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(-1, 0)}>
-                  {t("editor.links")}
-                </Knopf>
-                <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(1, 0)}>
-                  {t("editor.rechts")}
-                </Knopf>
-                <span />
-                <Knopf art="neben" onClick={() => vorschauVerschieben(0, 1)}>
-                  {t("editor.runter")}
-                </Knopf>
-                <span />
-              </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Knopf art="neben" klein onClick={vorschauDrehen}>
+                    {t("editor.vierteldrehung")}
+                  </Knopf>
+                  <Knopf
+                    art="neben"
+                    klein
+                    onClick={() =>
+                      setVorschau((v) => (v ? { ...v, stueck: spiegelnWaagerecht(v.stueck) } : v))
+                    }
+                  >
+                    {t("editor.spiegelnWaagerecht")}
+                  </Knopf>
+                  <Knopf
+                    art="neben"
+                    klein
+                    onClick={() =>
+                      setVorschau((v) => (v ? { ...v, stueck: spiegelnSenkrecht(v.stueck) } : v))
+                    }
+                  >
+                    {t("editor.spiegelnSenkrecht")}
+                  </Knopf>
+                </div>
+              </Abschnitt>
 
-              <div className="flex flex-wrap gap-2">
-                <Knopf art="neben" onClick={vorschauDrehen}>
-                  {t("editor.vierteldrehung")}
-                </Knopf>
-                <Knopf
-                  art="neben"
-                  onClick={() =>
-                    setVorschau((v) => (v ? { ...v, stueck: spiegelnWaagerecht(v.stueck) } : v))
-                  }
-                >
-                  {t("editor.spiegelnWaagerecht")}
-                </Knopf>
-                <Knopf
-                  art="neben"
-                  onClick={() =>
-                    setVorschau((v) => (v ? { ...v, stueck: spiegelnSenkrecht(v.stueck) } : v))
-                  }
-                >
-                  {t("editor.spiegelnSenkrecht")}
-                </Knopf>
-              </div>
-
-              <div className="mt-auto flex flex-wrap gap-3">
-                <Knopf art="haupt" onClick={vorschauFestschreiben}>
-                  {t("editor.hierEinsetzen")}
-                </Knopf>
-                <Knopf
-                  art="neben"
-                  onClick={() => {
-                    setVorschau(null);
-                    setMeldung(null);
-                  }}
-                >
-                  {t("allgemein.abbrechen")}
-                </Knopf>
-              </div>
-            </section>
+              <Abschnitt>
+                <div className="flex flex-wrap gap-3">
+                  <Knopf art="haupt" onClick={vorschauFestschreiben}>
+                    {t("editor.hierEinsetzen")}
+                  </Knopf>
+                  <Knopf
+                    art="neben"
+                    onClick={() => {
+                      setVorschau(null);
+                      setMeldung(null);
+                    }}
+                  >
+                    {t("allgemein.abbrechen")}
+                  </Knopf>
+                </div>
+              </Abschnitt>
+            </div>
           ) : (
             <Bereichswahl
               bereiche={[
@@ -857,148 +890,171 @@ export function MusterAnsehen() {
               {bereich === "werkzeug" ? (
                 <>
                   {/*
-                    Die Auswahl steht oben und die Werkzeugliste darunter.
-                    Auf dem Handy liegt alles untereinander: wer ins Muster
-                    tippt, will als Nächstes wissen, was jetzt ausgewählt ist
-                    und was er damit tun kann – und nicht erst an fünf
-                    Werkzeugen vorbeiblättern. Das Werkzeug wählt man einmal,
-                    die Auswahl bei jedem Tipp neu.
-
-                    Die Reihenfolge steht fest, auch wenn nichts ausgewählt
-                    ist. Ein Bereich, der je nach Lage die Plätze tauscht,
-                    lässt die Knöpfe springen.
+                    Die Auswahl steht oben, die Werkzeugliste darunter: wer ins
+                    Muster tippt, will als Nächstes wissen, was ausgewählt ist
+                    und was er damit tun kann. Das Werkzeug wählt man einmal,
+                    die Auswahl bei jedem Tipp neu. Die Reihenfolge steht fest,
+                    auch wenn nichts ausgewählt ist – ein Bereich, der die
+                    Plätze tauscht, lässt die Knöpfe springen.
                   */}
-                  <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-                    <h2 className="text-[1.2rem] font-bold">
-                      {auswahl && hatAuswahl
+                  <Abschnitt
+                    titel={
+                      auswahl && hatAuswahl
                         ? t("editor.ausgewaehlt", { anzahl: zahl(auswahl.anzahl) })
-                        : t("editor.nichtsAusgewaehlt")}
-                    </h2>
-
-                    {/* Was zur automatischen Auswahl gehört, steht nur da,
-                        solange auch dieses Werkzeug gewählt ist. */}
+                        : t("editor.nichtsAusgewaehlt")
+                    }
+                    hinweis={
+                      werkzeug === "motiv"
+                        ? t("motivsuche.hinweis")
+                        : hatAuswahl
+                          ? undefined
+                          : t("editor.tippenHinweis")
+                    }
+                  >
                     {werkzeug === "motiv" ? (
-                      <>
-                        <p className="text-[1.05rem]">{t("motivsuche.hinweis")}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Knopf
-                            art="neben"
-                            onClick={() => aehnlichkeitAendern(1)}
-                            disabled={
-                              tipps.length === 0 || aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1
-                            }
-                          >
-                            {t("motivsuche.mehr")}
-                          </Knopf>
-                          <Knopf
-                            art="neben"
-                            onClick={() => aehnlichkeitAendern(-1)}
-                            disabled={tipps.length === 0 || aehnlichkeit <= 0}
-                          >
-                            {t("motivsuche.weniger")}
-                          </Knopf>
-                        </div>
-                        {auswahl && auswahl.anzahl > 0.8 * muster.breite * muster.hoehe ? (
-                          <Hinweis>{t("motivsuche.fastAlles")}</Hinweis>
-                        ) : null}
-                      </>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Knopf
+                          art="neben"
+                          klein
+                          onClick={() => aehnlichkeitAendern(1)}
+                          disabled={
+                            tipps.length === 0 || aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1
+                          }
+                        >
+                          {t("motivsuche.mehr")}
+                        </Knopf>
+                        <Knopf
+                          art="neben"
+                          klein
+                          onClick={() => aehnlichkeitAendern(-1)}
+                          disabled={tipps.length === 0 || aehnlichkeit <= 0}
+                        >
+                          {t("motivsuche.weniger")}
+                        </Knopf>
+                      </div>
+                    ) : null}
+
+                    {auswahl && auswahl.anzahl > 0.8 * muster.breite * muster.hoehe ? (
+                      <div className="mt-3">
+                        <Hinweis>{t("motivsuche.fastAlles")}</Hinweis>
+                      </div>
                     ) : null}
 
                     {hatAuswahl ? (
-                      <div className="flex flex-wrap gap-2">
-                        {/* Freistellen steht vorn: das ist der Grund, aus dem
-                            man ein ganzes Motiv auswählt. */}
+                      <div className="mt-3 flex flex-col gap-2">
+                        {/* Freistellen steht vorn und über die ganze Breite:
+                            das ist der Grund, aus dem man ein Motiv auswählt. */}
                         <Knopf art="neben" onClick={nurAuswahlBehalten}>
                           {t("editor.nurDasSticken")}
                         </Knopf>
                         <Knopf art="neben" onClick={auswahlWeglassen}>
                           {t("editor.auswahlNichtSticken")}
                         </Knopf>
-                        <Knopf art="neben" onClick={auswahlFaerben}>
-                          {t("editor.auswahlFaerben")}
-                        </Knopf>
-                        <Knopf art="neben" onClick={auswahlKopieren}>
-                          {t("editor.auswahlKopieren")}
-                        </Knopf>
-                        <Knopf
-                          art="neben"
-                          onClick={() => {
-                            setMotivName("");
-                            setMotivNameOffen(true);
-                          }}
-                        >
-                          {t("editor.alsMotivMerken")}
-                        </Knopf>
-                        <Knopf art="neben" onClick={auswahlAufheben}>
-                          {t("editor.auswahlAufheben")}
-                        </Knopf>
-                      </div>
-                    ) : werkzeug === "motiv" ? null : (
-                      /* Beim Motivwerkzeug steht der Satz schon oben; zweimal
-                         dasselbe zu sagen macht die Seite nur länger. */
-                      <p className="text-[1.05rem] text-gedaempft">{t("editor.tippenHinweis")}</p>
-                    )}
-
-                    {/* Sobald etwas freigestellt ist, muss der Weg zurück
-                        sichtbar sein – und zwar nicht nur über
-                        „Rückgängig", das nach ein paar weiteren Schritten
-                        nicht mehr hinreicht. */}
-                    {freieStellen > 0 ? (
-                      <div className="flex flex-col gap-2 rounded-xl bg-hinweis p-4">
-                        <p className="text-[1.05rem]">
-                          {t("editor.freieFelder", { anzahl: zahl(freieStellen) })}
-                        </p>
-                        <Knopf art="neben" onClick={wiederAllesSticken}>
-                          {t("editor.wiederAllesSticken")}
-                        </Knopf>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Knopf art="neben" klein onClick={auswahlFaerben}>
+                            {t("editor.auswahlFaerben")}
+                          </Knopf>
+                          <Knopf art="neben" klein onClick={auswahlKopieren}>
+                            {t("editor.auswahlKopieren")}
+                          </Knopf>
+                          <Knopf
+                            art="neben"
+                            klein
+                            onClick={() => {
+                              setMotivName("");
+                              setMotivNameOffen(true);
+                            }}
+                          >
+                            {t("editor.alsMotivMerken")}
+                          </Knopf>
+                          <Knopf art="neben" klein onClick={auswahlAufheben}>
+                            {t("editor.auswahlAufheben")}
+                          </Knopf>
+                        </div>
                       </div>
                     ) : null}
+                  </Abschnitt>
 
-                    {zwischenablage ? (
-                      <div className="mt-2 flex flex-col gap-2 rounded-xl bg-hinweis p-4">
-                        <p className="text-[1.05rem]">
-                          {t("editor.kopiertHinweis", {
-                            w: String(zwischenablage.w),
-                            h: String(zwischenablage.h),
-                          })}
-                        </p>
-                        <Knopf art="neben" onClick={() => einfuegenStarten(zwischenablage)}>
-                          {t("editor.kopieEinfuegen")}
-                        </Knopf>
-                      </div>
-                    ) : null}
-                  </section>
+                  {/* Sobald etwas freigestellt ist, muss der Weg zurück
+                      sichtbar sein – und zwar nicht nur über „Rückgängig",
+                      das nach ein paar weiteren Schritten nicht mehr
+                      hinreicht. */}
+                  {freieStellen > 0 ? (
+                    <Abschnitt
+                      titel={t("editor.freieFelderTitel")}
+                      hinweis={t("editor.freieFelder", { anzahl: zahl(freieStellen) })}
+                    >
+                      <Knopf art="neben" onClick={wiederAllesSticken} className="w-full">
+                        {t("editor.wiederAllesSticken")}
+                      </Knopf>
+                    </Abschnitt>
+                  ) : null}
 
-                  <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
+                  {zwischenablage ? (
+                    <Abschnitt
+                      titel={t("editor.kopiert")}
+                      hinweis={t("editor.kopiertHinweis", {
+                        w: String(zwischenablage.w),
+                        h: String(zwischenablage.h),
+                      })}
+                    >
+                      <Knopf
+                        art="neben"
+                        onClick={() => einfuegenStarten(zwischenablage)}
+                        className="w-full"
+                      >
+                        {t("editor.kopieEinfuegen")}
+                      </Knopf>
+                    </Abschnitt>
+                  ) : null}
+
+                  <Abschnitt titel={t("werkzeug.frage")}>
+                    <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
+                  </Abschnitt>
                 </>
               ) : null}
 
               {bereich === "farbe" ? (
-                <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-                  <h2 className="text-[1.2rem] font-bold">
-                    {/* Hier steht die volle Palette: dieser Bereich ist auch
-                        die Farbauswahl zum Malen, und eine Farbe, die gerade
-                        nicht im Muster vorkommt, muss trotzdem wählbar
-                        bleiben. Wie viele Garne wirklich zu kaufen sind,
-                        sagt Schritt 4. */}
-                    {t("editor.ihreGarne", { anzahl: String(paletteJetzt.length) })}
-                  </h2>
-                  <p className="text-[1rem] text-gedaempft">{t("editor.farbeHinweis")}</p>
+                <Abschnitt
+                  titel={t("editor.ihreGarne", { anzahl: String(paletteJetzt.length) })}
+                  hinweis={t("editor.farbeHinweis")}
+                >
+                  {/* Hier steht die volle Palette: dieser Bereich ist auch die
+                      Farbauswahl zum Malen, und eine Farbe, die gerade nicht
+                      im Muster vorkommt, muss trotzdem wählbar bleiben. Wie
+                      viele Garne wirklich zu kaufen sind, sagt Schritt 4. */}
                   <Legende
                     palette={paletteJetzt}
                     gewaehlt={farbeSicher}
                     onWaehlen={setFarbe}
-                    onGarnAendern={alleGarne.length > 0 ? setGarnwechsel : undefined}
                     stoffzaehlung={einstellungen.stoffzaehlung}
                   />
+
+                  {/* Ein Knopf statt eines je Zeile: gewechselt wird das Garn
+                      der Farbe, die gerade gewählt ist. Er sagt auch gleich,
+                      um welche das geht. */}
+                  {alleGarne.length > 0 && paletteJetzt[farbeSicher] ? (
+                    <Knopf
+                      art="neben"
+                      klein
+                      className="mt-3 w-full"
+                      onClick={() => setGarnwechsel(farbeSicher)}
+                    >
+                      {t("legende.anderesGarnFuer", {
+                        garn: paletteJetzt[farbeSicher].garn
+                          ? `${paletteJetzt[farbeSicher].garn?.marke} ${paletteJetzt[farbeSicher].garn?.code}`
+                          : t("legende.eigeneFarbe"),
+                      })}
+                    </Knopf>
+                  ) : null}
                   {freieStellen > 0 ? (
-                    <p className="text-[1rem] text-gedaempft">
+                    <p className="mt-3 text-[1rem] text-gedaempft">
                       {t("editor.freieFelder", { anzahl: zahl(freieStellen) })}
                     </p>
                   ) : null}
                   {/* Was und wie viel gekauft werden muss, steht damit schon
                       hier und nicht erst auf dem Ausdruck. */}
-                  <p className="text-[1rem] text-gedaempft">
+                  <p className="mt-3 border-t border-linie pt-3 text-[1rem] text-gedaempft">
                     {t("editor.garnbedarf", {
                       meter: meterText(
                         paletteJetzt.reduce(
@@ -1010,59 +1066,52 @@ export function MusterAnsehen() {
                       ),
                     })}
                   </p>
-                </section>
+                </Abschnitt>
               ) : null}
 
               {bereich === "muster" ? (
                 <>
-                  {/* Die Maße stehen hier und nicht mehr in der Titelzeile –
-                      so passen die Lupenknöpfe neben die Überschrift und das
-                      Muster bekommt eine ganze Zeile Höhe mehr. */}
-                  <section className="flex flex-col gap-1 rounded-2xl border-2 border-tinte bg-white p-5">
-                    <p className="text-[1.5rem] font-bold leading-tight text-hauptaktion">
-                      {cmText(breiteCm, landeskennung)} cm × {cmText(hoeheCm, landeskennung)} cm
-                    </p>
-                    <p className="text-[1.05rem] text-gedaempft">
-                      {muster.breite} × {muster.hoehe} {t("allgemein.stiche")}, Aida{" "}
-                      {einstellungen.stoffzaehlung}
-                    </p>
-                  </section>
+                  <Abschnitt titel={t("glaettung.frage")}>
+                    <Glaettungsregler
+                      stufe={einstellungen.glaettung}
+                      kennzahlen={muster.kennzahlen}
+                      laeuft={laeuft}
+                      onAendern={glaettungSetzen}
+                    />
+                  </Abschnitt>
                   <Farbmeldung
                     vorher={muster.farbenVorher}
                     nachher={muster.farbenNachher}
                     zusammengelegt={muster.garneZusammengelegt}
-                  />
-                  <Glaettungsregler
-                    stufe={einstellungen.glaettung}
-                    kennzahlen={muster.kennzahlen}
-                    laeuft={laeuft}
-                    onAendern={glaettungSetzen}
                   />
                 </>
               ) : null}
 
               {bereich === "merken" ? (
                 <>
-                  <Staendeleiste
-                    musterId={musterId}
-                    aktuelleVersion={versionId}
-                    neuLaden={standZaehler}
-                    onWiederherstellen={standWiederherstellen}
-                    onMerken={standGemerkt}
-                  />
-                  <Motivliste
-                    motive={motive}
-                    laedt={motiveLaufen}
-                    onEinsetzen={motivEinsetzen}
-                    onLoeschen={setMotivZumLoeschen}
-                  />
+                  <Abschnitt titel={t("staende.titel")}>
+                    <Staendeleiste
+                      musterId={musterId}
+                      aktuelleVersion={versionId}
+                      neuLaden={standZaehler}
+                      onWiederherstellen={standWiederherstellen}
+                      onMerken={standGemerkt}
+                    />
+                  </Abschnitt>
+                  <Abschnitt titel={t("motive.titel")}>
+                    <Motivliste
+                      motive={motive}
+                      laedt={motiveLaufen}
+                      onEinsetzen={motivEinsetzen}
+                      onLoeschen={setMotivZumLoeschen}
+                    />
+                  </Abschnitt>
                 </>
               ) : null}
             </Bereichswahl>
           )}
-        </div>
+        </aside>
       </div>
-
       <Dialog
         offen={garnwechsel !== null}
         titel={t("editor.anderesGarnTitel")}

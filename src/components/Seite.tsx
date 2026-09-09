@@ -1,13 +1,23 @@
 import type { ReactNode } from "react";
 
 /**
- * Einheitliches Seitengerüst: große Überschrift, ein erklärender Satz,
- * darunter der Inhalt. Ganz unten die Fußzeile mit genau einer Hauptaktion.
+ * Das Seitengerüst.
+ * ---------------------------------------------------------------------------
  *
- * `dicht` ist für die Arbeitsseiten gedacht (Muster ansehen, Drucken): dort
- * muss das Raster sofort zu sehen sein, ohne dass die Nutzerin erst scrollen
- * muss. Überschrift und Erklärung rücken dann in eine Zeile zusammen, und
- * der Inhalt bekommt die ganze restliche Höhe des Bildschirms.
+ * Zwei Fassungen, weil es zwei Arten von Seiten gibt:
+ *
+ *  - **Lesen und entscheiden** (Bild aussuchen, Größe und Farben): eine
+ *    Überschrift, ein erklärender Satz, darunter der Inhalt in einer Spalte,
+ *    die schmal genug zum Lesen bleibt. Die Seite darf blättern.
+ *
+ *  - **Arbeiten** (`dicht`: Muster ansehen, Drucken): das Muster muss sofort
+ *    und so groß wie möglich zu sehen sein. Die Überschrift schrumpft auf
+ *    eine Zeile – im Fortschritt oben steht ohnehin schon, wo man ist –, und
+ *    der Inhalt bekommt den ganzen Rest des Bildschirms, ohne zu blättern.
+ *
+ * Unten steht in beiden Fassungen die Fußleiste mit genau einer Hauptaktion.
+ * Sie ist durch eine Haarlinie abgesetzt und nicht durch einen Kasten: die
+ * Seite soll eine Fläche sein und kein Stapel Karten.
  */
 export function Seite({
   titel,
@@ -16,51 +26,65 @@ export function Seite({
   fuss,
   kopfEnde,
   dicht = false,
+  weit = false,
 }: {
   titel: string;
   erklaerung?: string;
   children: ReactNode;
   fuss?: ReactNode;
   /**
-   * Steuerung, die in dieselbe Zeile wie die Überschrift gehört. Auf den
-   * Arbeitsseiten sparen die Knöpfe dort eine ganze Zeile – und jede
-   * gesparte Zeile kommt dem Muster zugute.
+   * Steht rechts in der Kopfzeile, auf gleicher Höhe wie die Überschrift.
+   * Auf den Arbeitsseiten stehen dort die Maße des Musters – eine Angabe,
+   * die immer sichtbar sein soll, ohne einen eigenen Kasten zu brauchen.
    */
   kopfEnde?: ReactNode;
   dicht?: boolean;
+  /**
+   * Für Seiten, deren Inhalt ein Raster ist und von Breite profitiert – die
+   * Garnliste zum Beispiel. Fließtext bleibt sonst in einer Spalte, die
+   * schmal genug zum Lesen ist.
+   */
+  weit?: boolean;
 }) {
+  if (dicht) {
+    return (
+      <div className="flex h-full min-h-0 w-full flex-col">
+        <header className="flex shrink-0 flex-wrap items-baseline justify-between gap-x-6 gap-y-1 px-6 pt-3 pb-2">
+          <h1 className="text-[1.25rem] font-bold leading-tight">{titel}</h1>
+          {kopfEnde}
+        </header>
+
+        <div className="min-h-0 flex-1">{children}</div>
+
+        {fuss ? (
+          <footer className="shrink-0 border-t border-linie bg-papier px-6 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">{fuss}</div>
+          </footer>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div
-      className={`mx-auto flex w-full max-w-[1600px] min-h-0 flex-col px-4 ${
-        dicht ? "h-full gap-3 py-3" : "flex-1 gap-6 py-6"
+      className={`mx-auto flex w-full flex-1 flex-col gap-8 px-6 py-8 ${
+        weit ? "max-w-[1600px]" : "max-w-[1100px]"
       }`}
     >
-      <header
-        className={
-          dicht ? "flex shrink-0 flex-wrap items-center justify-between gap-x-5 gap-y-2" : ""
-        }
-      >
-        <div className={dicht ? "flex flex-wrap items-baseline gap-x-4 gap-y-1" : ""}>
-          <h1 className={`font-bold leading-tight ${dicht ? "text-[1.4rem]" : "text-[1.9rem]"}`}>
-            {titel}
-          </h1>
+      <header className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <div>
+          <h1 className="text-[1.9rem] font-bold leading-tight">{titel}</h1>
           {erklaerung ? (
-            <p className={`text-[1.05rem] text-gedaempft ${dicht ? "" : "mt-2 max-w-[60ch]"}`}>
-              {erklaerung}
-            </p>
+            <p className="mt-2 max-w-[62ch] text-[1.05rem] text-gedaempft">{erklaerung}</p>
           ) : null}
         </div>
         {kopfEnde}
       </header>
 
-      <div className={`flex-1 ${dicht ? "min-h-0" : ""}`}>{children}</div>
+      <div className="flex-1">{children}</div>
 
       {fuss ? (
-        <footer
-          className={`-mx-4 shrink-0 border-t-2 border-linie bg-papier px-4 py-3 ${
-            dicht ? "" : "sticky bottom-0 py-4"
-          }`}
-        >
+        <footer className="sticky bottom-0 -mx-6 border-t border-linie bg-papier px-6 py-4">
           <div className="flex flex-wrap items-center justify-between gap-4">{fuss}</div>
         </footer>
       ) : null}

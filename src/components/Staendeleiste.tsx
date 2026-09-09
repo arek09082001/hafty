@@ -91,10 +91,8 @@ export function Staendeleiste({
   }
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-      <h2 className="text-[1.2rem] font-bold">{t("staende.titel")}</h2>
-
-      <Knopf art="neben" onClick={merken} disabled={merktGerade}>
+    <div className="flex flex-col gap-3">
+      <Knopf art="neben" onClick={merken} disabled={merktGerade} className="w-full">
         {merktGerade ? t("staende.wirdGemerkt") : t("staende.merken")}
       </Knopf>
 
@@ -115,8 +113,10 @@ export function Staendeleiste({
                 <button
                   type="button"
                   onClick={() => setVorschau(stand)}
-                  className={`flex min-h-[56px] w-[160px] flex-col items-center gap-2 rounded-xl border-2 p-2 ${
-                    ist ? "border-hauptaktion bg-[#e8f3ee]" : "border-linie bg-white hover:bg-hinweis"
+                  className={`flex min-h-[56px] w-[150px] flex-col items-center gap-2 rounded-xl border p-2 ${
+                    ist
+                      ? "border-hauptaktion bg-[#e8f3ee]"
+                      : "border-linie bg-white hover:bg-hinweis"
                   }`}
                 >
                   {stand.vorschauUrl ? (
@@ -185,6 +185,6 @@ export function Staendeleiste({
           </div>
         ) : null}
       </Dialog>
-    </section>
+    </div>
   );
 }

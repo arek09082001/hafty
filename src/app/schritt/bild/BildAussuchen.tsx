@@ -84,16 +84,19 @@ export function BildAussuchen() {
         </>
       }
     >
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-8">
         {fehler ? <Hinweis art="fehler">{t(fehler)}</Hinweis> : null}
 
         {bild ? (
           /* Das gewählte Bild und gleich darunter der Ausschnitt. Er steht
              offen da und nicht hinter einem Knopf: versteckte Einstellungen
-             findet hier niemand. Wer nichts anrührt, bekommt das ganze Bild. */
-          <section className="flex flex-col gap-5 rounded-2xl border-2 border-hauptaktion bg-white p-5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-col gap-1">
+             findet hier niemand. Wer nichts anrührt, bekommt das ganze Bild.
+
+             Kein Rahmen mehr um das Ganze: die Überschrift und die Linie
+             darunter sagen schon, dass hier ein Abschnitt anfängt. */
+          <section className="flex flex-col gap-5">
+            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-linie pb-4">
+              <div>
                 <p className="text-[1.2rem] font-bold">{t("bild.wirdVerwendet")}</p>
                 <p className="text-[1.05rem] text-gedaempft">{bild.name}</p>
               </div>
@@ -108,9 +111,11 @@ export function BildAussuchen() {
               </Knopf>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <h2 className="text-[1.4rem] font-bold">{t("zuschnitt.titel")}</h2>
-              <p className="max-w-[70ch] text-[1.05rem]">{t("zuschnitt.erklaerung")}</p>
+            <div>
+              <h2 className="text-[1.3rem] font-bold">{t("zuschnitt.titel")}</h2>
+              <p className="mt-1 max-w-[70ch] text-[1.05rem] text-gedaempft">
+                {t("zuschnitt.erklaerung")}
+              </p>
             </div>
 
             <Zuschnitt
@@ -127,9 +132,9 @@ export function BildAussuchen() {
           </section>
         ) : null}
 
-        <section className="flex flex-col gap-4">
-          <h2 className="text-[1.4rem] font-bold">{t("bild.eigenesFoto")}</h2>
-          <p className="max-w-[60ch] text-[1.05rem]">{t("bild.eigenesFotoText")}</p>
+        <section className="flex flex-col gap-4 border-t border-linie pt-7">
+          <h2 className="text-[1.3rem] font-bold">{t("bild.eigenesFoto")}</h2>
+          <p className="max-w-[60ch] text-[1.05rem] text-gedaempft">{t("bild.eigenesFotoText")}</p>
           <input
             ref={dateiFeld}
             type="file"
@@ -143,9 +148,9 @@ export function BildAussuchen() {
           </Knopf>
         </section>
 
-        <section className="flex flex-col gap-4">
-          <h2 className="text-[1.4rem] font-bold">{t("bild.beispiele")}</h2>
-          <p className="max-w-[60ch] text-[1.05rem]">{t("bild.beispieleText")}</p>
+        <section className="flex flex-col gap-4 border-t border-linie pt-7">
+          <h2 className="text-[1.3rem] font-bold">{t("bild.beispiele")}</h2>
+          <p className="max-w-[60ch] text-[1.05rem] text-gedaempft">{t("bild.beispieleText")}</p>
           <ul className="flex flex-wrap gap-5">
             {BEISPIELE.map((beispiel) => (
               <li key={beispiel.datei}>
@@ -153,14 +158,14 @@ export function BildAussuchen() {
                   type="button"
                   onClick={() => beispielGewaehlt(beispiel.datei, beispiel.titel)}
                   disabled={laedt !== null}
-                  className="flex min-h-[56px] w-[240px] flex-col items-center gap-3 rounded-2xl border-2 border-tinte bg-white p-4 hover:bg-hinweis disabled:opacity-50"
+                  className="flex min-h-[56px] w-[220px] flex-col items-center gap-3 rounded-xl border border-linie bg-white p-4 hover:bg-hinweis disabled:opacity-50"
                 >
                   <Image
                     src={beispiel.datei}
                     alt=""
                     width={200}
                     height={200}
-                    className="rounded-xl border-2 border-linie"
+                    className="rounded-lg border border-linie"
                   />
                   <span className="text-[1.15rem] font-semibold">
                     {laedt === beispiel.datei ? t("bild.wirdGeladen") : t(beispiel.titel)}
