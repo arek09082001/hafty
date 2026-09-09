@@ -1,34 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
-import { LEER, STOFFFARBE, type PalettenEintrag } from "@/lib/muster/typen";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  farbtabelle,
+  kleinbildZeichnen,
+  musterZeichnen,
+  type Einfuegevorschau,
+} from "@/lib/muster/leinwand";
+import type { PalettenEintrag } from "@/lib/muster/typen";
 
-export type Zeigerereignis = {
-  x: number;
-  y: number;
-  /** true, solange der Finger bzw. die Maustaste unten ist. */
-  gedrueckt: boolean;
-  /** true beim ersten Ereignis einer Bewegung. */
-  beginn: boolean;
-};
-
-export type Einfuegevorschau = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  daten: Uint8Array;
-  maske: Uint8Array;
-};
+export type { Einfuegevorschau };
 
 /**
- * Das Stichraster auf einer Leinwand.
+ * Das ganze Stichraster in einer festen Vergrößerung.
  *
- * Gezeichnet wird in zwei Lagen: zuerst ein Bild mit genau einem Bildpunkt je
- * Stich, das ohne Weichzeichnen vergrößert wird – so bleiben die Kästchen
- * scharf. Darüber kommen erst ab einer gewissen Vergrößerung die Rasterlinien
- * und die Symbole, weil sie sonst nur ein graues Gewirr wären.
+ * Diese Fassung zeichnet das Muster vollständig und wird von der Vorschau vor
+ * dem Drucken benutzt: dort gibt es nichts zu tippen und nichts zu schieben,
+ * das Bild steht einfach da. Zum Bearbeiten in Schritt 3 gibt es die
+ * `Arbeitsfläche`, die nur den sichtbaren Ausschnitt zeichnet und dafür
+ * beliebig verschoben und vergrößert werden kann.
+ *
+ * Gezeichnet wird in beiden Fällen mit demselben Kern
+ * (`src/lib/muster/leinwand.ts`).
  */
 export function Rasteransicht({
   breite,
@@ -38,9 +31,6 @@ export function Rasteransicht({
   zoom,
   mitLinien = true,
   mitSymbolen = false,
-  auswahl,
-  vorschau,
-  onZeiger,
   beschriftung,
 }: {
   breite: number;
@@ -51,259 +41,40 @@ export function Rasteransicht({
   zoom: number;
   mitLinien?: boolean;
   mitSymbolen?: boolean;
-  auswahl?: Uint8Array | null;
-  vorschau?: Einfuegevorschau | null;
-  onZeiger?: (e: Zeigerereignis) => void;
   beschriftung: string;
 }) {
   const leinwand = useRef<HTMLCanvasElement>(null);
-  const zwischen = useRef<HTMLCanvasElement | null>(null);
-  const gedrueckt = useRef(false);
-  const letztesFeld = useRef<{ x: number; y: number } | null>(null);
+  const klein = useRef<HTMLCanvasElement | null>(null);
+  const tabelle = useMemo(() => farbtabelle(palette), [palette]);
 
-  // --- Zeichnen -------------------------------------------------------------
   useEffect(() => {
     const canvas = leinwand.current;
     if (!canvas) return;
-    const stift = canvas.getContext("2d");
-    if (!stift) return;
-
-    // Zwischenleinwand mit einem Bildpunkt je Stich.
-    if (!zwischen.current) zwischen.current = document.createElement("canvas");
-    const klein = zwischen.current;
-    if (klein.width !== breite || klein.height !== hoehe) {
-      klein.width = breite;
-      klein.height = hoehe;
-    }
-    const kleinStift = klein.getContext("2d");
-    if (!kleinStift) return;
-
-    const bild = kleinStift.createImageData(breite, hoehe);
-
-    // Nachgeschlagen wird über den Index des Eintrags und nicht über seine
-    // Stelle in der Liste: die Garnliste wird an anderer Stelle gefiltert
-    // (Farben ohne Stiche fallen heraus), und dann stimmen beide nicht mehr
-    // überein. Ein Feld mit einer falschen Farbe wäre der schlimmste
-    // denkbare Fehler in dieser App.
-    const farben: Array<[number, number, number] | undefined> = [];
-    const eintraege: Array<PalettenEintrag | undefined> = [];
-    for (const eintrag of palette) {
-      farben[eintrag.index] = hexNachRgb(eintrag.hex);
-      eintraege[eintrag.index] = eintrag;
-    }
-    // Was nicht gestickt wird, bekommt die Farbe des Stoffes.
-    const stoff = hexNachRgb(STOFFFARBE);
-    farben[LEER] = stoff;
-
-    for (let i = 0; i < raster.length; i++) {
-      const farbe = farben[raster[i]] ?? stoff;
-      bild.data[i * 4] = farbe[0];
-      bild.data[i * 4 + 1] = farbe[1];
-      bild.data[i * 4 + 2] = farbe[2];
-      bild.data[i * 4 + 3] = 255;
-    }
-
-    // Die verschiebbare Vorschau beim Einfügen liegt obenauf.
-    if (vorschau) {
-      for (let y = 0; y < vorschau.h; y++) {
-        const zy = vorschau.y + y;
-        if (zy < 0 || zy >= hoehe) continue;
-        for (let x = 0; x < vorschau.w; x++) {
-          const zx = vorschau.x + x;
-          if (zx < 0 || zx >= breite) continue;
-          const q = y * vorschau.w + x;
-          if (!vorschau.maske[q]) continue;
-          const farbe = farben[vorschau.daten[q]] ?? stoff;
-          const z = (zy * breite + zx) * 4;
-          bild.data[z] = farbe[0];
-          bild.data[z + 1] = farbe[1];
-          bild.data[z + 2] = farbe[2];
-          bild.data[z + 3] = 255;
-        }
-      }
-    }
-
-    kleinStift.putImageData(bild, 0, 0);
-
-    const breitePx = Math.round(breite * zoom);
-    const hoehePx = Math.round(hoehe * zoom);
-    if (canvas.width !== breitePx || canvas.height !== hoehePx) {
-      canvas.width = breitePx;
-      canvas.height = hoehePx;
-    }
-
-    stift.imageSmoothingEnabled = false;
-    stift.clearRect(0, 0, breitePx, hoehePx);
-    stift.drawImage(klein, 0, 0, breitePx, hoehePx);
-
-    // --- Rasterlinien -------------------------------------------------------
-    // Erst ab 5 Bildpunkten je Stich; darunter würde das Raster das Bild
-    // zudecken. Jede zehnte Linie ist dicker – so kann die Nutzerin auf dem
-    // Bildschirm genauso zählen wie später auf dem Papier.
-    if (mitLinien && zoom >= 5) {
-      stift.lineWidth = 1;
-      stift.strokeStyle = "rgba(0,0,0,0.22)";
-      stift.beginPath();
-      for (let x = 1; x < breite; x++) {
-        if (x % 10 === 0) continue;
-        const px = Math.round(x * zoom) + 0.5;
-        stift.moveTo(px, 0);
-        stift.lineTo(px, hoehePx);
-      }
-      for (let y = 1; y < hoehe; y++) {
-        if (y % 10 === 0) continue;
-        const py = Math.round(y * zoom) + 0.5;
-        stift.moveTo(0, py);
-        stift.lineTo(breitePx, py);
-      }
-      stift.stroke();
-
-      stift.lineWidth = 2;
-      stift.strokeStyle = "rgba(0,0,0,0.6)";
-      stift.beginPath();
-      for (let x = 10; x < breite; x += 10) {
-        const px = Math.round(x * zoom);
-        stift.moveTo(px, 0);
-        stift.lineTo(px, hoehePx);
-      }
-      for (let y = 10; y < hoehe; y += 10) {
-        const py = Math.round(y * zoom);
-        stift.moveTo(0, py);
-        stift.lineTo(breitePx, py);
-      }
-      stift.stroke();
-    }
-
-    // --- Symbole ------------------------------------------------------------
-    if (mitSymbolen && zoom >= 14) {
-      stift.textAlign = "center";
-      stift.textBaseline = "middle";
-      stift.font = `bold ${Math.floor(zoom * 0.62)}px system-ui, sans-serif`;
-      for (let y = 0; y < hoehe; y++) {
-        for (let x = 0; x < breite; x++) {
-          // Ein freies Feld bekommt kein Symbol – dort ist nichts zu sticken.
-          const eintrag = eintraege[raster[y * breite + x]];
-          if (!eintrag) continue;
-          const rgb = farben[eintrag.index] ?? stoff;
-          stift.fillStyle = istDunkel(rgb[0], rgb[1], rgb[2]) ? "#ffffff" : "#000000";
-          stift.fillText(eintrag.symbol, (x + 0.5) * zoom, (y + 0.55) * zoom);
-        }
-      }
-    }
-
-    // --- Auswahl ------------------------------------------------------------
-    if (auswahl) {
-      stift.fillStyle = "rgba(29,78,216,0.28)";
-      for (let y = 0; y < hoehe; y++) {
-        for (let x = 0; x < breite; x++) {
-          if (!auswahl[y * breite + x]) continue;
-          stift.fillRect(x * zoom, y * zoom, zoom, zoom);
-        }
-      }
-      // Umrandung: nur die Kanten zeichnen, an denen die Auswahl endet.
-      stift.strokeStyle = "#1d4ed8";
-      stift.lineWidth = Math.max(2, zoom * 0.14);
-      stift.beginPath();
-      for (let y = 0; y < hoehe; y++) {
-        for (let x = 0; x < breite; x++) {
-          if (!auswahl[y * breite + x]) continue;
-          const px = x * zoom;
-          const py = y * zoom;
-          if (y === 0 || !auswahl[(y - 1) * breite + x]) {
-            stift.moveTo(px, py);
-            stift.lineTo(px + zoom, py);
-          }
-          if (y === hoehe - 1 || !auswahl[(y + 1) * breite + x]) {
-            stift.moveTo(px, py + zoom);
-            stift.lineTo(px + zoom, py + zoom);
-          }
-          if (x === 0 || !auswahl[y * breite + x - 1]) {
-            stift.moveTo(px, py);
-            stift.lineTo(px, py + zoom);
-          }
-          if (x === breite - 1 || !auswahl[y * breite + x + 1]) {
-            stift.moveTo(px + zoom, py);
-            stift.lineTo(px + zoom, py + zoom);
-          }
-        }
-      }
-      stift.stroke();
-    }
-
-    // --- Rahmen der Einfügevorschau ----------------------------------------
-    if (vorschau) {
-      stift.strokeStyle = "#8a1c1c";
-      stift.lineWidth = Math.max(3, zoom * 0.2);
-      stift.setLineDash([zoom, zoom]);
-      stift.strokeRect(
-        vorschau.x * zoom,
-        vorschau.y * zoom,
-        vorschau.w * zoom,
-        vorschau.h * zoom,
-      );
-      stift.setLineDash([]);
-    }
-  }, [breite, hoehe, raster, palette, zoom, mitLinien, mitSymbolen, auswahl, vorschau]);
-
-  // --- Zeigerbehandlung -----------------------------------------------------
-  /**
-   * Vom Bildschirmpunkt zum Rasterfeld.
-   *
-   * Rutscht der Finger während eines Zuges über den Rand des Musters hinaus,
-   * wird auf das äußerste Feld begrenzt statt das Ereignis zu verwerfen.
-   * Sonst risse eine Freihandauswahl ab, sobald jemand am Rand entlangfährt –
-   * und genau dort fährt man beim Umranden eines Motivs.
-   */
-  const feldAus = useCallback(
-    (e: React.PointerEvent<HTMLCanvasElement>) => {
-      const canvas = leinwand.current;
-      if (!canvas) return null;
-      const rahmen = canvas.getBoundingClientRect();
-      const x = Math.floor(((e.clientX - rahmen.left) / rahmen.width) * breite);
-      const y = Math.floor(((e.clientY - rahmen.top) / rahmen.height) * hoehe);
-      return {
-        x: Math.max(0, Math.min(breite - 1, x)),
-        y: Math.max(0, Math.min(hoehe - 1, y)),
-      };
-    },
-    [breite, hoehe],
-  );
+    if (!klein.current) klein.current = document.createElement("canvas");
+    kleinbildZeichnen(klein.current, breite, hoehe, raster, tabelle);
+    musterZeichnen(canvas, klein.current, {
+      breite,
+      hoehe,
+      raster,
+      tabelle,
+      zoom,
+      versatzX: 0,
+      versatzY: 0,
+      sichtBreite: Math.round(breite * zoom),
+      sichtHoehe: Math.round(hoehe * zoom),
+      mitLinien,
+      mitSymbolen,
+      dichte: 1,
+    });
+  }, [breite, hoehe, raster, tabelle, zoom, mitLinien, mitSymbolen]);
 
   return (
     <canvas
       ref={leinwand}
       role="img"
       aria-label={beschriftung}
-      className="raster block h-auto max-w-none touch-none select-none"
+      className="raster block h-auto max-w-none select-none"
       style={{ width: Math.round(breite * zoom), height: Math.round(hoehe * zoom) }}
-      onPointerDown={(e) => {
-        if (!onZeiger) return;
-        const feld = feldAus(e);
-        if (!feld) return;
-        gedrueckt.current = true;
-        letztesFeld.current = feld;
-        e.currentTarget.setPointerCapture(e.pointerId);
-        onZeiger({ ...feld, gedrueckt: true, beginn: true });
-      }}
-      onPointerMove={(e) => {
-        if (!onZeiger || !gedrueckt.current) return;
-        const feld = feldAus(e);
-        if (!feld) return;
-        if (letztesFeld.current?.x === feld.x && letztesFeld.current?.y === feld.y) return;
-        letztesFeld.current = feld;
-        onZeiger({ ...feld, gedrueckt: true, beginn: false });
-      }}
-      onPointerUp={(e) => {
-        if (!onZeiger || !gedrueckt.current) return;
-        gedrueckt.current = false;
-        const feld = feldAus(e) ?? letztesFeld.current;
-        if (feld) onZeiger({ ...feld, gedrueckt: false, beginn: false });
-        letztesFeld.current = null;
-      }}
-      onPointerCancel={() => {
-        gedrueckt.current = false;
-        letztesFeld.current = null;
-      }}
     />
   );
 }
@@ -315,16 +86,19 @@ const KLEINSTER = ZOOMSTUFEN[0];
 const GROESSTER = ZOOMSTUFEN[ZOOMSTUFEN.length - 1];
 
 /**
- * Merkt sich die Vergrößerung.
+ * Merkt sich die Vergrößerung der Druckvorschau.
  *
  * `einpassen` rechnet aus, wie groß ein Stich sein darf, damit das ganze
  * Muster in den vorhandenen Platz passt – und nimmt genau diesen Wert, nicht
- * den nächstkleineren Rastpunkt. Sonst bliebe je nach Bildschirm ein
- * Viertel der Fläche ungenutzt, und die Nutzerin soll ihre Arbeit so groß
- * wie möglich sehen.
+ * den nächstkleineren Rastpunkt. Sonst bliebe je nach Bildschirm ein Viertel
+ * der Fläche ungenutzt, und die Nutzerin soll ihre Arbeit so groß wie möglich
+ * sehen.
  *
  * Die Rastpunkte gelten nur für „Größer" und „Kleiner": von jeder Stelle aus
  * geht es zum nächsten Punkt darüber oder darunter.
+ *
+ * Beim Bearbeiten in Schritt 3 gilt das nicht mehr – dort zoomt das Mausrad
+ * stufenlos, siehe `useAnsicht` in `Arbeitsflaeche.tsx`.
  */
 export function useZoom(start = 6) {
   const [zoom, setZoom] = useState(start);

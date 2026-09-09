@@ -18,6 +18,10 @@ import { useEffect, useRef, type ReactNode } from "react";
  * gefüllt. Das sah aus wie vier Hauptaktionen und stritt mit dem grünen Knopf
  * unten, der wirklich eine ist. Jetzt tragen die Reiter nur Schrift und einen
  * Strich – Farbe bleibt dem vorbehalten, was etwas auslöst.
+ *
+ * Die Werkzeuge selbst stehen seit dem Umbau nicht mehr in einem der Reiter,
+ * sondern als Schiene an der Leinwand: was man ständig braucht, darf nicht
+ * hinter einem Reiter liegen. Die Reiter tragen, was zum Werkzeug gehört.
  */
 export type Bereich = { schluessel: string; titel: string };
 
@@ -44,7 +48,7 @@ export function Bereichswahl({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div role="tablist" className="flex shrink-0 border-b border-linie">
+      <div role="tablist" className="flex shrink-0 items-stretch border-b border-linie">
         {bereiche.map((bereich) => {
           const ist = bereich.schluessel === gewaehlt;
           return (
@@ -54,7 +58,7 @@ export function Bereichswahl({
               role="tab"
               aria-selected={ist}
               onClick={() => onWaehlen(bereich.schluessel)}
-              className={`min-h-[56px] flex-1 border-b-[4px] px-2 text-[1rem] font-bold leading-tight ${
+              className={`min-h-[56px] min-w-0 flex-1 border-b-[4px] px-1 text-[0.92rem] font-bold whitespace-nowrap ${
                 ist
                   ? "border-hauptaktion text-hauptaktion"
                   : "border-transparent text-gedaempft hover:bg-hinweis hover:text-tinte"

@@ -59,12 +59,14 @@ export function Knopf({
 type KnopfLinkProps = ComponentProps<typeof Link> & {
   art?: KnopfArt;
   gross?: boolean;
+  klein?: boolean;
   children: ReactNode;
 };
 
 export function KnopfLink({
   art = "neben",
   gross,
+  klein,
   className = "",
   children,
   ...rest
@@ -72,7 +74,9 @@ export function KnopfLink({
   return (
     <Link
       {...rest}
-      className={`${GRUNDSTIL} ${ARTEN[art]} ${gross ? "min-h-[72px] px-10 text-[1.3rem]" : ""} ${className}`}
+      className={`${GRUNDSTIL} ${ARTEN[art]} ${gross ? "min-h-[72px] px-10 text-[1.3rem]" : ""} ${
+        klein ? "px-4 text-[0.95rem]" : ""
+      } ${className}`}
     >
       {children}
     </Link>
