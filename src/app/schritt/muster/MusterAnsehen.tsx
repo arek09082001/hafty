@@ -7,6 +7,7 @@ import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Dialog } from "@/components/Dialog";
 import { Glaettungsregler } from "@/components/Glaettungsregler";
+import { Farbregler } from "@/components/Farbregler";
 import { Legende } from "@/components/Legende";
 import { Farbstreifen } from "@/components/Farbstreifen";
 import { Motivliste } from "@/components/Motivliste";
@@ -71,6 +72,7 @@ export function MusterAnsehen() {
     raster,
     einstellungen,
     glaettungSetzen,
+    farbanzahlSetzen,
     laeuft,
     fehler,
     fehlerSetzen,
@@ -1139,6 +1141,17 @@ export function MusterAnsehen() {
                         kennzahlen={muster.kennzahlen}
                         laeuft={laeuft}
                         onAendern={glaettungSetzen}
+                      />
+                    </Abschnitt>
+                    {/* Direkt unter der Glättung: beide Regler entscheiden
+                        darüber, wie fein das Muster wird, und man stellt sie
+                        im Wechsel ein, bis es stimmt. */}
+                    <Abschnitt titel={t("farben.frage")}>
+                      <Farbregler
+                        farbanzahl={einstellungen.farbanzahl}
+                        imMuster={muster.farbenNachher}
+                        laeuft={laeuft}
+                        onAendern={farbanzahlSetzen}
                       />
                     </Abschnitt>
                     <Farbmeldung

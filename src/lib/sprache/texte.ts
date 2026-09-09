@@ -291,6 +291,15 @@ export const DE = {
   "glaettung.farbwechsel": "Farbwechsel pro Reihe",
   "glaettung.farbwechselText": "So oft wechselt in einer Reihe im Schnitt die Farbe.",
 
+  // --- Der Farbregler im Editor --------------------------------------------
+  "farben.frage": "Wie viele Farben soll das Muster haben?",
+  "farben.erklaerung":
+    "Mehr Farben heißt mehr Abstufungen und ein Bild, das dem Foto näher kommt. Weniger Farben heißt weniger Garn zu kaufen und ruhigere Flächen. Sie können hier so oft hin und her stellen, wie Sie mögen – Ihre eigenen Stiche bleiben dabei erhalten.",
+  "farben.gewuenscht": "{anzahl} Farben",
+  "farben.imMuster": "Farben im Muster",
+  "farben.imMusterText":
+    "So viele bleiben nach dem Glätten wirklich übrig. Sind es weniger als gewünscht, waren zwei Töne so ähnlich, dass sie dasselbe Garn bekommen haben.",
+
   // --- Legende ------------------------------------------------------------
   // --- Farben in Worten ----------------------------------------------------
   // Nur fuer Garne, denen der Hersteller keinen Namen gegeben hat
@@ -759,6 +768,14 @@ export const PL: Record<Textschluessel, string> = {
     "Tyle razy trzeba będzie nawlekać igłę dla jednego lub dwóch krzyżyków.",
   "glaettung.farbwechsel": "Zmian koloru na rząd",
   "glaettung.farbwechselText": "Tyle razy średnio zmienia się kolor w jednym rzędzie.",
+
+  "farben.frage": "Ile kolorów ma mieć wzór?",
+  "farben.erklaerung":
+    "Więcej kolorów to więcej odcieni i obraz bliższy zdjęciu. Mniej kolorów to mniej nici do kupienia i spokojniejsze powierzchnie. Można przestawiać tam i z powrotem, ile się chce – własne ściegi przy tym zostają.",
+  "farben.gewuenscht": "kolorów: {anzahl}",
+  "farben.imMuster": "Kolorów we wzorze",
+  "farben.imMusterText":
+    "Tyle zostaje naprawdę po wygładzeniu. Jeśli jest ich mniej niż wybrano, dwa odcienie były tak podobne, że dostały tę samą nitkę.",
 
   // --- Farben in Worten ----------------------------------------------------
   // Im Polnischen steht die Stufe vor dem Farbwort und beide sind

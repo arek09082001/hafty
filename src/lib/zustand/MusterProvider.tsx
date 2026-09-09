@@ -15,6 +15,7 @@ import {
   MAX_FELDER,
   STANDARD_EINSTELLUNGEN,
   einstellungenLesen,
+  farbanzahlBegrenzen,
   glaettungBegrenzen,
   glaettungswerte,
   type Einstellungen,
@@ -136,6 +137,17 @@ function aufStapel(stapel: Schritt[], schritt: Schritt): Schritt[] {
 
 /** Was der Worker nach einer Glättung zurückgibt. */
 type Geglaettet = Extract<AntwortVomWorker, { art: "fertig" }>;
+
+/**
+ * Was gerechnet werden soll. Beide Regler münden darin: die Glättung braucht
+ * nur den ICM-Lauf, eine neue Farbzahl zusätzlich ein neues k-Means.
+ */
+type Wunsch = {
+  staerke: number;
+  farbanzahl: number;
+  /** Muss die Palette neu gefunden werden, oder reicht die Glättung? */
+  farbenNeu: boolean;
+};
 
 function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
   switch (aktion.art) {
@@ -302,6 +314,8 @@ type MusterKontext = {
   erzeugen: () => Promise<boolean>;
   /** Nur die Glättung neu rechnen – für den Schieberegler. */
   glaettungSetzen: (staerke: number) => void;
+  /** Die Farbzahl neu wählen, ohne das Bild noch einmal zu lesen. */
+  farbanzahlSetzen: (anzahl: number) => void;
 
   felderAendern: (titel: Textschluessel, indizes: number[], werte: number[]) => void;
   bearbeitungErsetzen: (titel: Textschluessel, neue: Int16Array) => void;
@@ -652,38 +666,47 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     }
   }, [bild, einstellungen, garne, muster, workerHolen]);
 
-  // --- Nur die Glättung -----------------------------------------------------
+  // --- Nachrechnen für die beiden Regler ------------------------------------
   /**
-   * Der Regler läuft stufenlos, ein Zug daran erzeugt also Dutzende Werte
+   * Beide Regler laufen stufenlos, ein Zug daran erzeugt also Dutzende Werte
    * hintereinander. Gerechnet wird trotzdem immer nur ein Muster: läuft schon
-   * eine Glättung, wird die neue Stellung bloß gemerkt und danach allein die
-   * zuletzt gewünschte gerechnet. Alles dazwischen wäre überholt, bevor es
+   * eine Runde, wird der neue Wunsch bloß gemerkt und danach allein der
+   * zuletzt geäußerte gerechnet. Alles dazwischen wäre überholt, bevor es
    * fertig ist.
    *
    * Das ist nicht nur eine Frage der Rechenzeit: der Worker beantwortet immer
    * genau einen Auftrag, zwei gleichzeitig abgeschickte Aufträge würden ihre
-   * Antworten vertauschen.
+   * Antworten vertauschen. Glättung und Farbzahl hängen deshalb an derselben
+   * Warteschlange und nicht an zwei nebeneinanderher laufenden.
    *
    * Zwischen zwei Runden bleibt „es läuft" stehen. Sonst sprängen die Zahlen
-   * unter dem Regler bei jedem Zug kurz auf einen Zwischenstand.
+   * unter den Reglern bei jedem Zug kurz auf einen Zwischenstand.
    */
-  const glaettungLaeuft = useRef(false);
-  const glaettungOffen = useRef<number | null>(null);
+  const rechnenLaeuft = useRef(false);
+  const offenerWunsch = useRef<Wunsch | null>(null);
 
-  const glaettungRechnen = useCallback(
-    async (staerke: number) => {
-      glaettungLaeuft.current = true;
+  const nachrechnen = useCallback(
+    async (wunsch: Wunsch) => {
+      rechnenLaeuft.current = true;
       setLaeuft(true);
 
       try {
-        let naechste: number | null = staerke;
-        while (naechste !== null) {
-          const werte = glaettungswerte(naechste);
-          const antwort = await anWorkerSenden(workerHolen(), wartend, {
-            art: "glaetten",
-            lambda: werte.lambda,
-            mindestFlaeche: werte.mindestFlaeche,
-          });
+        let naechster: Wunsch | null = wunsch;
+        while (naechster !== null) {
+          const werte = glaettungswerte(naechster.staerke);
+          const antwort = await anWorkerSenden(
+            workerHolen(),
+            wartend,
+            naechster.farbenNeu
+              ? {
+                  art: "farben",
+                  farbanzahl: naechster.farbanzahl,
+                  lambda: werte.lambda,
+                  mindestFlaeche: werte.mindestFlaeche,
+                  garne,
+                }
+              : { art: "glaetten", lambda: werte.lambda, mindestFlaeche: werte.mindestFlaeche },
+          );
 
           if (antwort.art === "fehler") {
             setFehler(antwort.text);
@@ -691,30 +714,58 @@ export function MusterProvider({ children }: { children: ReactNode }) {
             ausloesen({ art: "geglaettet", antwort });
           }
 
-          naechste = glaettungOffen.current;
-          glaettungOffen.current = null;
+          naechster = offenerWunsch.current;
+          offenerWunsch.current = null;
         }
       } finally {
-        glaettungLaeuft.current = false;
+        rechnenLaeuft.current = false;
         setLaeuft(false);
         setFortschritt(null);
       }
     },
-    [workerHolen],
+    [garne, workerHolen],
+  );
+
+  /**
+   * Einen Wunsch anmelden. Läuft gerade eine Runde, wird er nur gemerkt – und
+   * dabei mit einem schon wartenden verschmolzen: wer erst die Farbzahl und
+   * dann die Glättung schiebt, soll beides bekommen und nicht nur das Letzte.
+   */
+  const anmelden = useCallback(
+    (wunsch: Wunsch) => {
+      if (!muster) return;
+      if (rechnenLaeuft.current) {
+        const wartet = offenerWunsch.current;
+        offenerWunsch.current = wartet
+          ? { ...wunsch, farbenNeu: wunsch.farbenNeu || wartet.farbenNeu }
+          : wunsch;
+        return;
+      }
+      void nachrechnen(wunsch);
+    },
+    [muster, nachrechnen],
   );
 
   const glaettungSetzen = useCallback(
     (staerke: number) => {
       const wert = glaettungBegrenzen(staerke);
       setEinstellungen((e) => ({ ...e, glaettungsstaerke: wert }));
-      if (!muster) return;
-      if (glaettungLaeuft.current) {
-        glaettungOffen.current = wert;
-        return;
-      }
-      void glaettungRechnen(wert);
+      anmelden({ staerke: wert, farbanzahl: einstellungen.farbanzahl, farbenNeu: false });
     },
-    [muster, glaettungRechnen],
+    [anmelden, einstellungen.farbanzahl],
+  );
+
+  const farbanzahlSetzen = useCallback(
+    (anzahl: number) => {
+      const wert = farbanzahlBegrenzen(anzahl);
+      setEinstellungen((e) => ({ ...e, farbanzahl: wert }));
+      anmelden({
+        staerke: einstellungen.glaettungsstaerke,
+        farbanzahl: wert,
+        farbenNeu: true,
+      });
+    },
+    [anmelden, einstellungen.glaettungsstaerke],
   );
 
   const raster = useMemo(
@@ -795,6 +846,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       fehlerSetzen: setFehler,
       erzeugen,
       glaettungSetzen,
+      farbanzahlSetzen,
       felderAendern: (titel, indizes, werte) =>
         ausloesen({ art: "felderAendern", titel, indizes, werte }),
       bearbeitungErsetzen: (titel, neue) =>
@@ -831,6 +883,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       fehler,
       erzeugen,
       glaettungSetzen,
+      farbanzahlSetzen,
       musterId,
       versionId,
       standZaehler,

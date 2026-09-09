@@ -444,6 +444,16 @@ export type GarnZuordnung = {
 };
 
 /**
+ * Bis zu diesem Farbabstand (CIEDE2000) gelten zwei Clusterzentren als
+ * dieselbe Farbe.
+ *
+ * Unterhalb von etwa 2 sind zwei Töne auf gesticktem Garn nicht mehr
+ * auseinanderzuhalten – zwei Stränge dafür zu kaufen wäre herausgeworfenes
+ * Geld. Alles darüber ist ein sichtbarer Unterschied und gehört ins Muster.
+ */
+const VERSCHMELZ_GRENZE = 2;
+
+/**
  * Jedes Clusterzentrum bekommt die nächstliegende Garnfarbe, gemessen mit
  * CIEDE2000.
  *
@@ -452,11 +462,26 @@ export type GarnZuordnung = {
  * einem 200 × 260 großen Muster 26 Millionen – unnötig, denn alle Felder
  * eines Clusters bekommen ohnehin dieselbe Farbe.
  *
- * Zwei Cluster können auf demselben Garn landen. Dann werden sie
- * zusammengelegt: aus 24 Farben werden 22 Garne. Die Rückgabe sagt über
- * `abbildung`, welcher alte Index auf welchen neuen zeigt, und über
- * `zusammengelegt`, wie viele Farben dabei verschwunden sind – die Nutzerin
- * bekommt das als ganzen Satz zu lesen.
+ * Zwei Cluster können sich dasselbe Garn wünschen. Früher wurden sie dann
+ * kurzerhand zusammengelegt: aus 24 gewünschten Farben wurden 16, und das
+ * Muster verlor genau die Abstufungen, für die die Nutzerin die Farbzahl
+ * hochgestellt hatte. Deshalb wird jetzt zuerst ausgewichen und erst als
+ * letztes zusammengelegt:
+ *
+ *  - Wer am dichtesten an seinem Wunschgarn liegt, bekommt es. Das ist der
+ *    Grund für die Reihenfolge weiter unten: ein Cluster, das ein Garn fast
+ *    genau trifft, soll es nicht an eines verlieren, das ohnehin danebenliegt
+ *    und genauso gut ausweichen kann.
+ *  - Ist das Wunschgarn schon vergeben, nimmt das Cluster das nächste noch
+ *    freie. Der Ton verschiebt sich dabei ein wenig, aber die Abstufung
+ *    bleibt erhalten – und darum geht es beim Sticken.
+ *  - Zusammengelegt wird nur noch, wenn die beiden Cluster ohnehin dieselbe
+ *    Farbe sind (`VERSCHMELZ_GRENZE`) oder der Katalog erschöpft ist, weil
+ *    zum Beispiel nur der eigene Vorrat verwendet werden soll.
+ *
+ * Die Rückgabe sagt über `abbildung`, welcher alte Index auf welchen neuen
+ * zeigt, und über `zusammengelegt`, wie viele Farben dabei verschwunden sind
+ * – die Nutzerin bekommt das als ganzen Satz zu lesen.
  */
 export function aufGarneAbbilden(zentren: Float32Array, garne: Garn[]): GarnZuordnung {
   const k = zentren.length / 3;
@@ -472,38 +497,88 @@ export function aufGarneAbbilden(zentren: Float32Array, garne: Garn[]): GarnZuor
     return { garne: new Array(k).fill(null), farben, abbildung, zusammengelegt: 0 };
   }
 
-  // Für jedes Cluster das nächste Garn suchen.
-  const gewaehlt: Garn[] = [];
+  const ziele: Lab[] = [];
   for (let c = 0; c < k; c++) {
-    const ziel: Lab = { L: zentren[c * 3], a: zentren[c * 3 + 1], b: zentren[c * 3 + 2] };
-    let bestes = garne[0];
-    let besterAbstand = Infinity;
-    for (const garn of garne) {
-      const d = ciede2000(ziel, garn);
-      if (d < besterAbstand) {
-        besterAbstand = d;
-        bestes = garn;
-      }
-    }
-    gewaehlt.push(bestes);
+    ziele.push({ L: zentren[c * 3], a: zentren[c * 3 + 1], b: zentren[c * 3 + 2] });
   }
 
-  // Doppelte Garne zusammenlegen.
-  const gesehen = new Map<string, number>();
-  const abbildung = new Int32Array(k);
-  const neueGarne: Garn[] = [];
+  // Alle Abstände Cluster × Garn einmal ausrechnen. Sie werden gleich
+  // mehrfach gebraucht: für die Reihenfolge und für jedes Ausweichen.
+  const abstaende = ziele.map((ziel) => {
+    const zeile = new Float64Array(garne.length);
+    for (let g = 0; g < garne.length; g++) zeile[g] = ciede2000(ziel, garne[g]);
+    return zeile;
+  });
 
-  for (let c = 0; c < k; c++) {
-    const schluessel = gewaehlt[c].id;
-    const vorhanden = gesehen.get(schluessel);
-    if (vorhanden === undefined) {
-      const neu = neueGarne.length;
-      gesehen.set(schluessel, neu);
-      neueGarne.push(gewaehlt[c]);
-      abbildung[c] = neu;
-    } else {
-      abbildung[c] = vorhanden;
+  /** Index des besten Garns in einer Zeile, wahlweise nur unter den freien. */
+  const bestes = (zeile: Float64Array, frei?: Uint8Array): number => {
+    let index = -1;
+    let abstand = Infinity;
+    for (let g = 0; g < zeile.length; g++) {
+      if (frei && !frei[g]) continue;
+      if (zeile[g] < abstand) {
+        abstand = zeile[g];
+        index = g;
+      }
     }
+    return index;
+  };
+
+  // Wer sein Wunschgarn am genauesten trifft, wählt zuerst. Der Abstand dazu
+  // wird einmal ausgerechnet und nicht in jedem Vergleich der Sortierung.
+  const wunschAbstand = abstaende.map((zeile) => zeile[bestes(zeile)]);
+  const reihenfolge = ziele.map((_, c) => c);
+  reihenfolge.sort((a, b) => wunschAbstand[a] - wunschAbstand[b]);
+
+  const frei = new Uint8Array(garne.length).fill(1);
+  /** Für jedes Cluster das eigene Garn – oder null, wenn es verschmilzt. */
+  const eigenesGarn: Array<Garn | null> = new Array(k).fill(null);
+  /** Wer das Garn schon hat, auf das dieses Cluster verschmolzen ist. */
+  const verschmolzenMit = new Int32Array(k).fill(-1);
+  /** Garn-Id -> das Cluster, dem sie gehört. */
+  const inhaber = new Map<string, number>();
+
+  for (const c of reihenfolge) {
+    const zeile = abstaende[c];
+    const wunsch = bestes(zeile);
+    const besitzer = inhaber.get(garne[wunsch].id);
+
+    if (besitzer === undefined) {
+      eigenesGarn[c] = garne[wunsch];
+      inhaber.set(garne[wunsch].id, c);
+      frei[wunsch] = 0;
+      continue;
+    }
+
+    // Das Wunschgarn ist vergeben. Sind die beiden Cluster ohnehin dieselbe
+    // Farbe, gehören sie zusammen; sonst wird ausgewichen.
+    const ausweich = ciede2000(ziele[c], ziele[besitzer]) > VERSCHMELZ_GRENZE
+      ? bestes(zeile, frei)
+      : -1;
+
+    if (ausweich < 0) {
+      verschmolzenMit[c] = besitzer;
+      continue;
+    }
+
+    eigenesGarn[c] = garne[ausweich];
+    inhaber.set(garne[ausweich].id, c);
+    frei[ausweich] = 0;
+  }
+
+  // Die neuen Indizes werden in der Clusterreihenfolge vergeben und nicht in
+  // der Wahlreihenfolge – so hängt die Palette nicht daran, wer zufällig
+  // zuerst gewählt hat.
+  const abbildung = new Int32Array(k).fill(-1);
+  const neueGarne: Garn[] = [];
+  for (let c = 0; c < k; c++) {
+    const garn = eigenesGarn[c];
+    if (!garn) continue;
+    abbildung[c] = neueGarne.length;
+    neueGarne.push(garn);
+  }
+  for (let c = 0; c < k; c++) {
+    if (abbildung[c] < 0) abbildung[c] = abbildung[verschmolzenMit[c]];
   }
 
   return {

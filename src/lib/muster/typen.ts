@@ -188,10 +188,21 @@ export function einstellungenLesen(gespeichert: unknown): Einstellungen {
   return {
     breiteStiche: zahl(roh.breiteStiche, STANDARD_EINSTELLUNGEN.breiteStiche),
     stoffzaehlung: zahl(roh.stoffzaehlung, STANDARD_EINSTELLUNGEN.stoffzaehlung),
-    farbanzahl: zahl(roh.farbanzahl, STANDARD_EINSTELLUNGEN.farbanzahl),
+    farbanzahl: farbanzahlBegrenzen(zahl(roh.farbanzahl, STANDARD_EINSTELLUNGEN.farbanzahl)),
     glaettungsstaerke: glaettungBegrenzen(staerke),
     nurEigeneGarne: roh.nurEigeneGarne === true,
   };
+}
+
+/**
+ * Eine gewünschte Farbzahl auf das Machbare begrenzen.
+ *
+ * Sie steht nicht mehr nur in Schritt 2, sondern lässt sich im Editor am
+ * Regler ändern – und ein Regler liefert auch Zwischenwerte und Unsinn.
+ */
+export function farbanzahlBegrenzen(anzahl: number): number {
+  if (!Number.isFinite(anzahl)) return STANDARD_EINSTELLUNGEN.farbanzahl;
+  return Math.min(MAX_FARBEN, Math.max(MIN_FARBEN, Math.round(anzahl)));
 }
 
 /** Übliche Stoffzählungen. */
@@ -260,6 +271,60 @@ export const MIN_BREITE = 20;
  */
 export const MAX_FARBEN = GARNE.length;
 export const MIN_FARBEN = 2;
+
+/**
+ * Wie viele Farben ein Tipp auf „Mehr" dazugibt.
+ *
+ * Unten in Zweierschritten: da entscheidet jede einzelne Farbe darüber, wie
+ * das Bild aussieht. Weiter oben in größeren – von 20 bis an den ganzen
+ * Katalog wären es sonst fast zweihundert Tipps, und zwischen 300 und 302
+ * Farben liegt ohnehin kein sichtbarer Unterschied.
+ *
+ * Steht hier und nicht in einer der beiden Seiten, weil die Farbzahl an zwei
+ * Stellen eingestellt wird – in Schritt 2 und am Regler im Editor. Zwei
+ * verschiedene Schrittweiten für dieselbe Zahl wären nicht zu erklären.
+ */
+export function farbenSchritt(wert: number): number {
+  if (wert < 24) return 2;
+  if (wert < 60) return 4;
+  if (wert < 150) return 10;
+  return 25;
+}
+
+/**
+ * Der Farbregler im Editor.
+ * ---------------------------------------------------------------------------
+ *
+ * Der Regler läuft in gleichen Schritten von links nach rechts, die Farbzahl
+ * dahinter aber nicht. Zwischen 8 und 12 Farben liegt ein ganz anderes
+ * Muster; zwischen 300 und 320 sieht niemand einen Unterschied. Auf einer
+ * geraden Skala von 2 bis 375 läge der ganze interessante Bereich in den
+ * ersten Millimetern, und mit dem Finger auf dem Tablet wäre er nicht zu
+ * treffen.
+ *
+ * Deshalb wächst die Farbzahl geometrisch: gleich große Wege am Regler
+ * bedeuten überall dieselbe **anteilige** Änderung. Die Mitte liegt damit bei
+ * rund 27 Farben, ein Viertel bei etwa 7, drei Viertel bei etwa 100 – die
+ * untere Hälfte des Reglers deckt genau den Bereich ab, in dem jede einzelne
+ * Farbe zählt.
+ */
+export const FARBREGLER_MAX = 100;
+
+/** Reglerstellung (0..100) -> Farbzahl. */
+export function farbanzahlAusRegler(stellung: number): number {
+  const anteil = Math.min(1, Math.max(0, stellung / FARBREGLER_MAX));
+  return farbanzahlBegrenzen(MIN_FARBEN * (MAX_FARBEN / MIN_FARBEN) ** anteil);
+}
+
+/** Farbzahl -> Reglerstellung (0..100), die Umkehrung von `farbanzahlAusRegler`. */
+export function reglerAusFarbanzahl(anzahl: number): number {
+  const wert = farbanzahlBegrenzen(anzahl);
+  const anteil = Math.log(wert / MIN_FARBEN) / Math.log(MAX_FARBEN / MIN_FARBEN);
+  return Math.round(anteil * FARBREGLER_MAX);
+}
+
+/** Orientierungspunkte am Farbregler – keine Rastpunkte. */
+export const FARBMARKEN = [MIN_FARBEN, 10, 25, 60, 150, MAX_FARBEN] as const;
 
 /** Stiche in Zentimeter umrechnen. */
 export function sticheInCm(stiche: number, stoffzaehlung: number): number {
