@@ -116,10 +116,6 @@ export const DE = {
   "einst.nurEigene": "Nur meine Garne verwenden: {zustand}",
   "einst.ein": "ein",
   "einst.aus": "aus",
-  "einst.verlauf": "Selten gebraucht: Farbverlauf nachahmen",
-  "einst.verlaufText":
-    "Wenn Sie das einschalten, werden zwei Farben abwechselnd nebeneinandergesetzt, damit ein Verlauf weicher aussieht. Auf dem Bildschirm wirkt das gut, beim Sticken bedeutet es aber viele einzelne Stiche. Deshalb ist es normalerweise ausgeschaltet.",
-  "einst.verlaufSchalter": "Farbverlauf nachahmen: {zustand}",
   "einst.weniger": "Weniger",
   "einst.mehr": "Mehr",
   "einst.wenigerVon": "{was}: weniger",
@@ -255,12 +251,14 @@ export const DE = {
   // --- Glättung -----------------------------------------------------------
   "glaettung.frage": "Wie ruhig soll das Muster sein?",
   "glaettung.erklaerung":
-    "Schieben Sie den Regler nach rechts, wenn Sie große zusammenhängende Flächen möchten. Nach links wird das Bild genauer, aber es entstehen mehr einzelne Stiche.",
+    "Schieben Sie den Regler nach rechts, wenn Sie große zusammenhängende Flächen möchten. Nach links wird das Bild genauer, aber es entstehen mehr einzelne Stiche. Der Regler hat keine Stufen – jede Stellung dazwischen geht auch.",
   "glaettung.stufe0": "sehr detailliert",
   "glaettung.stufe1": "detailliert",
   "glaettung.stufe2": "ausgewogen",
   "glaettung.stufe3": "ruhig",
   "glaettung.stufe4": "ruhig und einfach zu sticken",
+  "glaettung.flaeche": "Kleinste Fläche: etwa {kante} × {kante} Kästchen.",
+  "glaettung.flaecheFrei": "Jedes einzelne Kästchen darf seine eigene Farbe haben.",
   "glaettung.einzelstiche": "Einzelne Stiche",
   "glaettung.einzelsticheText": "So oft müssen Sie für nur ein oder zwei Kreuze neu einfädeln.",
   "glaettung.farbwechsel": "Farbwechsel pro Reihe",
@@ -571,10 +569,6 @@ export const PL: Record<Textschluessel, string> = {
   "einst.nurEigene": "Używaj tylko moich nici: {zustand}",
   "einst.ein": "włączone",
   "einst.aus": "wyłączone",
-  "einst.verlauf": "Rzadko potrzebne: naśladowanie przejścia kolorów",
-  "einst.verlaufText":
-    "Po włączeniu dwa kolory będą układane na przemian obok siebie, żeby przejście wyglądało łagodniej. Na ekranie wygląda to dobrze, ale przy haftowaniu oznacza mnóstwo pojedynczych ściegów. Dlatego zwykle jest to wyłączone.",
-  "einst.verlaufSchalter": "Naśladuj przejście kolorów: {zustand}",
   "einst.weniger": "Mniej",
   "einst.mehr": "Więcej",
   "einst.wenigerVon": "{was}: mniej",
@@ -703,12 +697,14 @@ export const PL: Record<Textschluessel, string> = {
 
   "glaettung.frage": "Jak spokojny ma być wzór?",
   "glaettung.erklaerung":
-    "Proszę przesunąć suwak w prawo, jeśli chce Pani dużych, jednolitych powierzchni. W lewo obraz będzie dokładniejszy, ale powstanie więcej pojedynczych ściegów.",
+    "Proszę przesunąć suwak w prawo, jeśli chce Pani dużych, jednolitych powierzchni. W lewo obraz będzie dokładniejszy, ale powstanie więcej pojedynczych ściegów. Suwak nie ma stopni – każde położenie pomiędzy też jest możliwe.",
   "glaettung.stufe0": "bardzo szczegółowy",
   "glaettung.stufe1": "szczegółowy",
   "glaettung.stufe2": "wyważony",
   "glaettung.stufe3": "spokojny",
   "glaettung.stufe4": "spokojny i łatwy do haftowania",
+  "glaettung.flaeche": "Najmniejsza powierzchnia: około {kante} × {kante} kratek.",
+  "glaettung.flaecheFrei": "Każda pojedyncza kratka może mieć swój własny kolor.",
   "glaettung.einzelstiche": "Pojedyncze ściegi",
   "glaettung.einzelsticheText":
     "Tyle razy trzeba będzie nawlekać igłę dla jednego lub dwóch krzyżyków.",

@@ -234,6 +234,15 @@ Jetzt gilt:
 - **Zwei Seitenarten** (`src/components/Seite.tsx`): Leseseiten haben eine
   Spalte, die schmal genug zum Lesen bleibt; Arbeitsseiten (Muster, Drucken)
   füllen den Bildschirm, links das Muster, rechts 440 Punkte Bedienung.
+- **Was man anfassen kann, sagt das auch** (`src/app/globals.css`): Zeigefinger
+  auf allem Anklickbaren, „verboten" auf allem Gesperrten, Fadenkreuz über dem
+  Raster, und jeder Zustand antwortet auf den Mauszeiger – auch die schon
+  gewählte Zeile, die sonst als einzige tot wirkte.
+- **Der Glättungsregler hat keine Rastpunkte** (`src/lib/muster/typen.ts`): er
+  läuft stufenlos von „jedes Kästchen darf seine eigene Farbe haben" bis zu
+  einer Farbe je 10 × 10 Kästchen, und unter ihm steht in Kästchen, was die
+  Stellung bedeutet. Während des Ziehens wird immer nur die zuletzt gewünschte
+  Stellung gerechnet, nie die Zwischenwerte (`src/lib/zustand/MusterProvider.tsx`).
 
 Was davon unberührt bleibt, sind die Regeln für die Nutzerin: Grundschrift
 20px, jede Schaltfläche mindestens 56px hoch, jede mit Text beschriftet, pro
