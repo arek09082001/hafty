@@ -201,6 +201,10 @@ export function Startseite() {
         musterId={vergleich}
         offen={vergleich !== null}
         onSchliessen={() => setVergleich(null)}
+        onGeloescht={() => {
+          neuLaden();
+          jetztSichern();
+        }}
       />
 
       <Dialog

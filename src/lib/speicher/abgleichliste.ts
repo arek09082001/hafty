@@ -19,10 +19,11 @@ import { browserdatenbank, LADEN_ABGLEICH } from "./browserspeicher";
 
 /**
  * `loeschung` trägt die Kennung eines Projekts, das hier weg ist und
- * deshalb auch in der Ferne weg gehört. Ohne sie käme es beim nächsten
- * Holen wieder zurück.
+ * deshalb auch in der Ferne weg gehört; `standLoeschung` dasselbe für eine
+ * einzelne Version, als `projektId/standId`. Ohne sie kämen sie beim
+ * nächsten Holen wieder zurück.
  */
-export type Art = "projekt" | "stand" | "loeschung";
+export type Art = "projekt" | "stand" | "loeschung" | "standLoeschung";
 
 export type Vormerkung = {
   /** `art:kennung` – damit dieselbe Sache nie zweimal in der Liste steht. */

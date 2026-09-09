@@ -151,7 +151,7 @@ async function einmalHochladen(): Promise<void> {
   // Projekte zuerst: ein Stand ohne sein Projekt hätte in der Ferne keinen
   // Platz, an den er gehört. Löschungen zuletzt – sonst räumt eine von ihnen
   // auf, während für dasselbe Projekt noch etwas hochgeht.
-  const rang = { projekt: 0, stand: 1, loeschung: 2 } as const;
+  const rang = { projekt: 0, stand: 1, standLoeschung: 2, loeschung: 3 } as const;
   const sortiert = [...offen].sort((a, b) => rang[a.art] - rang[b.art]);
 
   for (const vormerkung of sortiert) {
@@ -177,7 +177,29 @@ async function einmalHochladen(): Promise<void> {
 async function einesHochladen(vormerkung: Vormerkung): Promise<void> {
   if (vormerkung.art === "projekt") return projektHochladen(vormerkung.kennung);
   if (vormerkung.art === "loeschung") return projektEntfernen(vormerkung.kennung);
+  if (vormerkung.art === "standLoeschung") return standEntfernen(vormerkung.kennung);
   return standHochladen(vormerkung.kennung);
+}
+
+/**
+ * Eine gelöschte Version auch in der Ferne wegräumen. Die Kennung ist
+ * `projektId/standId` – das Projekt steht dabei, weil die Dateien unter ihm
+ * liegen und die Zeile allein den Weg dorthin nicht mehr verrät.
+ */
+async function standEntfernen(kennung: string): Promise<void> {
+  const [projektId, standId] = kennung.split("/");
+  if (!projektId || !standId) return;
+  const zugang = await zugangHolen();
+
+  try {
+    await dateienLoeschen([
+      rasterPfad(zugang.benutzer, projektId, standId),
+      vorschauPfad(zugang.benutzer, projektId, standId),
+    ]);
+  } catch {
+    // Bleiben die Dateien liegen, findet sie ohne ihre Zeile niemand mehr.
+  }
+  await zeilenLoeschen("staende", `id=eq.${standId}`);
 }
 
 /**

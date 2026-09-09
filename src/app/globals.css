@@ -166,7 +166,10 @@ input[type="range"]:active::-moz-range-thumb {
 }
 
 /* Das Stichraster darf nie weichgezeichnet werden. */
-canvas.raster {
+/* Ein Stichraster wird hart vergroessert und nicht weichgezeichnet – als
+   Leinwand im Editor genauso wie als Vorschaubild in einer Kachel. */
+canvas.raster,
+img.raster {
   image-rendering: pixelated;
 }
 

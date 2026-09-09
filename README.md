@@ -316,6 +316,27 @@ Die Kacheln zeigen das gespeicherte Vorschaubild – es liegt neben jedem
 Stand und ist sofort da. Erst die große Ansicht holt das volle Raster, und
 ein einmal geholtes bleibt liegen, damit das Durchblättern nicht wartet.
 
+Die Kachel hat die **Form des Musters**: alle Versionen eines Bildes sind
+fast immer gleich geformt, und dann sitzt das Vorschaubild randlos darin
+statt zwischen zwei leeren Streifen. Vorgegeben ist dabei die Höhe und nicht
+die Breite – ein hochkantes Muster wäre sonst bei der größten Stufe
+siebenhundert Punkte hoch, und von der zweiten Reihe wäre nichts mehr zu
+sehen. Vergrößert wird hart und nicht weichgezeichnet (`img.raster` in
+`globals.css`): ein Stichraster ist blockig, und so soll es auch aussehen.
+
+**Löschen** geht von hier aus, in der Kachel und in der großen Ansicht, immer
+mit Rückfrage. Hängt ein jüngerer Stand als Kind an dem gelöschten, bekommt
+er dessen Elternteil – sonst risse der Baum an dieser Stelle auseinander. Die
+**letzte** Version eines Musters bleibt: ein Projekt ohne jede Version stünde
+auf der Startseite und ließe sich nicht mehr öffnen. Wer es ganz loswerden
+will, löscht dort das Projekt.
+
+Die Maße („100 × 173 Stiche") standen bei Ständen von vor dieser Übersicht
+nicht im Satz, sondern nur im gepackten Raster – in der Kachel stand dann
+„0 × 0". Sie werden jetzt beim ersten Anzeigen aus dem 14 Byte langen Kopf
+der Rasterdatei nachgetragen (`masseLesen` in `speicher/rle.ts`) und wandern
+gleich in den Satz zurück.
+
 ## Sicherung im Internet
 
 Ohne Einrichtung gibt es sie nicht, und die Oberfläche erwähnt sie mit keinem

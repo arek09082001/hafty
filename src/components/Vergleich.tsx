@@ -4,8 +4,15 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Knopf } from "./Knopf";
 import { Hinweis } from "./Hinweis";
+import { Dialog } from "./Dialog";
 import { Rasteransicht } from "./Rasteransicht";
-import { staendeLaden, standHolen, zeitpunktText, type Stand } from "@/lib/speicher/staende";
+import {
+  staendeLaden,
+  standHolen,
+  standLoeschen,
+  zeitpunktText,
+  type Stand,
+} from "@/lib/speicher/staende";
 import { zusammenfuehren } from "@/lib/muster/raster";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { PalettenEintrag } from "@/lib/muster/typen";
@@ -31,8 +38,14 @@ import type { PalettenEintrag } from "@/lib/muster/typen";
  * aus, denn dort will man die Kästchen zählen können.
  */
 
-/** Wie groß eine Kachel mindestens ist. Drei Stufen, mehr braucht niemand. */
-const KACHELBREITEN = [200, 300, 420] as const;
+/**
+ * Wie hoch das Bild einer Kachel ist. Drei Stufen, mehr braucht niemand.
+ *
+ * Vorgegeben ist die **Höhe** und nicht die Breite: ein hochkantes Muster
+ * wäre sonst bei der größten Stufe siebenhundert Punkte hoch, und von der
+ * zweiten Reihe wäre nichts mehr zu sehen.
+ */
+const KACHELHOEHEN = [170, 260, 380] as const;
 
 /** Vergrößerung in der großen Ansicht. 1 = ganzes Muster zu sehen. */
 const LUPE_STUFEN = [1, 1.5, 2, 3, 4, 6, 8] as const;
@@ -50,6 +63,7 @@ export function Vergleich({
   onSchliessen,
   onWiederherstellen,
   startStandId = null,
+  onGeloescht,
 }: {
   musterId: string | null;
   offen: boolean;
@@ -58,6 +72,8 @@ export function Vergleich({
   onWiederherstellen?: (stand: Stand) => Promise<void> | void;
   /** Welche Version die gerade bearbeitete ist – sie wird gekennzeichnet. */
   startStandId?: string | null;
+  /** Wird gerufen, wenn eine Version gelöscht wurde. */
+  onGeloescht?: (standId: string) => void;
 }) {
   const { t, sprache, zahl } = useSprache();
 
@@ -79,6 +95,8 @@ export function Vergleich({
   const [lupeStufe, setLupeStufe] = useState(0);
   const [mitte, setMitte] = useState({ x: 0.5, y: 0.5 });
   const [holtGerade, setHoltGerade] = useState(false);
+  /** Welche Version gerade zum Löschen angeboten wird – erst nach Rückfrage. */
+  const [zumLoeschen, setZumLoeschen] = useState<Stand | null>(null);
 
   /**
    * Die schon geholten Raster der großen Ansicht. Sie bleiben liegen: ein
@@ -91,6 +109,18 @@ export function Vergleich({
   const passt = geladen?.schluessel === schluessel;
   const staende = passt ? geladen.staende : null;
   const gingSchief = passt && !geladen.ging;
+
+  /**
+   * Das Seitenverhältnis der Kacheln kommt vom Muster selbst: alle Versionen
+   * eines Bildes sind fast immer gleich geformt, und dann sitzt das
+   * Vorschaubild randlos in seiner Kachel statt zwischen zwei leeren
+   * Streifen. Kennt kein Stand seine Maße, bleibt es bei etwas hochkant –
+   * Stickmuster sind meistens hochkant.
+   */
+  const mitMassen = staende?.find((s) => s.breite && s.hoehe);
+  const kachelVerhaeltnis = mitMassen?.breite && mitMassen.hoehe
+    ? Math.min(2, Math.max(0.5, mitMassen.breite / mitMassen.hoehe))
+    : 1 / 1.15;
 
   const zeit = (iso: string) => zeitpunktText(iso, sprache, t);
 
@@ -149,6 +179,21 @@ export function Vergleich({
     };
   }, [offen, grosserStand]);
 
+  async function loeschen() {
+    const stand = zumLoeschen;
+    setZumLoeschen(null);
+    if (!stand || !musterId) return;
+    const geklappt = await standLoeschen(stand.id);
+    if (!geklappt) return;
+    onGeloescht?.(stand.id);
+
+    // Die Liste neu holen und zurück in die Übersicht: die große Ansicht
+    // zeigte sonst eine Version, die es nicht mehr gibt.
+    const liste = await staendeLaden(musterId);
+    setGeladen({ schluessel: musterId, staende: liste, ging: true });
+    setGross(null);
+  }
+
   async function wiederherstellen(stand: Stand) {
     if (!onWiederherstellen) return;
     setHoltGerade(true);
@@ -159,13 +204,21 @@ export function Vergleich({
 
   if (!offen) return null;
 
-  /** Die Angaben unter jeder Kachel und in der großen Ansicht. */
-  const angaben = (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) =>
-    t("vergleich.angaben", {
+  /**
+   * Die Angaben unter jeder Kachel und in der großen Ansicht. Sind die Maße
+   * ausnahmsweise nicht zu ermitteln, steht dort nur die Farbzahl – „0 × 0
+   * Stiche" wäre schlicht gelogen.
+   */
+  const angaben = (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) => {
+    const breite = stand.breite ?? breiteErsatz ?? 0;
+    const hoehe = stand.hoehe ?? hoeheErsatz ?? 0;
+    if (breite <= 0 || hoehe <= 0) return t("vergleich.nurFarben", { farben: zahl(stand.farben) });
+    return t("vergleich.angaben", {
       farben: zahl(stand.farben),
-      breite: zahl(stand.breite ?? breiteErsatz ?? 0),
-      hoehe: zahl(stand.hoehe ?? hoeheErsatz ?? 0),
+      breite: zahl(breite),
+      hoehe: zahl(hoehe),
     });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-papier">
@@ -219,6 +272,7 @@ export function Vergleich({
           onZurueck={() => setGross(null)}
           onSchliessen={onSchliessen}
           onNehmen={onWiederherstellen ? wiederherstellen : undefined}
+          onLoeschen={staende.length > 1 ? () => setZumLoeschen(grosserStand) : undefined}
           holtGerade={holtGerade}
           angaben={angaben}
           zeit={zeit}
@@ -245,8 +299,8 @@ export function Vergleich({
             </Knopf>
             <Knopf
               klein
-              onClick={() => setKachelStufe((s) => Math.min(KACHELBREITEN.length - 1, s + 1))}
-              disabled={kachelStufe === KACHELBREITEN.length - 1}
+              onClick={() => setKachelStufe((s) => Math.min(KACHELHOEHEN.length - 1, s + 1))}
+              disabled={kachelStufe === KACHELHOEHEN.length - 1}
             >
               {t("vergleich.lupeGroesser")}
             </Knopf>
@@ -260,13 +314,29 @@ export function Vergleich({
             <ul
               className="grid min-h-0 flex-1 content-start gap-5 overflow-y-auto p-5"
               style={{
-                gridTemplateColumns: `repeat(auto-fill, minmax(${KACHELBREITEN[kachelStufe]}px, 1fr))`,
+                // Die Spalte muss so breit sein, wie die Kachel in der Form
+                // des Musters wird – sonst stutzt `max-w-full` ein
+                // querformatiges Bild und die Form stimmt nicht mehr. Und nie
+                // schmaler als 190 Punkte: darunter zerbricht die
+                // Beschriftung darunter in Wortfetzen.
+                gridTemplateColumns: `repeat(auto-fill, minmax(${Math.max(
+                  190,
+                  Math.round(KACHELHOEHEN[kachelStufe] * kachelVerhaeltnis + 32),
+                )}px, 1fr))`,
               }}
             >
               {staende.map((stand, i) => {
                 const ist = stand.id === startStandId;
                 return (
-                  <li key={stand.id}>
+                  <li
+                    key={stand.id}
+                    className={`flex flex-col gap-2 rounded-xl border p-3 ${
+                      ist ? "border-hauptaktion bg-gewaehlt" : "border-linie bg-white"
+                    }`}
+                  >
+                    {/* Das Bild und seine Angaben sind der Weg hinein, der
+                        Löschknopf steht daneben – ein Knopf im Knopf ginge
+                        weder im Aufbau der Seite noch im Kopf der Nutzerin. */}
                     <button
                       type="button"
                       onClick={() => {
@@ -274,29 +344,29 @@ export function Vergleich({
                         setLupeStufe(0);
                         setMitte({ x: 0.5, y: 0.5 });
                       }}
-                      className={`flex w-full flex-col gap-2 rounded-xl border p-3 text-left ${
-                        ist
-                          ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief"
-                          : "border-linie bg-white hover:bg-hinweis"
-                      }`}
+                      className="flex w-full flex-col gap-2 rounded-lg text-left hover:opacity-90"
                     >
-                      {/* Ein fester Rahmen fürs Bild: sonst wären in einer
-                          Reihe aus einem hochkanten und einem querformatigen
-                          Muster die Beschriftungen gegeneinander verrutscht.
-                          Etwas höher als breit, weil Stickmuster meistens
-                          hochkant sind – so nutzen sie den Platz besser. */}
+                      {/* Ein Rahmen in der Form des Musters: alle Kacheln
+                          sind damit gleich hoch – sonst verrutschten in einer
+                          Reihe die Beschriftungen gegeneinander – und das
+                          Bild sitzt trotzdem randlos darin. */}
                       <span
-                        className="flex w-full items-center justify-center rounded-lg border border-linie bg-hinweis"
-                        style={{ height: Math.round(KACHELBREITEN[kachelStufe] * 1.15) }}
+                        className="mx-auto flex w-auto max-w-full items-center justify-center overflow-hidden rounded-lg border border-linie bg-hinweis"
+                        style={{ height: KACHELHOEHEN[kachelStufe], aspectRatio: kachelVerhaeltnis }}
                       >
                         {stand.vorschauUrl ? (
+                          /* h-full w-full mit object-contain: das Bild wird so
+                             groß gezeigt, wie der Rahmen es zulässt, und bleibt
+                             dabei ganz zu sehen. Ohne das blieb es in seiner
+                             gespeicherten Größe von ein paar hundert Punkten
+                             mitten in einer leeren Fläche liegen. */
                           <Image
                             src={stand.vorschauUrl}
                             alt=""
                             width={480}
                             height={480}
                             unoptimized
-                            className="raster max-h-full w-auto max-w-full object-contain"
+                            className="raster h-full w-full object-contain"
                           />
                         ) : (
                           <span className="text-[0.95rem] text-gedaempft">
@@ -315,6 +385,16 @@ export function Vergleich({
                         {ist ? t("staende.sieArbeitenHier") : ""}
                       </span>
                     </button>
+
+                    <Knopf
+                      art="still"
+                      klein
+                      onClick={() => setZumLoeschen(stand)}
+                      disabled={staende.length <= 1}
+                      className="self-start"
+                    >
+                      {t("vergleich.loeschenKurz")}
+                    </Knopf>
                   </li>
                 );
               })}
@@ -322,6 +402,21 @@ export function Vergleich({
           )}
         </>
       )}
+
+      <Dialog
+        offen={zumLoeschen !== null}
+        titel={t("vergleich.loeschenTitel")}
+        text={
+          zumLoeschen
+            ? t("vergleich.loeschenText", { zeit: zeit(zumLoeschen.angelegtAm) })
+            : undefined
+        }
+        bestaetigenText={t("allgemein.jaLoeschen")}
+        bestaetigenArt="gefahr"
+        abbrechenText={t("allgemein.behalten")}
+        onBestaetigen={loeschen}
+        onAbbrechen={() => setZumLoeschen(null)}
+      />
     </div>
   );
 }
@@ -384,6 +479,7 @@ function GrosseAnsicht({
   onZurueck,
   onSchliessen,
   onNehmen,
+  onLoeschen,
   holtGerade,
   angaben,
   zeit,
@@ -409,6 +505,8 @@ function GrosseAnsicht({
   onZurueck: () => void;
   onSchliessen: () => void;
   onNehmen?: (stand: Stand) => Promise<void>;
+  /** Fehlt sie, ist es die letzte Version – die bleibt. */
+  onLoeschen?: () => void;
   holtGerade: boolean;
   angaben: (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) => string;
   zeit: (iso: string) => string;
@@ -537,11 +635,18 @@ function GrosseAnsicht({
             {t("vergleich.spaeter")}
           </Knopf>
         </div>
-        {onNehmen ? (
-          <Knopf onClick={() => onNehmen(stand)} disabled={holtGerade || istAktuell}>
-            {istAktuell ? t("vergleich.schonHier") : t("vergleich.nehmen")}
-          </Knopf>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {onNehmen ? (
+            <Knopf onClick={() => onNehmen(stand)} disabled={holtGerade || istAktuell}>
+              {istAktuell ? t("vergleich.schonHier") : t("vergleich.nehmen")}
+            </Knopf>
+          ) : null}
+          {onLoeschen ? (
+            <Knopf art="still" onClick={onLoeschen}>
+              {t("vergleich.loeschen")}
+            </Knopf>
+          ) : null}
+        </div>
       </footer>
     </>
   );

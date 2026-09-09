@@ -549,6 +549,12 @@ export const DE = {
   "vergleich.nehmen": "Diese Version nehmen",
   "vergleich.schonHier": "Daran arbeiten Sie gerade",
   "vergleich.angaben": "{farben} Farben · {breite} × {hoehe} Stiche",
+  "vergleich.nurFarben": "{farben} Farben",
+  "vergleich.loeschen": "Diese Version löschen",
+  "vergleich.loeschenKurz": "Löschen",
+  "vergleich.loeschenTitel": "Diese Version löschen?",
+  "vergleich.loeschenText":
+    "Die Fassung von {zeit} wird gelöscht – auf diesem Gerät und in der Sicherung. Die übrigen Versionen bleiben. Das lässt sich nicht rückgängig machen.",
   "staende.vergleichen": "Alle Versionen ansehen",
   "bild.schonBekannt":
     "Dieses Bild war schon einmal da: die neue Fassung kommt zu „{name}“ dazu. Die früheren Stände bleiben und lassen sich damit vergleichen.",
@@ -1076,6 +1082,12 @@ export const PL: Record<Textschluessel, string> = {
   "vergleich.nehmen": "Weź tę wersję",
   "vergleich.schonHier": "Tu Pani właśnie pracuje",
   "vergleich.angaben": "{farben} kolorów · {breite} × {hoehe} ściegów",
+  "vergleich.nurFarben": "{farben} kolorów",
+  "vergleich.loeschen": "Usuń tę wersję",
+  "vergleich.loeschenKurz": "Usuń",
+  "vergleich.loeschenTitel": "Usunąć tę wersję?",
+  "vergleich.loeschenText":
+    "Wersja z {zeit} zostanie usunięta – z tego urządzenia i z kopii w internecie. Pozostałe wersje zostają. Tego nie da się cofnąć.",
   "staende.vergleichen": "Zobacz wszystkie wersje",
   "bild.schonBekannt":
     "To zdjęcie już tu było: nowa wersja dołączy do „{name}”. Wcześniejsze wersje zostają i można je porównać.",
