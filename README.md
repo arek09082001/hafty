@@ -210,6 +210,35 @@ Der Preis gehört benannt: **die Muster liegen auf genau einem Gerät.**
 Wer den Browserspeicher leert oder das Gerät wechselt, fängt neu an.
 Ein fertiges Muster gehört deshalb ausgedruckt – dafür ist Schritt 4 da.
 
+## Wie die Oberfläche gebaut ist
+
+Zuerst war jeder Abschnitt eine Karte: weißer Grund, 2px-Rahmen, runde Ecken,
+20px Innenabstand – und darin oft noch eine Karte. Bei fünf Karten
+untereinander sieht man nur noch Rahmen und keinen Zusammenhang mehr, und auf
+einem breiten Bildschirm stand das Muster in einer Karte, die links und rechts
+handbreit leer blieb.
+
+Jetzt gilt:
+
+- **Eine Fläche, Haarlinien statt Kästen.** Abschnitte werden durch eine 1px
+  Linie getrennt (`src/components/Abschnitt.tsx`), nicht durch einen Rahmen.
+- **Ränder nur um Dinge, die man anfassen kann:** Knöpfe, Eingabefelder,
+  Listeneinträge. Alles andere kommt ohne aus.
+- **Farbe nur, wo etwas passiert.** Grün gefüllt ist genau ein Ding je
+  Bildschirm: die Hauptaktion unten rechts. Der offene Reiter trägt nur einen
+  Strich, die gewählte Zeile einen getönten Grund.
+- **Das Muster liegt wie ein Blatt auf dem Tisch:** feine Kante, weicher
+  Schatten, ringsum der Papierton der Seite. So ist die freie Fläche neben
+  einem hochkanten Muster sichtbar Arbeitsfläche und nicht ein Kasten, der
+  nicht gefüllt wurde.
+- **Zwei Seitenarten** (`src/components/Seite.tsx`): Leseseiten haben eine
+  Spalte, die schmal genug zum Lesen bleibt; Arbeitsseiten (Muster, Drucken)
+  füllen den Bildschirm, links das Muster, rechts 440 Punkte Bedienung.
+
+Was davon unberührt bleibt, sind die Regeln für die Nutzerin: Grundschrift
+20px, jede Schaltfläche mindestens 56px hoch, jede mit Text beschriftet, pro
+Bildschirm genau eine Hauptaktion.
+
 ## Aufbau des Projekts
 
 ```

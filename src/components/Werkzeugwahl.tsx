@@ -39,8 +39,7 @@ export function Werkzeugwahl({
   const aktuell = WERKZEUGE.find((w) => w.art === gewaehlt);
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-      <h2 className="text-[1.2rem] font-bold">{t("werkzeug.frage")}</h2>
+    <div className="flex flex-col gap-3">
       <ul className="flex flex-col gap-2">
         {WERKZEUGE.map((werkzeug) => {
           const ist = werkzeug.art === gewaehlt;
@@ -50,8 +49,10 @@ export function Werkzeugwahl({
                 type="button"
                 onClick={() => onWaehlen(werkzeug.art)}
                 aria-pressed={ist}
-                className={`flex min-h-[56px] w-full items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-[1.05rem] font-semibold ${
-                  ist ? "border-hauptaktion bg-[#e8f3ee]" : "border-linie bg-white hover:bg-hinweis"
+                className={`flex min-h-[56px] w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[1.05rem] font-semibold ${
+                  ist
+                    ? "border-hauptaktion bg-[#e8f3ee]"
+                    : "border-linie bg-white hover:bg-hinweis"
                 }`}
               >
                 <span
@@ -68,9 +69,7 @@ export function Werkzeugwahl({
           );
         })}
       </ul>
-      {aktuell ? (
-        <p className="rounded-xl bg-hinweis p-4 text-[1rem]">{t(aktuell.erklaerung)}</p>
-      ) : null}
-    </section>
+      {aktuell ? <p className="text-[1rem] text-gedaempft">{t(aktuell.erklaerung)}</p> : null}
+    </div>
   );
 }

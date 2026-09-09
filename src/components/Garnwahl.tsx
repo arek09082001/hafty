@@ -73,7 +73,7 @@ export function Garnwahl({
       </div>
 
       {gefunden.length === 0 ? (
-        <p className="rounded-xl border-2 border-linie bg-hinweis p-5 text-[1.05rem]">
+        <p className="border-l-[6px] border-linie bg-hinweis px-4 py-3 text-[1.05rem]">
           {t("garne.nichtsGefunden", { suche })}
         </p>
       ) : (

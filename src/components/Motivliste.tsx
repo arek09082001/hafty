@@ -24,9 +24,7 @@ export function Motivliste({
   const { t } = useSprache();
 
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
-      <h2 className="text-[1.2rem] font-bold">{t("motive.titel")}</h2>
-
+    <div className="flex flex-col gap-3">
       {laedt ? (
         <p className="text-[1.05rem] text-gedaempft">{t("motive.wirdGeholt")}</p>
       ) : motive.length === 0 ? (
@@ -38,7 +36,7 @@ export function Motivliste({
               <button
                 type="button"
                 onClick={() => onEinsetzen(motiv)}
-                className="flex min-h-[56px] flex-col items-center gap-2 rounded-xl border-2 border-linie bg-white p-2 hover:bg-hinweis"
+                className="flex min-h-[56px] flex-col items-center gap-2 rounded-xl border border-linie bg-white p-2 hover:bg-hinweis"
               >
                 {motiv.vorschauUrl ? (
                   <Image
@@ -68,6 +66,6 @@ export function Motivliste({
           ))}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

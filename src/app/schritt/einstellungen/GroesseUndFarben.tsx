@@ -88,9 +88,9 @@ export function GroesseUndFarben() {
         {eigenerFehler ? <Hinweis art="fehler">{eigenerFehler}</Hinweis> : null}
 
         {laeuft && fortschritt ? (
-          <div className="rounded-2xl border-2 border-hauptaktion bg-white p-5">
+          <div className="border-l-[6px] border-hauptaktion bg-[#e8f3ee] px-4 py-3">
             <p className="text-[1.15rem] font-semibold">{t(fortschritt.text)}</p>
-            <div className="mt-3 h-5 w-full overflow-hidden rounded-full border-2 border-linie bg-hinweis">
+            <div className="mt-3 h-4 w-full overflow-hidden rounded-full bg-white">
               <div
                 className="h-full bg-hauptaktion transition-[width] duration-300"
                 style={{ width: `${Math.round(fortschritt.anteil * 100)}%` }}
@@ -123,7 +123,7 @@ export function GroesseUndFarben() {
                         type="button"
                         onClick={() => einstellungenSetzen({ stoffzaehlung: stoff.wert })}
                         aria-pressed={gewaehlt}
-                        className={`flex min-h-[56px] w-full items-center gap-4 rounded-xl border-2 px-5 py-3 text-left text-[1.1rem] font-semibold ${
+                        className={`flex min-h-[56px] w-full items-center gap-4 rounded-xl border px-5 py-3 text-left text-[1.1rem] font-semibold ${
                           gewaehlt
                             ? "border-hauptaktion bg-[#e8f3ee]"
                             : "border-linie bg-white hover:bg-hinweis"
@@ -158,33 +158,35 @@ export function GroesseUndFarben() {
             />
           </div>
 
-          <aside className="flex flex-col gap-5 self-start rounded-2xl border-2 border-tinte bg-white p-6">
-            <h2 className="text-[1.4rem] font-bold">{t("einst.soGross")}</h2>
-            <p className="text-[2rem] font-bold leading-tight text-hauptaktion">
+          {/* Die Zusammenfassung ist der einzige getönte Block auf dieser
+              Seite. Sie war eine Karte mit 2px-Rahmen wie alles andere und
+              ging darin unter; jetzt hebt der Ton sie heraus, ohne dass ein
+              weiterer Rahmen dazukommt. */}
+          <aside className="flex flex-col gap-4 self-start bg-hinweis p-6">
+            <h2 className="text-[1.3rem] font-bold">{t("einst.soGross")}</h2>
+            <p className="text-[1.8rem] font-bold whitespace-nowrap text-hauptaktion">
               {cmText(breiteCm, landeskennung)} cm × {cmText(hoeheCm, landeskennung)} cm
             </p>
-            <dl className="flex flex-col gap-2 text-[1.05rem]">
-              <div className="flex justify-between gap-4">
+            <dl className="flex flex-col text-[1.05rem]">
+              <div className="flex justify-between gap-4 border-t border-linie py-2">
                 <dt>{t("einst.sticheBreite")}</dt>
                 <dd className="font-semibold">{breite}</dd>
               </div>
-              <div className="flex justify-between gap-4">
+              <div className="flex justify-between gap-4 border-t border-linie py-2">
                 <dt>{t("einst.sticheHoehe")}</dt>
                 <dd className="font-semibold">{hoehe}</dd>
               </div>
-              <div className="flex justify-between gap-4">
+              <div className="flex justify-between gap-4 border-t border-linie py-2">
                 <dt>{t("einst.sticheGesamt")}</dt>
                 <dd className="font-semibold">{zahl(breite * hoehe)}</dd>
               </div>
             </dl>
             <p className="text-[1rem] text-gedaempft">{t("einst.stoffZugabe")}</p>
-            {zuGross ? (
-              <Hinweis art="fehler">{t("einst.zuGross")}</Hinweis>
-            ) : null}
+            {zuGross ? <Hinweis art="fehler">{t("einst.zuGross")}</Hinweis> : null}
           </aside>
         </div>
 
-        <section className="flex flex-col gap-4 rounded-2xl border-2 border-linie bg-white p-5">
+        <section className="flex flex-col gap-4 border-t border-linie pt-7">
           <h2 className="text-[1.3rem] font-bold">{t("einst.welcheGarne")}</h2>
           {eigeneGarne === 0 ? (
             <p className="max-w-[70ch] text-[1.05rem]">
@@ -230,7 +232,7 @@ export function GroesseUndFarben() {
           )}
         </section>
 
-        <details className="rounded-2xl border-2 border-linie bg-white p-5">
+        <details className="border-t border-linie pt-4">
           <summary className="min-h-[56px] cursor-pointer list-none text-[1.15rem] font-semibold">
             {t("einst.verlauf")}
           </summary>

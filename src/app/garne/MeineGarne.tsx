@@ -101,6 +101,7 @@ export function MeineGarne() {
 
   return (
     <Seite
+      weit
       titel={t("garne.titel")}
       erklaerung={t("garne.erklaerung")}
       fuss={

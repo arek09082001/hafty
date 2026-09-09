@@ -27,9 +27,8 @@ export function Glaettungsregler({
   const aktuell = GLAETTUNGSSTUFEN[Math.min(GLAETTUNGSSTUFEN.length - 1, Math.max(0, stufe))];
 
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border-2 border-tinte bg-white p-6">
-      <h2 className="text-[1.2rem] font-bold">{t("glaettung.frage")}</h2>
-      <p className="max-w-[60ch] text-[1.05rem]">{t("glaettung.erklaerung")}</p>
+    <div className="flex flex-col gap-3">
+      <p className="text-[1rem] text-gedaempft">{t("glaettung.erklaerung")}</p>
 
       <label htmlFor="glaettung" className="text-[1.3rem] font-bold text-hauptaktion">
         {t(aktuell.titel)}
@@ -58,26 +57,33 @@ export function Glaettungsregler({
         <span className="text-right">{t("glaettung.stufe4")}</span>
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-4">
-        <p className="min-w-[220px] flex-1 rounded-xl border-2 border-linie bg-hinweis p-4">
-          <span className="block text-[1.05rem]">{t("glaettung.einzelstiche")}</span>
-          <span className="block text-[1.9rem] font-bold leading-tight">
+      {/* Die beiden Zahlen sagen, was der Regler bewirkt hat. Sie standen
+          bisher in zwei gerahmten Kästen; als schlichte Zeilen mit einer
+          Trennlinie lesen sie sich schneller und tragen nicht auf. */}
+      <dl className="mt-2 flex flex-col gap-3">
+        <div className="flex items-baseline justify-between gap-4 border-t border-linie pt-3">
+          <dt className="text-[1.05rem]">
+            {t("glaettung.einzelstiche")}
+            <span className="block text-[0.95rem] text-gedaempft">
+              {t("glaettung.einzelsticheText")}
+            </span>
+          </dt>
+          <dd className="shrink-0 text-[1.6rem] font-bold leading-none">
             {laeuft ? "…" : zahl(kennzahlen.einzelstiche)}
-          </span>
-          <span className="block text-[0.95rem] text-gedaempft">
-            {t("glaettung.einzelsticheText")}
-          </span>
-        </p>
-        <p className="min-w-[220px] flex-1 rounded-xl border-2 border-linie bg-hinweis p-4">
-          <span className="block text-[1.05rem]">{t("glaettung.farbwechsel")}</span>
-          <span className="block text-[1.9rem] font-bold leading-tight">
+          </dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-4 border-t border-linie pt-3">
+          <dt className="text-[1.05rem]">
+            {t("glaettung.farbwechsel")}
+            <span className="block text-[0.95rem] text-gedaempft">
+              {t("glaettung.farbwechselText")}
+            </span>
+          </dt>
+          <dd className="shrink-0 text-[1.6rem] font-bold leading-none">
             {laeuft ? "…" : zahl(kennzahlen.farbwechselProReihe)}
-          </span>
-          <span className="block text-[0.95rem] text-gedaempft">
-            {t("glaettung.farbwechselText")}
-          </span>
-        </p>
-      </div>
-    </section>
+          </dd>
+        </div>
+      </dl>
+    </div>
   );
 }
