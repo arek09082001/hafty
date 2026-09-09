@@ -103,7 +103,7 @@ export function GroesseUndFarben() {
         {eigenerFehler ? <Hinweis art="fehler">{eigenerFehler}</Hinweis> : null}
 
         {laeuft && fortschritt ? (
-          <div className="border-l-[6px] border-hauptaktion bg-[#e8f3ee] px-4 py-3">
+          <div className="border-l-[6px] border-hauptaktion bg-gewaehlt px-4 py-3">
             <p className="text-[1.15rem] font-semibold">{t(fortschritt.text)}</p>
             <div className="mt-3 h-4 w-full overflow-hidden rounded-full bg-white">
               <div
@@ -140,7 +140,7 @@ export function GroesseUndFarben() {
                         aria-pressed={gewaehlt}
                         className={`flex min-h-[56px] w-full items-center gap-4 rounded-xl border px-5 py-3 text-left text-[1.1rem] font-semibold ${
                           gewaehlt
-                            ? "border-hauptaktion bg-[#e8f3ee]"
+                            ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief"
                             : "border-linie bg-white hover:bg-hinweis"
                         }`}
                       >
@@ -221,7 +221,7 @@ export function GroesseUndFarben() {
                 aria-pressed={einstellungen.nurEigeneGarne}
                 className={`flex min-h-[56px] items-center gap-4 self-start rounded-xl border-2 px-5 py-3 text-[1.1rem] font-semibold ${
                   einstellungen.nurEigeneGarne
-                    ? "border-hauptaktion bg-[#e8f3ee]"
+                    ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief"
                     : "border-linie bg-white hover:bg-hinweis"
                 }`}
               >
@@ -246,41 +246,6 @@ export function GroesseUndFarben() {
             </>
           )}
         </section>
-
-        <details className="border-t border-linie pt-4">
-          <summary className="min-h-[56px] cursor-pointer list-none text-[1.15rem] font-semibold">
-            {t("einst.verlauf")}
-          </summary>
-          <div className="mt-4 flex flex-col gap-4">
-            <p className="max-w-[60ch] text-[1.05rem]">{t("einst.verlaufText")}</p>
-            <button
-              type="button"
-              onClick={() => einstellungenSetzen({ dithering: !einstellungen.dithering })}
-              aria-pressed={einstellungen.dithering}
-              className={`flex min-h-[56px] items-center gap-4 self-start rounded-xl border-2 px-5 py-3 text-[1.1rem] font-semibold ${
-                einstellungen.dithering
-                  ? "border-hauptaktion bg-[#e8f3ee]"
-                  : "border-linie bg-white hover:bg-hinweis"
-              }`}
-            >
-              <span
-                aria-hidden
-                className={`flex h-8 w-14 shrink-0 items-center rounded-full border-2 p-1 ${
-                  einstellungen.dithering ? "border-hauptaktion bg-hauptaktion" : "border-linie bg-white"
-                }`}
-              >
-                <span
-                  className={`h-5 w-5 rounded-full ${
-                    einstellungen.dithering ? "ml-auto bg-white" : "bg-linie"
-                  }`}
-                />
-              </span>
-              {t("einst.verlaufSchalter", {
-                zustand: einstellungen.dithering ? t("einst.ein") : t("einst.aus"),
-              })}
-            </button>
-          </div>
-        </details>
       </div>
     </Seite>
   );

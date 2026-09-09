@@ -127,16 +127,3 @@ function winkel(b: number, a: number): number {
   const w = Math.atan2(b, a) * GRAD;
   return w >= 0 ? w : w + 360;
 }
-
-/**
- * Quadrierter euklidischer Lab-Abstand. Wird ausschliesslich innerhalb des
- * k-Means benutzt, wo nur "welches Zentrum ist naeher" zaehlt und die
- * Wurzel sich sparen laesst. Fuer die Zuordnung zu Garnen ist das zu grob –
- * dort steht CIEDE2000.
- */
-export function labAbstandQuadrat(f1: Lab, f2: Lab): number {
-  const dL = f1.L - f2.L;
-  const da = f1.a - f2.a;
-  const db = f1.b - f2.b;
-  return dL * dL + da * da + db * db;
-}

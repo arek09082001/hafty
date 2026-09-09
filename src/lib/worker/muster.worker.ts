@@ -19,7 +19,6 @@ import {
   medianFilter,
   aufGarneAbbilden,
   labAlsHex,
-  naechsterIndex,
   type Rasterbild,
 } from "@/lib/muster/pipeline";
 import {
@@ -84,8 +83,7 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
 // ---------------------------------------------------------------------------
 
 function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
-  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, mindestFlaeche, garne, dithering } =
-    auftrag;
+  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, mindestFlaeche, garne } = auftrag;
 
   // --- Schritt 1: Bild als ImageData ---------------------------------------
   fortschritt("arbeit.bildLesen", 0.05);
@@ -119,9 +117,7 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
   const tabelle = abstandslisteBauen(raster.lab, zuordnung.farben);
 
   // Ausgangszuordnung: jedes Feld bekommt die farblich nächste Palettenfarbe.
-  const startRaster = dithering
-    ? mitDitheringZuordnen(raster, zuordnung.farben)
-    : ohneGlaettungZuordnen(tabelle);
+  const startRaster = ohneGlaettungZuordnen(tabelle);
 
   stand = {
     breite: raster.breite,
@@ -202,55 +198,3 @@ function nurGlaetten(lambda: number, mindestFlaeche: number) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Dithering – standardmäßig aus
-// ---------------------------------------------------------------------------
-
-/**
- * Floyd-Steinberg-Fehlerdiffusion im Lab-Raum.
- *
- * Dithering täuscht Zwischentöne vor, indem es zwei Farben abwechselnd
- * nebeneinandersetzt. Auf einem Bildschirm sieht das gut aus, auf einem
- * Stickrahmen ist es das Gegenteil von dem, was diese App will: es erzeugt
- * genau die einzelnen Fremdstiche, gegen die die Glättung antritt. Deshalb
- * ist es voreingestellt **aus** und nur als abschaltbare Zusatzoption da.
- */
-function mitDitheringZuordnen(bild: Rasterbild, palette: Lab[]): Uint16Array {
-  const { breite, hoehe } = bild;
-  // Auf einer Kopie arbeiten, in die der Fehler eingerechnet wird.
-  const arbeit = Float32Array.from(bild.lab);
-  const raster = new Uint16Array(breite * hoehe);
-
-  const streuen = (x: number, y: number, dL: number, da: number, db: number, anteil: number) => {
-    if (x < 0 || x >= breite || y < 0 || y >= hoehe) return;
-    const j = (y * breite + x) * 3;
-    arbeit[j] += dL * anteil;
-    arbeit[j + 1] += da * anteil;
-    arbeit[j + 2] += db * anteil;
-  };
-
-  for (let y = 0; y < hoehe; y++) {
-    for (let x = 0; x < breite; x++) {
-      const i = y * breite + x;
-      const j = i * 3;
-      const farbe: Lab = { L: arbeit[j], a: arbeit[j + 1], b: arbeit[j + 2] };
-
-      const gewaehlt = naechsterIndex(farbe, palette);
-      raster[i] = gewaehlt;
-
-      // Der Fehler, den die Wahl macht, wird auf die noch nicht bearbeiteten
-      // Nachbarn verteilt: 7/16 rechts, 3/16 links unten, 5/16 unten,
-      // 1/16 rechts unten.
-      const dL = farbe.L - palette[gewaehlt].L;
-      const da = farbe.a - palette[gewaehlt].a;
-      const db = farbe.b - palette[gewaehlt].b;
-
-      streuen(x + 1, y, dL, da, db, 7 / 16);
-      streuen(x - 1, y + 1, dL, da, db, 3 / 16);
-      streuen(x, y + 1, dL, da, db, 5 / 16);
-      streuen(x + 1, y + 1, dL, da, db, 1 / 16);
-    }
-  }
-
-  return raster;
-}

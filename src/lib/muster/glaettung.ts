@@ -33,9 +33,13 @@
  * gleichfarbigen Nachbarn haben, werden hart auf die häufigste Nachbarfarbe
  * gesetzt. ICM lässt solche Felder stehen, wenn ihre Farbtreue die Strafe
  * gerade noch aufwiegt – gestickt werden will das trotzdem niemand.
+ *
+ * Nur ganz links am Regler bleibt auch dieser Durchgang aus: dort ist
+ * ausdrücklich das ungeglättete Bild gewollt, in dem jedes Kästchen seine
+ * eigene Farbe haben darf.
  */
 
-import { ciede2000, labAbstandQuadrat } from "@/lib/farbe/ciede2000";
+import { ciede2000 } from "@/lib/farbe/ciede2000";
 import type { Lab } from "@/lib/farbe/lab";
 import type { Kennzahlen } from "./typen";
 
@@ -85,6 +89,19 @@ export const KANDIDATEN = 12;
 const GENAU_BIS = 64;
 const VORAUSWAHL = 32;
 
+/**
+ * Quadrierter euklidischer Lab-Abstand – nur für die Vorauswahl.
+ *
+ * Grob, aber billig: es geht allein darum, welche 32 Farben überhaupt in die
+ * genaue Rechnung kommen. Entschieden wird danach mit CIEDE2000.
+ */
+function grobAbstand(f: Lab, g: Lab): number {
+  const dL = f.L - g.L;
+  const da = f.a - g.a;
+  const db = f.b - g.b;
+  return dL * dL + da * da + db * db;
+}
+
 /** Je Feld die nächstliegenden Palettenfarben, nach Abstand aufsteigend. */
 export type Abstandsliste = {
   /** `je` Palettenindizes für jedes Feld, hintereinander. */
@@ -131,7 +148,7 @@ export function abstandslisteBauen(quellLab: Float32Array, palette: Lab[]): Abst
       // Erst grob im Lab-Raum aussieben …
       let eng = 0;
       for (let c = 0; c < k; c++) {
-        const d = labAbstandQuadrat(farbe, palette[c]);
+        const d = grobAbstand(farbe, palette[c]);
         if (eng === VORAUSWAHL && d >= engereD[eng - 1]) continue;
         let pos = eng < VORAUSWAHL ? eng : VORAUSWAHL - 1;
         while (pos > 0 && engereD[pos - 1] > d) {
@@ -341,10 +358,16 @@ export function glaetten(
   }
 
   // --- Aufräumdurchgang -----------------------------------------------------
-  // Erst die harte Regel für Felder ohne jeden gleichfarbigen Nachbarn …
-  aufraeumen(raster, breite, k);
-  // … danach die gröberen Flecken, deren Größe am Schieberegler hängt.
-  kleineFlaechenAufloesen(raster, breite, mindestGroesse);
+  // Ganz links am Regler (lambda = 0, mindestFlaeche = 1) wird gar nichts
+  // aufgeräumt. Dort will die Nutzerin das Bild sehen, wie die Farbwahl es
+  // ergibt: jedes einzelne Kästchen darf seine eigene Farbe haben. Erst mit
+  // dem ersten Schritt nach rechts greifen die beiden Durchgänge.
+  if (lambda > 0 || mindestGroesse > 1) {
+    // Erst die harte Regel für Felder ohne jeden gleichfarbigen Nachbarn …
+    aufraeumen(raster, breite, k);
+    // … danach die gröberen Flecken, deren Größe am Schieberegler hängt.
+    kleineFlaechenAufloesen(raster, breite, mindestGroesse);
+  }
 
   return { raster, kennzahlen: kennzahlenBerechnen(raster, breite) };
 }

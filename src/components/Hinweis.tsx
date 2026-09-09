@@ -20,7 +20,7 @@ export function Hinweis({
     art === "fehler"
       ? "border-warnung bg-[#fbeaea] text-warnung"
       : art === "erfolg"
-        ? "border-hauptaktion bg-[#e8f3ee] text-hauptaktion"
+        ? "border-hauptaktion bg-gewaehlt text-hauptaktion"
         : "border-linie bg-hinweis text-tinte";
 
   return (

@@ -62,10 +62,8 @@ export type Einstellungen = {
   stoffzaehlung: number;
   /** Gewünschte Anzahl Farben. */
   farbanzahl: number;
-  /** Rastpunkt des Glättungsreglers, 0 = sehr detailliert. */
-  glaettung: number;
-  /** Standardmäßig aus. */
-  dithering: boolean;
+  /** Stellung des Glättungsreglers, stufenlos von 0 bis 100. */
+  glaettungsstaerke: number;
   /** Nur Garne aus dem eigenen Vorrat verwenden. */
   nurEigeneGarne: boolean;
 };
@@ -74,30 +72,127 @@ export const STANDARD_EINSTELLUNGEN: Einstellungen = {
   breiteStiche: 100,
   stoffzaehlung: 14,
   farbanzahl: 20,
-  glaettung: 2,
-  dithering: false,
+  glaettungsstaerke: 30,
   nurEigeneGarne: false,
 };
 
 /**
- * Die Rastpunkte des Glättungsreglers.
+ * Der Glättungsregler.
+ * ---------------------------------------------------------------------------
  *
- * `lambda` ist das Gewicht der Nachbarschaftsstrafe in der Kostenfunktion,
- * `mindestFlaeche` die Größe, unterhalb derer ein zusammenhängender Fleck
- * anschließend ganz aufgelöst wird. Beides zusammen ergibt erst eine Skala,
- * die über ihre ganze Länge einen sichtbaren Unterschied macht – `lambda`
- * allein ist oberhalb von etwa 7 wirkungslos (siehe glaettung.ts).
+ * Früher waren das fünf Rastpunkte. Fünf Stellungen reichen aber nicht: die
+ * Nutzerin möchte einmal jedes Kästchen einzeln haben und ein andermal
+ * wirklich ruhige Flächen, und dazwischen jeden Zwischenschritt. Deshalb
+ * läuft der Regler jetzt stufenlos von 0 bis 100, und aus seiner Stellung
+ * werden die beiden Zahlen gerechnet, an denen die Glättung wirklich hängt:
  *
- * In der Oberfläche steht nie eine dieser Zahlen, sondern immer nur die
- * Beschriftung – `titel` ist deshalb ein Textschlüssel und kein fertiger Satz.
+ *  - `lambda` – das Gewicht der Nachbarschaftsstrafe im ICM
+ *    (siehe glaettung.ts). Es wächst mit einer leichten Kurve, damit die
+ *    ersten Millimeter am Regler nicht gleich das halbe Bild glattbügeln.
+ *  - `mindestFlaeche` – die Größe, unterhalb derer ein zusammenhängender
+ *    Fleck anschließend ganz aufgelöst wird. Sie wächst geometrisch von
+ *    einem einzelnen Kästchen bis auf 100, also 10 × 10 Kästchen: ganz
+ *    rechts bekommt die Nutzerin im Schnitt eine Farbe je 10 × 10 Feldern,
+ *    ganz links darf jedes einzelne Feld die Farbe wechseln.
+ *
+ * `lambda` allein ist oberhalb von etwa 7 wirkungslos (siehe glaettung.ts);
+ * die obere Hälfte des Reglers lebt deshalb von `mindestFlaeche`.
  */
-export const GLAETTUNGSSTUFEN = [
-  { lambda: 0, mindestFlaeche: 1, titel: "glaettung.stufe0" },
-  { lambda: 1.2, mindestFlaeche: 2, titel: "glaettung.stufe1" },
-  { lambda: 2.6, mindestFlaeche: 4, titel: "glaettung.stufe2" },
-  { lambda: 4.5, mindestFlaeche: 9, titel: "glaettung.stufe3" },
-  { lambda: 7.5, mindestFlaeche: 18, titel: "glaettung.stufe4" },
+export const GLAETTUNG_MIN = 0;
+export const GLAETTUNG_MAX = 100;
+
+/** Ganz rechts: eine Farbe je 10 × 10 Kästchen. */
+export const GROESSTE_FLAECHE = 100;
+
+/** Ganz rechts erreichtes Gewicht der Nachbarschaftsstrafe. */
+const LAMBDA_MAX = 8;
+
+export type Glaettungswerte = {
+  lambda: number;
+  mindestFlaeche: number;
+};
+
+/** Eine Reglerstellung auf 0..100 begrenzen und auf ganze Schritte runden. */
+export function glaettungBegrenzen(staerke: number): number {
+  if (!Number.isFinite(staerke)) return STANDARD_EINSTELLUNGEN.glaettungsstaerke;
+  return Math.min(GLAETTUNG_MAX, Math.max(GLAETTUNG_MIN, Math.round(staerke)));
+}
+
+/** Aus der Reglerstellung die beiden Rechenwerte der Glättung. */
+export function glaettungswerte(staerke: number): Glaettungswerte {
+  const anteil = glaettungBegrenzen(staerke) / GLAETTUNG_MAX;
+  return {
+    lambda: Math.round(LAMBDA_MAX * anteil ** 1.4 * 1000) / 1000,
+    mindestFlaeche: Math.max(1, Math.round(GROESSTE_FLAECHE ** anteil)),
+  };
+}
+
+/**
+ * Wie groß die kleinste Fläche ungefähr ist, als Kantenlänge in Kästchen.
+ * Das ist die Zahl, die unter dem Regler steht: „etwa 4 × 4 Kästchen" sagt
+ * einer Stickerin mehr als „mindestFlaeche 18".
+ */
+export function glaettungsKante(staerke: number): number {
+  return Math.max(1, Math.round(Math.sqrt(glaettungswerte(staerke).mindestFlaeche)));
+}
+
+/**
+ * Die Beschriftung über dem Regler. Sie bleibt in ganzen Worten – eine Zahl
+ * sagt der Nutzerin nichts – und wechselt an fünf Stellen der Skala.
+ */
+const STUFENNAMEN = [
+  { ab: 0, titel: "glaettung.stufe0" },
+  { ab: 8, titel: "glaettung.stufe1" },
+  { ab: 28, titel: "glaettung.stufe2" },
+  { ab: 52, titel: "glaettung.stufe3" },
+  { ab: 78, titel: "glaettung.stufe4" },
 ] as const;
+
+export function glaettungTitel(staerke: number): (typeof STUFENNAMEN)[number]["titel"] {
+  const wert = glaettungBegrenzen(staerke);
+  let titel: (typeof STUFENNAMEN)[number]["titel"] = STUFENNAMEN[0].titel;
+  for (const stufe of STUFENNAMEN) {
+    if (wert >= stufe.ab) titel = stufe.titel;
+  }
+  return titel;
+}
+
+/** Die Markierungen am Regler – nur Orientierungspunkte, keine Rastpunkte. */
+export const GLAETTUNGSMARKEN = [0, 25, 50, 75, 100] as const;
+
+/**
+ * Gespeicherte Einstellungen auf den heutigen Stand bringen.
+ *
+ * Im Browser der Nutzerin liegt der Arbeitsstand von gestern. Er kennt noch
+ * den alten Regler mit fünf Rastpunkten (`glaettung`, 0 bis 4) und den
+ * Schalter fürs Dithering, den es nicht mehr gibt. Beides wird hier
+ * übersetzt statt beim Laden auf gut Glück übernommen: eine 2 aus dem alten
+ * Regler ist „ausgewogen" und muss auch danach so aussehen.
+ */
+const ALTE_RASTPUNKTE = [0, 15, 30, 48, 63];
+
+export function einstellungenLesen(gespeichert: unknown): Einstellungen {
+  const roh = (gespeichert ?? {}) as Partial<Einstellungen> & { glaettung?: unknown };
+
+  const zahl = (wert: unknown, ersatz: number) =>
+    typeof wert === "number" && Number.isFinite(wert) ? wert : ersatz;
+
+  const alt = roh.glaettung;
+  const staerke =
+    typeof roh.glaettungsstaerke === "number"
+      ? roh.glaettungsstaerke
+      : typeof alt === "number"
+        ? (ALTE_RASTPUNKTE[Math.round(alt)] ?? STANDARD_EINSTELLUNGEN.glaettungsstaerke)
+        : STANDARD_EINSTELLUNGEN.glaettungsstaerke;
+
+  return {
+    breiteStiche: zahl(roh.breiteStiche, STANDARD_EINSTELLUNGEN.breiteStiche),
+    stoffzaehlung: zahl(roh.stoffzaehlung, STANDARD_EINSTELLUNGEN.stoffzaehlung),
+    farbanzahl: zahl(roh.farbanzahl, STANDARD_EINSTELLUNGEN.farbanzahl),
+    glaettungsstaerke: glaettungBegrenzen(staerke),
+    nurEigeneGarne: roh.nurEigeneGarne === true,
+  };
+}
 
 /** Übliche Stoffzählungen. */
 export const STOFFZAEHLUNGEN = [

@@ -13,7 +13,6 @@ export type AnWorker =
       lambda: number;
       mindestFlaeche: number;
       garne: Garn[];
-      dithering: boolean;
     }
   /** Nur die Glättung neu rechnen – die teure Vorarbeit bleibt im Worker. */
   | { art: "glaetten"; lambda: number; mindestFlaeche: number };

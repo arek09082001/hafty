@@ -42,9 +42,6 @@ const BEIWERK = [
   "/icon.svg",
   "/schriften/schrift-normal.ttf",
   "/schriften/schrift-fett.ttf",
-  "/beispiele/blume.png",
-  "/beispiele/katze.png",
-  "/beispiele/haus-am-see.png",
 ];
 
 /**
