@@ -56,7 +56,7 @@ export function Bereichswahl({
               onClick={() => onWaehlen(bereich.schluessel)}
               className={`min-h-[56px] flex-1 border-b-[4px] px-2 text-[1rem] font-bold leading-tight ${
                 ist
-                  ? "border-hauptaktion text-hauptaktion"
+                  ? "border-hauptaktion text-hauptaktion hover:bg-gewaehlt"
                   : "border-transparent text-gedaempft hover:bg-hinweis hover:text-tinte"
               }`}
             >

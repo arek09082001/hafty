@@ -51,7 +51,7 @@ export function Werkzeugwahl({
                 aria-pressed={ist}
                 className={`flex min-h-[56px] w-full items-center gap-3 rounded-xl border px-4 py-3 text-left text-[1.05rem] font-semibold ${
                   ist
-                    ? "border-hauptaktion bg-[#e8f3ee]"
+                    ? "border-hauptaktion bg-gewaehlt hover:bg-gewaehlt-tief"
                     : "border-linie bg-white hover:bg-hinweis"
                 }`}
               >

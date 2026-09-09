@@ -1073,7 +1073,7 @@ export function MusterAnsehen() {
                 <>
                   <Abschnitt titel={t("glaettung.frage")}>
                     <Glaettungsregler
-                      stufe={einstellungen.glaettung}
+                      staerke={einstellungen.glaettungsstaerke}
                       kennzahlen={muster.kennzahlen}
                       laeuft={laeuft}
                       onAendern={glaettungSetzen}

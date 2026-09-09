@@ -14,7 +14,9 @@ import {
 import {
   MAX_FELDER,
   STANDARD_EINSTELLUNGEN,
-  GLAETTUNGSSTUFEN,
+  einstellungenLesen,
+  glaettungBegrenzen,
+  glaettungswerte,
   type Einstellungen,
   type Garn,
   type Kennzahlen,
@@ -107,6 +109,8 @@ type Zustand = {
 type Aktion =
   /** Ergebnis eines vollen Durchlaufs: untere Ebene neu, Bearbeitungen bleiben. */
   | { art: "erzeugt"; muster: Muster }
+  /** Antwort des Reglers: das Muster wird aus dem gerade geltenden gebaut. */
+  | { art: "geglaettet"; antwort: Geglaettet }
   /** Einen kompletten Stand einsetzen (gespeicherter Stand, Wiederherstellung). */
   | { art: "ersetzen"; muster: Muster }
   | { art: "felderAendern"; titel: Textschluessel; indizes: number[]; werte: number[] }
@@ -131,8 +135,43 @@ function aufStapel(stapel: Schritt[], schritt: Schritt): Schritt[] {
   return neu.length > MAX_SCHRITTE ? neu.slice(neu.length - MAX_SCHRITTE) : neu;
 }
 
+/** Was der Worker nach einer Glättung zurückgibt. */
+type Geglaettet = Extract<AntwortVomWorker, { art: "fertig" }>;
+
 function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
   switch (aktion.art) {
+    case "geglaettet": {
+      // Die Bearbeitungen der Nutzerin werden auf die neue Palette
+      // umgeschrieben. Gerechnet wird das hier und nicht dort, wo die Antwort
+      // eintrifft: die Glättung läuft dem Zug am Regler hinterher, und
+      // maßgeblich ist immer das Muster, das in diesem Augenblick gilt.
+      const muster = zustand.muster;
+      if (!muster) return zustand;
+      const { antwort } = aktion;
+      return {
+        muster: {
+          breite: antwort.breite,
+          hoehe: antwort.hoehe,
+          basis: antwort.raster,
+          bearbeitung: bearbeitungUmschreiben(
+            muster.bearbeitung,
+            muster.palette,
+            antwort.palette,
+          ),
+          palette: antwort.palette,
+          kennzahlen: antwort.kennzahlen,
+          farbenVorher: antwort.farbenVorher,
+          farbenNachher: antwort.farbenNachher,
+          garneZusammengelegt: antwort.garneZusammengelegt,
+          bildKennung: muster.bildKennung,
+        },
+        // Die Palettenindizes sind neue – ein alter Rückgängig-Schritt wäre
+        // danach sinnlos oder sogar falsch.
+        rueckgaengigStapel: [],
+        wiederholenStapel: [],
+      };
+    }
+
     case "erzeugt":
       // Die Indizes der Palette sind andere als vorher, deshalb wäre ein alter
       // Rückgängig-Schritt nach dem Neuerzeugen sinnlos oder sogar falsch.
@@ -263,7 +302,7 @@ type MusterKontext = {
   /** Der volle Durchlauf: Bild -> Muster. */
   erzeugen: () => Promise<boolean>;
   /** Nur die Glättung neu rechnen – für den Schieberegler. */
-  glaettungSetzen: (stufe: number) => void;
+  glaettungSetzen: (staerke: number) => void;
 
   felderAendern: (titel: Textschluessel, indizes: number[], werte: number[]) => void;
   bearbeitungErsetzen: (titel: Textschluessel, neue: Int16Array) => void;
@@ -420,7 +459,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
             bildKennung: stand.bildKennung,
           },
         });
-        setEinstellungen(stand.einstellungen);
+        setEinstellungen(einstellungenLesen(stand.einstellungen));
         setMusterId(stand.musterId);
         if (stand.bild && stand.bildMasse) {
           setBild({
@@ -547,7 +586,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         hoeheStiche = Math.max(1, Math.floor(MAX_FELDER / breiteStiche));
       }
 
-      const stufe = GLAETTUNGSSTUFEN[begrenzen(einstellungen.glaettung)];
+      const werte = glaettungswerte(einstellungen.glaettungsstaerke);
 
       const antwort = await anWorkerSenden(
         workerHolen(),
@@ -558,10 +597,9 @@ export function MusterProvider({ children }: { children: ReactNode }) {
           breiteStiche,
           hoeheStiche,
           farbanzahl: einstellungen.farbanzahl,
-          lambda: stufe.lambda,
-          mindestFlaeche: stufe.mindestFlaeche,
+          lambda: werte.lambda,
+          mindestFlaeche: werte.mindestFlaeche,
           garne,
-          dithering: einstellungen.dithering,
         },
         [bitmap],
       );
@@ -617,51 +655,68 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   }, [bild, einstellungen, garne, muster, workerHolen]);
 
   // --- Nur die Glättung -----------------------------------------------------
-  const glaettungSetzen = useCallback(
-    (stufeNummer: number) => {
-      const nummer = begrenzen(stufeNummer);
-      setEinstellungen((e) => ({ ...e, glaettung: nummer }));
-      if (!muster) return;
+  /**
+   * Der Regler läuft stufenlos, ein Zug daran erzeugt also Dutzende Werte
+   * hintereinander. Gerechnet wird trotzdem immer nur ein Muster: läuft schon
+   * eine Glättung, wird die neue Stellung bloß gemerkt und danach allein die
+   * zuletzt gewünschte gerechnet. Alles dazwischen wäre überholt, bevor es
+   * fertig ist.
+   *
+   * Das ist nicht nur eine Frage der Rechenzeit: der Worker beantwortet immer
+   * genau einen Auftrag, zwei gleichzeitig abgeschickte Aufträge würden ihre
+   * Antworten vertauschen.
+   *
+   * Zwischen zwei Runden bleibt „es läuft" stehen. Sonst sprängen die Zahlen
+   * unter dem Regler bei jedem Zug kurz auf einen Zwischenstand.
+   */
+  const glaettungLaeuft = useRef(false);
+  const glaettungOffen = useRef<number | null>(null);
 
-      const stufe = GLAETTUNGSSTUFEN[nummer];
+  const glaettungRechnen = useCallback(
+    async (staerke: number) => {
+      glaettungLaeuft.current = true;
       setLaeuft(true);
 
-      void anWorkerSenden(workerHolen(), wartend, {
-        art: "glaetten",
-        lambda: stufe.lambda,
-        mindestFlaeche: stufe.mindestFlaeche,
-      })
-        .then((antwort) => {
+      try {
+        let naechste: number | null = staerke;
+        while (naechste !== null) {
+          const werte = glaettungswerte(naechste);
+          const antwort = await anWorkerSenden(workerHolen(), wartend, {
+            art: "glaetten",
+            lambda: werte.lambda,
+            mindestFlaeche: werte.mindestFlaeche,
+          });
+
           if (antwort.art === "fehler") {
             setFehler(antwort.text);
-            return;
+          } else {
+            ausloesen({ art: "geglaettet", antwort });
           }
-          ausloesen({
-            art: "erzeugt",
-            muster: {
-              breite: antwort.breite,
-              hoehe: antwort.hoehe,
-              basis: antwort.raster,
-              bearbeitung: bearbeitungUmschreiben(
-                muster.bearbeitung,
-                muster.palette,
-                antwort.palette,
-              ),
-              palette: antwort.palette,
-              kennzahlen: antwort.kennzahlen,
-              farbenVorher: antwort.farbenVorher,
-              farbenNachher: antwort.farbenNachher,
-              garneZusammengelegt: antwort.garneZusammengelegt,
-              bildKennung: muster.bildKennung,
-            },
-          });
-        })
-        .finally(() => {
-          setLaeuft(false);
-          setFortschritt(null);
-        });
+
+          naechste = glaettungOffen.current;
+          glaettungOffen.current = null;
+        }
+      } finally {
+        glaettungLaeuft.current = false;
+        setLaeuft(false);
+        setFortschritt(null);
+      }
     },
-    [muster, workerHolen],
+    [workerHolen],
+  );
+
+  const glaettungSetzen = useCallback(
+    (staerke: number) => {
+      const wert = glaettungBegrenzen(staerke);
+      setEinstellungen((e) => ({ ...e, glaettungsstaerke: wert }));
+      if (!muster) return;
+      if (glaettungLaeuft.current) {
+        glaettungOffen.current = wert;
+        return;
+      }
+      void glaettungRechnen(wert);
+    },
+    [muster, glaettungRechnen],
   );
 
   const raster = useMemo(
@@ -789,10 +844,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   );
 
   return <Kontext.Provider value={wert}>{children}</Kontext.Provider>;
-}
-
-function begrenzen(stufe: number): number {
-  return Math.min(GLAETTUNGSSTUFEN.length - 1, Math.max(0, Math.round(stufe)));
 }
 
 /** Einen Auftrag an den Worker schicken und auf genau eine Antwort warten. */

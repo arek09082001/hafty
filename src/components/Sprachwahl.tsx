@@ -22,7 +22,9 @@ export function Sprachwahl() {
             onClick={() => spracheSetzen(s)}
             aria-pressed={ist}
             className={`flex min-h-[46px] items-center rounded-lg px-3 text-[0.95rem] font-bold ${
-              ist ? "bg-hauptaktion text-white" : "bg-white text-tinte hover:bg-hinweis"
+              ist
+                ? "bg-hauptaktion text-white hover:bg-hauptaktion-hell"
+                : "bg-white text-tinte hover:bg-hinweis"
             }`}
           >
             {SPRACHNAMEN[s]}
