@@ -27,6 +27,15 @@ export const SCHRITTE = [
  * Seiten, jeder Punkt Höhe fehlt in Schritt 3 dem Muster. Die Ziffern sind
  * deshalb kleiner geworden, die Schrift bleibt lesbar, und die Ziele bleiben
  * mit 44 Punkten groß genug für einen Finger.
+ *
+ * Auf einem schmalen Fenster stand jeder Schritt mit vollem Namen da und die
+ * vier brachen auf vier Zeilen um – zweihundertsiebzig Bildpunkte, bevor die
+ * Arbeit überhaupt anfing. Bis 1024 Punkte Breite bleibt deshalb nur die
+ * Ziffer stehen; ausgeschrieben wird allein der Schritt, auf dem man gerade
+ * ist. Das ist genau die Breite, ab der der Editor seine drei Spalten
+ * nebeneinander legt – darunter liegt alles untereinander, und dort ist jeder
+ * Punkt Höhe einer zu viel. Für Vorleseprogramme ändert sich nichts: die Namen der anderen stehen
+ * weiter da, nur nicht mehr sichtbar.
  */
 export function Fortschritt() {
   const { t } = useSprache();
@@ -39,7 +48,12 @@ export function Fortschritt() {
   return (
     <nav aria-label={t("schritt.fortschritt")} className="shrink-0 border-b border-linie bg-white">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 px-4 py-1">
-        <ol className="flex min-w-0 flex-1 flex-wrap items-stretch gap-1">
+        {/* Schmal nimmt die Schrittzeile die volle Breite, damit „Meine
+            Garne" und die Sprachwahl darunter rutschen. Vorher teilten sie
+            sich die Zeile: für die vier Schritte blieben zweihundert Punkte,
+            sie brachen untereinander um und die Beschriftung lag unter dem
+            Garn-Link. */}
+        <ol className="flex w-full min-w-0 flex-wrap items-stretch gap-1 lg:w-auto lg:flex-1">
         {SCHRITTE.map((schritt, i) => {
           const erledigt = i < aktuell;
           const jetzt = i === aktuell;
@@ -59,7 +73,11 @@ export function Fortschritt() {
               >
                 {i + 1}
               </span>
-              <span className="text-left text-[0.85rem] font-semibold leading-tight">
+              <span
+                className={`text-left text-[0.85rem] font-semibold leading-tight ${
+                  jetzt ? "" : "sr-only lg:not-sr-only"
+                }`}
+              >
                 {t(schritt.titel)}
               </span>
             </>
@@ -70,7 +88,12 @@ export function Fortschritt() {
             (jetzt ? "bg-hinweis" : "");
 
           return (
-            <li key={schritt.pfad} className="flex flex-1 basis-[180px]">
+            // Schmal: nur so breit wie die Ziffer, damit alle vier in eine
+            // Zeile passen. Ab 1024 Punkten wie bisher gleichmäßig verteilt.
+            <li
+              key={schritt.pfad}
+              className={`flex ${jetzt ? "min-w-0 flex-1" : "flex-none"} lg:flex-1 lg:basis-[180px]`}
+            >
               {erreichbar && !jetzt ? (
                 <Link href={schritt.pfad} className={`${stil} hover:bg-hinweis`}>
                   {inhalt}
@@ -88,7 +111,10 @@ export function Fortschritt() {
         })}
         </ol>
 
-        <div className="flex shrink-0 items-center gap-2">
+        {/* Schmal darf auch dieser Block umbrechen. Mit `shrink-0` behielt er
+            seine volle Breite und die Sprachwahl stand halb außerhalb des
+            Fensters – anzutippen war sie dann nicht mehr. */}
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
           <Sicherungszeichen klein />
           <Link
             href="/"

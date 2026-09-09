@@ -37,18 +37,37 @@ export function Bereichswahl({
   children: ReactNode;
 }) {
   const inhalt = useRef<HTMLDivElement>(null);
+  const leiste = useRef<HTMLDivElement>(null);
+  /** Der erste Durchlauf ist keine Wahl der Nutzerin – da wird nicht gescrollt. */
+  const ersterLauf = useRef(true);
 
   // Beim Wechsel des Bereichs oben anfangen. Sonst zeigt der neue Bereich
   // dort, wo der vorige gerade stand – wer von einem langen Werkzeugbereich
   // auf „Farbe" tippt, landete mitten in der Garnliste und sah die
   // Überschrift nicht mehr.
+  //
+  // Auf einem schmalen Fenster kommt das Zweite dazu: dort liegt die
+  // Bedienspalte unter der Leinwand, und der angetippte Reiter blieb weit
+  // unterhalb des Sichtfelds. Wer auf „Muster" tippte, sah nichts von den
+  // Reglern und musste erst an der halben Seite vorbeiwischen. Deshalb rückt
+  // die Reiterzeile nach dem Tippen an den oberen Rand – auf breiten Fenstern
+  // steht sie ohnehin schon dort und es passiert nichts.
   useEffect(() => {
     inhalt.current?.scrollTo({ top: 0 });
+    if (ersterLauf.current) {
+      ersterLauf.current = false;
+      return;
+    }
+    leiste.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [gewaehlt]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div role="tablist" className="flex shrink-0 items-stretch border-b border-linie">
+    <div className="flex flex-col lg:min-h-0 lg:flex-1">
+      <div
+        ref={leiste}
+        role="tablist"
+        className="flex shrink-0 items-stretch border-b border-linie"
+      >
         {bereiche.map((bereich) => {
           const ist = bereich.schluessel === gewaehlt;
           return (
@@ -70,7 +89,10 @@ export function Bereichswahl({
         })}
       </div>
 
-      <div ref={inhalt} className="min-h-0 flex-1 overflow-y-auto">
+      {/* Breit rollt der Inhalt in sich; schmal wächst er einfach und die
+          Seite darum rollt. Zwei ineinandergeschachtelte Rollbereiche wären
+          auf dem Telefon ohnehin nicht zu bedienen. */}
+      <div ref={inhalt} className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
         {children}
       </div>
     </div>

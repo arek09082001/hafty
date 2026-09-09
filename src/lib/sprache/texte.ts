@@ -190,6 +190,8 @@ export const DE = {
     "Aus {vorher} Farben sind {nachher} geworden – einige lagen so dicht beieinander, dass es dafür dasselbe Garn gibt.",
   "editor.farbenWeggefallen":
     "Aus {vorher} Farben sind {nachher} geworden – beim Glätten sind einzelne ganz verschwunden.",
+  "editor.hinweisAufklappen": "Erklärung zum Werkzeug anzeigen",
+  "editor.hinweisZuklappen": "Erklärung zum Werkzeug ausblenden",
   "editor.anderesGarnTitel": "Ein anderes Garn für diese Farbe",
   "editor.anderesGarnText":
     "Die Farbwerte der Hersteller sind Näherungen. Wenn Sie Ihre Garnkarte vor sich haben und ein anderer Ton besser passt, wählen Sie ihn hier aus.",
@@ -728,6 +730,8 @@ export const PL: Record<Textschluessel, string> = {
     "Z {vorher} kolorów zostało {nachher} – kilka leżało tak blisko siebie, że przypada na nie ta sama nitka.",
   "editor.farbenWeggefallen":
     "Z {vorher} kolorów zostało {nachher} – przy wygładzaniu pojedyncze zniknęły całkiem.",
+  "editor.hinweisAufklappen": "Pokaż objaśnienie narzędzia",
+  "editor.hinweisZuklappen": "Ukryj objaśnienie narzędzia",
   "editor.anderesGarnTitel": "Inna nitka dla tego koloru",
   "editor.anderesGarnText":
     "Kolory podawane przez producentów są przybliżone. Jeśli ma Pani przed sobą wzornik nici i inny odcień pasuje lepiej, proszę wybrać go tutaj.",

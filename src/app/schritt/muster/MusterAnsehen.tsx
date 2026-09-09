@@ -96,6 +96,18 @@ export function MusterAnsehen() {
   const { t, zahl, landeskennung } = useSprache();
   /** Welcher der vier Bereiche rechts gerade offen ist. */
   const [bereich, setBereich] = useState("bearbeiten");
+  /**
+   * Ist die Erklärung über den Reitern aufgeklappt?
+   *
+   * Zugeklappt, solange niemand sie aufklappt. Auf einem Telefon nahm sie ein
+   * Viertel der Bedienspalte ein, und die Regler weiter unten waren nur mit
+   * viel Wischen zu erreichen. Die Überschrift bleibt stehen – sie sagt, mit
+   * welchem Werkzeug gearbeitet wird; das Ausführliche kommt auf Tipp.
+   *
+   * Die Wahl bleibt für dieses Fenster erhalten: wer sie einmal aufklappt,
+   * bekommt sie beim Werkzeugwechsel nicht wieder zugeklappt.
+   */
+  const [hinweisOffen, setHinweisOffen] = useState(false);
   const [werkzeug, setWerkzeug] = useState<Werkzeug>("motiv");
   const [farbe, setFarbe] = useState(0);
   const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
@@ -787,8 +799,18 @@ export function MusterAnsehen() {
           </div>
         </Arbeitsflaeche>
 
-        {/* --- Die Bedienung ---------------------------------------------- */}
-        <aside className="flex min-h-0 flex-col border-t border-linie bg-white lg:border-t-0 lg:border-l">
+        {/* --- Die Bedienung ----------------------------------------------
+
+            Breit ist die Spalte eine eigene, in sich rollende Säule neben der
+            Leinwand – dafür `min-h-0`, sonst würde sie das Fenster sprengen.
+
+            Schmal liegt sie unter der Leinwand, und dort galt dasselbe
+            `min-h-0`: in einer Flexspalte mit begrenzter Höhe schrumpfte sie
+            damit auf sechsunddreißig Punkte zusammen. Die Regler waren
+            gezeichnet, aber abgeschnitten – man kam schlicht nicht an sie
+            heran. Schmal darf sie deshalb nicht schrumpfen: sie bekommt ihre
+            volle Höhe, und gerollt wird im Rahmen darum. */}
+        <aside className="flex shrink-0 flex-col border-t border-linie bg-white lg:min-h-0 lg:shrink lg:border-t-0 lg:border-l">
           {fehler || eigenerFehler ? (
             <div className="shrink-0 border-b border-linie p-4">
               <Hinweis art="fehler">{t((fehler ?? eigenerFehler) as Textschluessel)}</Hinweis>
@@ -815,7 +837,7 @@ export function MusterAnsehen() {
           {vorschau ? (
             /* Solange ein Stück eingesetzt wird, verdrängt es alles andere –
                es gibt dann genau eine Sache zu tun. */
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
+            <div className="flex flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <Abschnitt titel={t("editor.stueckEinsetzen")} hinweis={t("editor.stueckSchieben")}>
                 <div className="grid w-full max-w-[300px] grid-cols-3 gap-2 self-center">
                   <span />
@@ -888,9 +910,37 @@ export function MusterAnsehen() {
                 die Frage, auf die die alte Oberfläche keine Antwort gab:
                 „Was soll ich hier eigentlich tun?"
               */}
-              <div className="shrink-0 border-b border-linie px-5 py-3">
-                <h2 className="text-[1.15rem] font-bold leading-tight">{t(werkzeugJetzt.titel)}</h2>
-                <p className="mt-1 text-[1rem] text-gedaempft">{t(werkzeugJetzt.erklaerung)}</p>
+              <div className="shrink-0 border-b border-linie">
+                <button
+                  type="button"
+                  onClick={() => setHinweisOffen((offen) => !offen)}
+                  aria-expanded={hinweisOffen}
+                  aria-controls="werkzeugerklaerung"
+                  className="flex min-h-[56px] w-full items-center gap-3 px-5 py-2 text-left hover:bg-hinweis"
+                >
+                  <h2 className="min-w-0 flex-1 text-[1.15rem] font-bold leading-tight">
+                    {t(werkzeugJetzt.titel)}
+                  </h2>
+                  {/* Ein Winkel statt eines Wortes: er zeigt, wohin es geht,
+                      und kostet keine Zeile. Die Vorlesesoftware bekommt den
+                      Zustand über aria-expanded und den Namen darunter. */}
+                  <span
+                    aria-hidden
+                    className={`shrink-0 text-[1.4rem] leading-none text-gedaempft transition-transform ${
+                      hinweisOffen ? "rotate-180" : ""
+                    }`}
+                  >
+                    ⌄
+                  </span>
+                  <span className="sr-only">
+                    {hinweisOffen ? t("editor.hinweisZuklappen") : t("editor.hinweisAufklappen")}
+                  </span>
+                </button>
+                {hinweisOffen ? (
+                  <p id="werkzeugerklaerung" className="px-5 pb-3 text-[1rem] text-gedaempft">
+                    {t(werkzeugJetzt.erklaerung)}
+                  </p>
+                ) : null}
               </div>
 
               <Bereichswahl
