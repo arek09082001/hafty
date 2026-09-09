@@ -171,13 +171,18 @@ export const DE = {
     "{anzahl} Stiche wurden kopiert. Tippen Sie jetzt auf „Kopie einfügen“.",
   "editor.stueckEinsetzen": "Stück einsetzen",
   "editor.stueckSchieben":
-    "Schieben Sie das Stück mit dem Finger an die richtige Stelle oder rücken Sie es mit den Knöpfen weiter.",
+    "Schieben Sie das Stück mit dem Finger an die richtige Stelle oder rücken Sie es mit den Knöpfen weiter. Mit „Stück kleiner“ und „Stück größer“ ändern Sie seine Größe.",
   "editor.einsetzenMeldung":
     "Schieben Sie das Stück mit dem Finger an die richtige Stelle. Erst „Hier einsetzen“ schreibt es fest.",
   "editor.hoch": "Hoch",
   "editor.runter": "Runter",
   "editor.links": "Links",
   "editor.rechts": "Rechts",
+  // „Kleiner"/„Größer" allein wären zweideutig: so heißen schon die Knöpfe
+  // an der Leinwand, mit denen man das ganze Muster näher heranholt.
+  "editor.stueckKleiner": "Stück kleiner",
+  "editor.stueckGroesser": "Stück größer",
+  "editor.stueckMasse": "{breite} × {hoehe} Stiche · {cmBreite} cm × {cmHoehe} cm",
   "editor.vierteldrehung": "Vierteldrehung",
   "editor.spiegelnWaagerecht": "Waagerecht spiegeln",
   "editor.spiegelnSenkrecht": "Senkrecht spiegeln",
@@ -706,13 +711,16 @@ export const PL: Record<Textschluessel, string> = {
   "editor.kopiertMeldung": "Skopiowano {anzahl} ściegów. Proszę teraz dotknąć „Wstaw kopię”.",
   "editor.stueckEinsetzen": "Wstawianie kawałka",
   "editor.stueckSchieben":
-    "Proszę przesunąć kawałek palcem we właściwe miejsce albo przestawić go przyciskami.",
+    "Proszę przesunąć kawałek palcem we właściwe miejsce albo przestawić go przyciskami. Przyciskami „Zmniejsz kawałek” i „Powiększ kawałek” zmienia się jego rozmiar.",
   "editor.einsetzenMeldung":
     "Proszę przesunąć kawałek palcem we właściwe miejsce. Dopiero „Wstaw tutaj” zapisuje go na stałe.",
   "editor.hoch": "Do góry",
   "editor.runter": "W dół",
   "editor.links": "W lewo",
   "editor.rechts": "W prawo",
+  "editor.stueckKleiner": "Zmniejsz kawałek",
+  "editor.stueckGroesser": "Powiększ kawałek",
+  "editor.stueckMasse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm",
   "editor.vierteldrehung": "Obróć o ćwierć",
   "editor.spiegelnWaagerecht": "Odbij w poziomie",
   "editor.spiegelnSenkrecht": "Odbij w pionie",

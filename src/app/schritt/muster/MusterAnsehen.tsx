@@ -43,8 +43,12 @@ import {
   nurAuswahlSticken,
   paletteNachzaehlen,
   rechteckAuswaehlen,
+  skalieren,
+  skalierteMasse,
   spiegelnSenkrecht,
   spiegelnWaagerecht,
+  STUECK_STUFEN,
+  STUECK_STUFE_NORMAL,
   type Ausschnitt,
   type Auswahl,
 } from "@/lib/muster/raster";
@@ -120,8 +124,19 @@ export function MusterAnsehen() {
   const [aehnlichkeit, setAehnlichkeit] = useState(STANDARD_AEHNLICHKEIT);
   const [tipps, setTipps] = useState<Array<{ x: number; y: number }>>([]);
   const [zwischenablage, setZwischenablage] = useState<Ausschnitt | null>(null);
+  /**
+   * Das Stück, das gerade eingesetzt wird.
+   *
+   * Gehalten wird die **unskalierte** Quelle, dazu die Stufe. Gedreht und
+   * gespiegelt wird die Quelle selbst – beides ist verlustfrei. Vergrößert
+   * wird immer erst beim Anzeigen, aus der Quelle heraus: sonst rechnete
+   * jeder Tipp auf „Größer" das schon Gerechnete noch einmal um, und nach
+   * zweimal hin und her wäre aus dem Motiv ein Klotz geworden.
+   */
   const [vorschau, setVorschau] = useState<{
-    stueck: Ausschnitt;
+    quelle: Ausschnitt;
+    /** Stelle in STUECK_STUFEN. */
+    stufe: number;
     x: number;
     y: number;
     /** Motive lösen beim Einsetzen eine Sicherung aus, Kopien nicht. */
@@ -450,6 +465,18 @@ export function MusterAnsehen() {
   /** Wie viele Felder bleiben frei, werden also nicht gestickt? */
   const freieStellen = useMemo(() => (raster ? freieFelder(raster) : 0), [raster]);
 
+  /**
+   * Das Stück, wie es gerade auf der Leinwand liegt: die Quelle auf der
+   * gewählten Stufe. Gerechnet wird nur, wenn sich Quelle oder Stufe
+   * ändern – beim bloßen Verschieben bleibt es dasselbe.
+   */
+  const vorschauQuelle = vorschau?.quelle ?? null;
+  const vorschauStufe = vorschau?.stufe ?? STUECK_STUFE_NORMAL;
+  const vorschauStueck = useMemo(
+    () => (vorschauQuelle ? skalieren(vorschauQuelle, STUECK_STUFEN[vorschauStufe]) : null),
+    [vorschauQuelle, vorschauStufe],
+  );
+
   // ---------------------------------------------------------------------
   // Aktionen
   // ---------------------------------------------------------------------
@@ -464,7 +491,8 @@ export function MusterAnsehen() {
   const einfuegenStarten = (stueck: Ausschnitt, ausMotiv = false) => {
     if (!muster) return;
     setVorschau({
-      stueck,
+      quelle: stueck,
+      stufe: STUECK_STUFE_NORMAL,
       ausMotiv,
       x: Math.max(0, Math.floor((muster.breite - stueck.w) / 2)),
       y: Math.max(0, Math.floor((muster.hoehe - stueck.h) / 2)),
@@ -475,9 +503,9 @@ export function MusterAnsehen() {
   };
 
   const vorschauFestschreiben = () => {
-    if (!muster || !vorschau) return;
+    if (!muster || !vorschau || !vorschauStueck) return;
     const { indizes, werte } = ausschnittEinsetzen(
-      vorschau.stueck,
+      vorschauStueck,
       muster.breite,
       muster.hoehe,
       vorschau.x,
@@ -498,7 +526,47 @@ export function MusterAnsehen() {
   };
 
   const vorschauDrehen = () => {
-    setVorschau((v) => (v ? { ...v, stueck: drehen90(v.stueck) } : v));
+    setVorschau((v) => (v ? { ...v, quelle: drehen90(v.quelle) } : v));
+  };
+
+  /**
+   * Eine Stufe größer oder kleiner.
+   *
+   * Das Stück wächst um seine Mitte herum und nicht von der linken oberen
+   * Ecke aus – sonst rutschte es bei jedem Tipp vom Fleck, den man gerade
+   * getroffen hat.
+   */
+  /**
+   * Wächst darf ein Stück, solange es ins Muster passt – darüber wäre der
+   * größte Teil davon ohnehin abgeschnitten. Zurück auf seine eigene Größe
+   * kommt es aber immer: ein Motiv, das schon von Haus aus größer ist als
+   * das Muster, ließe sich sonst verkleinern und nie wieder herstellen.
+   */
+  const stufeErlaubt = (stufe: number): boolean => {
+    if (!vorschau || !muster) return false;
+    if (stufe < 0 || stufe >= STUECK_STUFEN.length) return false;
+    if (STUECK_STUFEN[stufe] <= 100) return true;
+    const masse = skalierteMasse(vorschau.quelle, STUECK_STUFEN[stufe]);
+    return masse.w <= muster.breite && masse.h <= muster.hoehe;
+  };
+
+  const kannStueckKleiner = vorschau ? stufeErlaubt(vorschau.stufe - 1) : false;
+  const kannStueckGroesser = vorschau ? stufeErlaubt(vorschau.stufe + 1) : false;
+
+  const vorschauSkalieren = (richtung: 1 | -1) => {
+    setVorschau((v) => {
+      if (!v) return v;
+      const neu = v.stufe + richtung;
+      if (neu < 0 || neu >= STUECK_STUFEN.length) return v;
+      const alt = skalierteMasse(v.quelle, STUECK_STUFEN[v.stufe]);
+      const jetzt = skalierteMasse(v.quelle, STUECK_STUFEN[neu]);
+      return {
+        ...v,
+        stufe: neu,
+        x: Math.round(v.x + (alt.w - jetzt.w) / 2),
+        y: Math.round(v.y + (alt.h - jetzt.h) / 2),
+      };
+    });
   };
 
   const auswahlFaerben = () => {
@@ -760,14 +828,14 @@ export function MusterAnsehen() {
           mitSymbolen={mitSymbolen}
           auswahl={auswahl?.maske ?? null}
           vorschau={
-            vorschau
+            vorschau && vorschauStueck
               ? {
                   x: vorschau.x,
                   y: vorschau.y,
-                  w: vorschau.stueck.w,
-                  h: vorschau.stueck.h,
-                  daten: vorschau.stueck.daten,
-                  maske: vorschau.stueck.maske,
+                  w: vorschauStueck.w,
+                  h: vorschauStueck.h,
+                  daten: vorschauStueck.daten,
+                  maske: vorschauStueck.maske,
                 }
               : null
           }
@@ -859,6 +927,44 @@ export function MusterAnsehen() {
                   <span />
                 </div>
 
+                {/* Größe: zwei Knöpfe und darunter, was dabei herauskommt.
+                    Die Zentimeter stehen dabei, weil bei einem Motiv genau
+                    das die Frage ist – ob es auf den Stoff passt. */}
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <Knopf
+                    art="neben"
+                    klein
+                    onClick={() => vorschauSkalieren(-1)}
+                    disabled={!kannStueckKleiner}
+                  >
+                    {t("editor.stueckKleiner")}
+                  </Knopf>
+                  <Knopf
+                    art="neben"
+                    klein
+                    onClick={() => vorschauSkalieren(1)}
+                    disabled={!kannStueckGroesser}
+                  >
+                    {t("editor.stueckGroesser")}
+                  </Knopf>
+                </div>
+                {vorschauStueck ? (
+                  <p aria-live="polite" className="mt-2 text-[1rem] text-gedaempft">
+                    {t("editor.stueckMasse", {
+                      breite: String(vorschauStueck.w),
+                      hoehe: String(vorschauStueck.h),
+                      cmBreite: cmText(
+                        sticheInCm(vorschauStueck.w, einstellungen.stoffzaehlung),
+                        landeskennung,
+                      ),
+                      cmHoehe: cmText(
+                        sticheInCm(vorschauStueck.h, einstellungen.stoffzaehlung),
+                        landeskennung,
+                      ),
+                    })}
+                  </p>
+                ) : null}
+
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   <Knopf art="neben" klein onClick={vorschauDrehen}>
                     {t("editor.vierteldrehung")}
@@ -867,7 +973,7 @@ export function MusterAnsehen() {
                     art="neben"
                     klein
                     onClick={() =>
-                      setVorschau((v) => (v ? { ...v, stueck: spiegelnWaagerecht(v.stueck) } : v))
+                      setVorschau((v) => (v ? { ...v, quelle: spiegelnWaagerecht(v.quelle) } : v))
                     }
                   >
                     {t("editor.spiegelnWaagerecht")}
@@ -876,7 +982,7 @@ export function MusterAnsehen() {
                     art="neben"
                     klein
                     onClick={() =>
-                      setVorschau((v) => (v ? { ...v, stueck: spiegelnSenkrecht(v.stueck) } : v))
+                      setVorschau((v) => (v ? { ...v, quelle: spiegelnSenkrecht(v.quelle) } : v))
                     }
                   >
                     {t("editor.spiegelnSenkrecht")}
