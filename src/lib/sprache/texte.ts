@@ -461,6 +461,60 @@ export const DE = {
     "Es ist noch kein Bild ausgesucht. Gehen Sie einen Schritt zurück und wählen Sie ein Bild aus.",
   "arbeit.fehlerBildLesen":
     "Dieses Bild konnte nicht gelesen werden. Bitte wählen Sie ein anderes Bild aus, am besten ein Foto im Format JPG oder PNG.",
+
+  // --- Startseite: die eigenen Muster --------------------------------------
+  "kopf.meineMuster": "Meine Muster",
+  "start.titel": "Meine Muster",
+  "start.erklaerung":
+    "Hier stehen die Bilder, aus denen Sie schon ein Muster gemacht haben – das zuletzt bearbeitete zuerst. Tippen Sie eines an, um weiterzuarbeiten.",
+  "start.zuletzt": "Zuletzt bearbeitet",
+  "start.wirdGeholt": "Ihre Muster werden geholt …",
+  "start.nochNichts":
+    "Hier ist noch nichts. Fangen Sie mit einem Foto an – der grüne Knopf unten führt Sie hin.",
+  "start.neuesBild": "Neues Bild aussuchen",
+  "start.fussHinweis": "Sie können jederzeit ein neues Bild nehmen.",
+  "start.ohneBild": "kein Foto",
+  "start.ohneNamen": "Ohne Namen",
+  "start.staende": "{anzahl} gespeicherte Stände",
+  "start.standEiner": "1 gespeicherter Stand",
+  "start.farben": "{anzahl} Farben",
+  "start.oeffnen": "Öffnen",
+  "start.vergleichen": "Versionen vergleichen",
+  "start.loeschen": "Löschen",
+  "start.loeschenTitel": "„{name}“ löschen?",
+  "start.loeschenText":
+    "Das Bild und alle gespeicherten Stände dazu werden gelöscht – auf diesem Gerät und in der Sicherung. Das lässt sich nicht rückgängig machen.",
+
+  // --- Sicherung im Internet -----------------------------------------------
+  "sicherung.gesichert": "Gesichert im Internet",
+  "sicherung.laeuft": "Wird gesichert …",
+  "sicherung.wartet": "Wird gesichert, sobald Sie Internet haben ({anzahl})",
+  "sicherung.fehler":
+    "Die Sicherung im Internet klappt gerade nicht. Auf diesem Gerät ist alles da.",
+
+  // --- Zwei Stände nebeneinander ------------------------------------------
+  "vergleich.titel": "Versionen vergleichen",
+  "vergleich.erklaerung":
+    "Links die eine Fassung, rechts die andere. Vergrößern und Schieben gilt immer für beide.",
+  "vergleich.lupeKleiner": "Kleiner",
+  "vergleich.lupeGroesser": "Größer",
+  "vergleich.einpassen": "Ganzes Muster",
+  "vergleich.tauschen": "Seiten tauschen",
+  "vergleich.fertig": "Fertig",
+  "vergleich.frueher": "Früherer Stand",
+  "vergleich.spaeter": "Späterer Stand",
+  "vergleich.nehmen": "Diesen nehmen",
+  "vergleich.angaben": "{farben} Farben · {breite} × {hoehe} Stiche",
+  "vergleich.zuWenige":
+    "Zum Vergleichen braucht es zwei Stände. Den ersten haben Sie – der zweite entsteht, sobald Sie die Farbanzahl oder die Größe ändern.",
+  "vergleich.gleich": "Beide haben gleich viele Farben und dieselbe Größe.",
+  "vergleich.mehrFarben": "Rechts {anzahl} Farben mehr",
+  "vergleich.wenigerFarben": "Rechts {anzahl} Farben weniger",
+  "vergleich.breiter": "Rechts {anzahl} Stiche breiter",
+  "vergleich.schmaler": "Rechts {anzahl} Stiche schmaler",
+  "staende.vergleichen": "Zwei Stände vergleichen",
+  "bild.schonBekannt":
+    "Dieses Bild war schon einmal da: die neue Fassung kommt zu „{name}“ dazu. Die früheren Stände bleiben und lassen sich damit vergleichen.",
 } as const;
 
 export type Textschluessel = keyof typeof DE;
@@ -901,4 +955,58 @@ export const PL: Record<Textschluessel, string> = {
     "Nie wybrano jeszcze zdjęcia. Proszę cofnąć się o krok i wybrać zdjęcie.",
   "arbeit.fehlerBildLesen":
     "Nie udało się odczytać tego zdjęcia. Proszę wybrać inne, najlepiej zdjęcie w formacie JPG albo PNG.",
+
+  // --- Strona startowa: moje wzory -----------------------------------------
+  "kopf.meineMuster": "Moje wzory",
+  "start.titel": "Moje wzory",
+  "start.erklaerung":
+    "Tu są zdjęcia, z których powstał już wzór – ostatnio używane na początku. Proszę dotknąć jednego, żeby pracować dalej.",
+  "start.zuletzt": "Ostatnio używane",
+  "start.wirdGeholt": "Pobieranie wzorów …",
+  "start.nochNichts":
+    "Tu jeszcze nic nie ma. Proszę zacząć od zdjęcia – zielony przycisk na dole prowadzi dalej.",
+  "start.neuesBild": "Wybierz nowe zdjęcie",
+  "start.fussHinweis": "Nowe zdjęcie można wybrać w każdej chwili.",
+  "start.ohneBild": "bez zdjęcia",
+  "start.ohneNamen": "Bez nazwy",
+  "start.staende": "Zapisane wersje: {anzahl}",
+  "start.standEiner": "Zapisana wersja: 1",
+  "start.farben": "{anzahl} kolorów",
+  "start.oeffnen": "Otwórz",
+  "start.vergleichen": "Porównaj wersje",
+  "start.loeschen": "Usuń",
+  "start.loeschenTitel": "Usunąć „{name}”?",
+  "start.loeschenText":
+    "Zdjęcie i wszystkie zapisane wersje zostaną usunięte – z tego urządzenia i z kopii w internecie. Tego nie da się cofnąć.",
+
+  // --- Kopia w internecie --------------------------------------------------
+  "sicherung.gesichert": "Zapisane w internecie",
+  "sicherung.laeuft": "Zapisywanie …",
+  "sicherung.wartet": "Zapisze się, gdy będzie internet ({anzahl})",
+  "sicherung.fehler":
+    "Kopia w internecie w tej chwili nie działa. Na tym urządzeniu wszystko jest.",
+
+  // --- Dwie wersje obok siebie ---------------------------------------------
+  "vergleich.titel": "Porównanie wersji",
+  "vergleich.erklaerung":
+    "Po lewej jedna wersja, po prawej druga. Powiększanie i przesuwanie działa zawsze na obu.",
+  "vergleich.lupeKleiner": "Mniejsze",
+  "vergleich.lupeGroesser": "Większe",
+  "vergleich.einpassen": "Cały wzór",
+  "vergleich.tauschen": "Zamień strony",
+  "vergleich.fertig": "Gotowe",
+  "vergleich.frueher": "Wcześniejsza wersja",
+  "vergleich.spaeter": "Późniejsza wersja",
+  "vergleich.nehmen": "Weź tę wersję",
+  "vergleich.angaben": "{farben} kolorów · {breite} × {hoehe} ściegów",
+  "vergleich.zuWenige":
+    "Do porównania potrzebne są dwie wersje. Pierwsza już jest – druga powstanie, gdy zmieni Pani liczbę kolorów albo rozmiar.",
+  "vergleich.gleich": "Obie mają tyle samo kolorów i ten sam rozmiar.",
+  "vergleich.mehrFarben": "Po prawej o {anzahl} kolorów więcej",
+  "vergleich.wenigerFarben": "Po prawej o {anzahl} kolorów mniej",
+  "vergleich.breiter": "Po prawej o {anzahl} ściegów szersza",
+  "vergleich.schmaler": "Po prawej o {anzahl} ściegów węższa",
+  "staende.vergleichen": "Porównaj dwie wersje",
+  "bild.schonBekannt":
+    "To zdjęcie już tu było: nowa wersja dołączy do „{name}”. Wcześniejsze wersje zostają i można je porównać.",
 };

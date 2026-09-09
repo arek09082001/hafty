@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Sprachwahl } from "./Sprachwahl";
+import { Sicherungszeichen } from "./Sicherungszeichen";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
@@ -16,10 +17,11 @@ export function Kopfzeile() {
   return (
     <header className="shrink-0 border-b-2 border-linie bg-white">
       <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-2">
-        <Link href="/schritt/bild" className="text-[1.05rem] font-bold">
+        <Link href="/" className="text-[1.05rem] font-bold">
           {t("kopf.appName")}
         </Link>
         <div className="flex items-center gap-3">
+          <Sicherungszeichen klein />
           <Link
             href="/garne"
             className="flex min-h-[56px] items-center rounded-xl px-4 text-[1rem] font-semibold underline hover:bg-hinweis"

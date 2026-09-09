@@ -8,10 +8,11 @@
  * Raster, Palette, ein kleines Vorschaubild und der Zeitpunkt. Die Nutzerin
  * kann Wochen später zu jedem davon zurück.
  *
- * Alles liegt im Browser (IndexedDB), nichts im Netz. Das hat zwei Gründe:
- * die App soll ohne Verbindung vollständig sein, und sie hat keine
- * Anmeldung – ein Dienst dahinter brächte also niemandem etwas, was das
- * Gerät nicht schon leistet.
+ * Geschrieben wird immer zuerst in den Browser (IndexedDB): das geht ohne
+ * Verbindung und dauert Millisekunden. Jeder neue Stand wird zusätzlich für
+ * die Sicherung in der Ferne vorgemerkt (siehe abgleichliste.ts); ob es sie
+ * gibt, entscheidet allein die Einrichtung – ohne sie bleibt alles wie
+ * bisher auf dem Gerät.
  *
  * Aufgeräumt wird nach der Regel: die letzten 20 automatischen Stände
  * bleiben, gemerkte nie löschen, und ein Stand, an dem ein anderer als
@@ -22,6 +23,7 @@
 import { hexNachRgb } from "@/lib/farbe/lab";
 import { rasterPacken, rasterEntpacken } from "./rle";
 import { browserdatenbank, entpacken, packen, LADEN_STAENDE } from "./browserspeicher";
+import { vormerken } from "./abgleichliste";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
 import { LANDESKENNUNG, type Sprache } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
@@ -38,8 +40,16 @@ export type Stand = {
   gemerkt: boolean;
   angelegtAm: string;
   farben: number;
+  /**
+   * Die Maße in Stichen. Stände aus der Zeit vor dem Vergleichen kennen sie
+   * nicht – sie stecken dort nur im gepackten Raster. Dann bleibt hier
+   * `null`, und die Maße stehen erst da, wenn der Stand geöffnet wird.
+   */
+  breite: number | null;
+  hoehe: number | null;
   vorschauUrl: string | null;
   palette: PalettenEintrag[];
+  einstellungen: Einstellungen | null;
 };
 
 export type StandInhalt = {
@@ -51,7 +61,7 @@ export type StandInhalt = {
 };
 
 /** So liegt ein Stand in der Datenbank. */
-type Abgelegt = {
+export type Standsatz = {
   id: string;
   musterId: string;
   elternId: string | null;
@@ -63,6 +73,9 @@ type Abgelegt = {
   raster: Uint8Array;
   vorschau: Blob | null;
   einstellungen: Einstellungen;
+  /** Die Maße in Stichen, damit sie in der Liste stehen können. */
+  breite?: number;
+  hoehe?: number;
 };
 
 /** Ein kleines Vorschaubild des Musters (höchstens 240 Bildpunkte breit). */
@@ -124,7 +137,7 @@ export async function standSichern(argumente: {
     const musterId = argumente.musterId ?? crypto.randomUUID();
     const standId = crypto.randomUUID();
 
-    const satz: Abgelegt = {
+    const satz: Standsatz = {
       id: standId,
       musterId,
       elternId: argumente.elternId,
@@ -147,9 +160,15 @@ export async function standSichern(argumente: {
         argumente.palette,
       ),
       einstellungen: argumente.einstellungen,
+      breite: argumente.breite,
+      hoehe: argumente.hoehe,
     };
 
     await db.put(LADEN_STAENDE, satz);
+    // Für die Sicherung in der Ferne vormerken. Ob und wann sie stattfindet,
+    // entscheidet lib/ferne – hier wird nur notiert, dass es sie noch nicht
+    // gegeben hat.
+    await vormerken("stand", standId);
     return { musterId, standId };
   } catch {
     return null;
@@ -159,29 +178,77 @@ export async function standSichern(argumente: {
 /** Alle Stände eines Musters, der neueste zuerst. */
 export async function staendeLaden(musterId: string): Promise<Stand[]> {
   const db = await browserdatenbank();
-  const saetze = (await db.getAllFromIndex(LADEN_STAENDE, "musterId", musterId)) as Abgelegt[];
-  return saetze
-    .sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm))
-    .map((s) => ({
-      id: s.id,
-      musterId: s.musterId,
-      elternId: s.elternId,
-      beschriftung: s.beschriftung,
-      gemerkt: s.gemerkt,
-      angelegtAm: s.angelegtAm,
-      farben: s.palette.length,
-      // Die Adresse gilt nur, solange die Seite offen ist – das genügt, sie
-      // wird ausschliesslich für das Vorschaubild in der Leiste gebraucht.
-      vorschauUrl: s.vorschau ? URL.createObjectURL(s.vorschau) : null,
-      palette: s.palette,
-    }));
+  const saetze = (await db.getAllFromIndex(LADEN_STAENDE, "musterId", musterId)) as Standsatz[];
+  return saetze.sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm)).map(alsStand);
+}
+
+/**
+ * Aus einem abgelegten Satz das, was Listen und Leisten davon zeigen.
+ *
+ * Die Adresse des Vorschaubildes gilt nur, solange die Seite offen ist –
+ * das genügt, sie wird ausschließlich fürs Anzeigen gebraucht.
+ */
+function alsStand(s: Standsatz): Stand {
+  return {
+    id: s.id,
+    musterId: s.musterId,
+    elternId: s.elternId,
+    beschriftung: s.beschriftung,
+    gemerkt: s.gemerkt,
+    angelegtAm: s.angelegtAm,
+    farben: s.palette.length,
+    breite: s.breite ?? null,
+    hoehe: s.hoehe ?? null,
+    vorschauUrl: s.vorschau ? URL.createObjectURL(s.vorschau) : null,
+    palette: s.palette,
+    einstellungen: s.einstellungen ?? null,
+  };
+}
+
+/** Nur die neuesten Stände eines Musters – für die Startseite. */
+export async function staendeKurz(musterId: string, hoechstens: number): Promise<Stand[]> {
+  try {
+    const db = await browserdatenbank();
+    const saetze = (await db.getAllFromIndex(LADEN_STAENDE, "musterId", musterId)) as Standsatz[];
+    return saetze
+      .sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm))
+      .slice(0, hoechstens)
+      .map(alsStand);
+  } catch {
+    return [];
+  }
+}
+
+/** Wie viele Stände es zu einem Muster gibt. */
+export async function staendeZaehlen(musterId: string): Promise<number> {
+  try {
+    const db = await browserdatenbank();
+    return await db.countFromIndex(LADEN_STAENDE, "musterId", musterId);
+  } catch {
+    return 0;
+  }
+}
+
+/** Einen abgelegten Satz unverändert holen bzw. schreiben – für den Abgleich. */
+export async function standSatzHolen(id: string): Promise<Standsatz | null> {
+  try {
+    const db = await browserdatenbank();
+    return ((await db.get(LADEN_STAENDE, id)) as Standsatz | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function standSatzSchreiben(satz: Standsatz): Promise<void> {
+  const db = await browserdatenbank();
+  await db.put(LADEN_STAENDE, satz);
 }
 
 /** Den Inhalt eines Standes holen. */
 export async function standHolen(stand: Stand): Promise<StandInhalt | null> {
   try {
     const db = await browserdatenbank();
-    const satz = (await db.get(LADEN_STAENDE, stand.id)) as Abgelegt | undefined;
+    const satz = (await db.get(LADEN_STAENDE, stand.id)) as Standsatz | undefined;
     if (!satz) return null;
     const entpackt = rasterEntpacken(await entpacken(satz.raster));
     return { ...entpackt, palette: satz.palette };
@@ -194,9 +261,10 @@ export async function standHolen(stand: Stand): Promise<StandInhalt | null> {
 export async function standMerken(standId: string, gemerkt: boolean): Promise<boolean> {
   try {
     const db = await browserdatenbank();
-    const satz = (await db.get(LADEN_STAENDE, standId)) as Abgelegt | undefined;
+    const satz = (await db.get(LADEN_STAENDE, standId)) as Standsatz | undefined;
     if (!satz) return false;
     await db.put(LADEN_STAENDE, { ...satz, gemerkt });
+    await vormerken("stand", standId);
     return true;
   } catch {
     return false;
@@ -211,7 +279,7 @@ export async function standMerken(standId: string, gemerkt: boolean): Promise<bo
 export async function aufraeumen(musterId: string): Promise<void> {
   try {
     const db = await browserdatenbank();
-    const saetze = (await db.getAllFromIndex(LADEN_STAENDE, "musterId", musterId)) as Abgelegt[];
+    const saetze = (await db.getAllFromIndex(LADEN_STAENDE, "musterId", musterId)) as Standsatz[];
     const eltern = new Set(saetze.map((s) => s.elternId).filter(Boolean) as string[]);
 
     const wegwerfbar = saetze

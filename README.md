@@ -6,8 +6,11 @@ gibt es keinen Server-Roundtrip.
 
 **Die App lässt sich installieren und läuft ohne Internet.** Alles liegt auf
 dem Gerät: die Garnfarben im ausgelieferten Programm, Muster, Zwischenstände,
-Motive und der Garnvorrat im Browserspeicher. Es gibt keinen Dienst dahinter,
-keine Datenbank und keinen Schlüssel – siehe „Ohne Internet" weiter unten.
+Motive und der Garnvorrat im Browserspeicher – siehe „Ohne Internet" weiter
+unten. Wer will, hängt zusätzlich ein Supabase-Projekt an; dann liegt jeder
+gespeicherte Stand, sobald Verbindung besteht, auch dort. Ohne diese
+Einrichtung ändert sich nichts, und die Oberfläche erwähnt sie mit keinem
+Wort.
 
 Die Oberfläche gibt es auf **Deutsch und Polnisch** und ist für eine Nutzerin
 ohne Computererfahrung gebaut: Grundschrift 20px, Schaltflächen mindestens 56px
@@ -15,8 +18,9 @@ hoch, pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
 
 **Es gibt keine Anmeldung.** Die App ist für eine einzige Person gedacht, die
 ihre Muster wiederfinden will, ohne sich etwas merken zu müssen: Seite
-aufrufen und loslegen. Was das für die Sicherheit bedeutet, steht weiter
-unten unter „Keine Anmeldung – was das heißt".
+aufrufen und loslegen. Auch mit Sicherung bleibt das so – das Gerät meldet
+sich im Hintergrund anonym an. Was das für die Sicherheit bedeutet, steht
+weiter unten unter „Keine Anmeldung, kein Passwort".
 
 ## Zwei Sprachen
 
@@ -43,7 +47,9 @@ gebrauchten Zeichen zusammengestrichene Fassung der Liberation Sans
 - Next.js (App Router, TypeScript)
 - Tailwind CSS
 - `pdf-lib` für den Ausdruck, `idb` für den Speicher im Browser
-- Kein Server, keine Datenbank, keine Anmeldung
+- Für die freiwillige Sicherung: Supabase, über seine HTTP-Schnittstelle
+  angesprochen (`src/lib/ferne`) – ohne zusätzliches Programmpaket
+- Kein eigener Server, keine Anmeldung, die jemand sähe
 
 ## Einrichten
 
@@ -52,8 +58,10 @@ npm install
 npm run dev
 ```
 
-Mehr ist es nicht. Es gibt keine Umgebungsvariablen, nichts einzurichten und
-nichts freizuschalten: die App bringt alles mit, was sie braucht.
+Mehr ist es nicht: die App bringt alles mit, was sie braucht, und läuft ohne
+eine einzige Umgebungsvariable. Wer die Sicherung im Internet möchte, richtet
+sie zusätzlich ein – wie, steht unter „Sicherung im Internet" und in
+`.env.example`.
 
 ## Ohne Internet
 
@@ -66,7 +74,7 @@ Damit sie auch ohne Verbindung läuft, gehört alles auf das Gerät:
 | Was | Wo |
 | --- | --- |
 | Die 375 Ariadna-Farben | fest im Programm (`src/lib/garne/katalog-daten.ts`) |
-| Muster, Zwischenstände, Motive, Garnvorrat | IndexedDB im Browser |
+| Projekte, Muster, Zwischenstände, Motive, Garnvorrat | IndexedDB im Browser |
 | Das Programm selbst | Service Worker (`public/sw.js`) |
 
 Der Service Worker holt beim Einrichten die fünf Seiten und liest aus ihrem
@@ -80,9 +88,9 @@ Zwischenspeicher, damit eine neue Fassung ankommt, sobald Verbindung besteht.
 Die Bausteine unter `/_next/static/` kommen immer aus dem Zwischenspeicher –
 ihr Inhalt ändert sich nie, weil der Prüfwert im Namen steht.
 
-**Was das bedeutet:** die Muster liegen auf genau einem Gerät. Es gibt keine
-Kopie in der Ferne. Wer ein fertiges Muster behalten will, druckt es aus –
-dafür ist Schritt 4 da.
+**Was das bedeutet:** ohne eingerichtete Sicherung liegen die Muster auf genau
+einem Gerät. Wer ein fertiges Muster sicher behalten will, druckt es aus –
+dafür ist Schritt 4 da – oder richtet die Sicherung im Internet ein.
 
 ### Die Garnfarben
 
@@ -197,18 +205,137 @@ stünde dort weiter, was beim Erzeugen herauskam: aus zwölf Farben und 100 m
 Garn werden beim Freistellen einer Blüte schnell sieben Farben und 28 m, und
 diese Liste ist die Einkaufsliste.
 
-## Keine Anmeldung, kein Dienst
+## Meine Muster: die Startseite
+
+Vorher fing die App immer mit „Bild aussuchen" an. Für den ersten Besuch ist
+das richtig, für jeden weiteren nicht: die Nutzerin kommt zurück, um an dem
+Muster von gestern weiterzumachen – und musste das Foto dafür noch einmal auf
+der Festplatte suchen.
+
+Die Startseite (`src/app/Startseite.tsx`) zeigt deshalb, was da ist: je
+hochgeladenem Bild eine Kachel mit dem Foto, dem Zeitpunkt der letzten
+Änderung und den letzten Ständen als Bildchen. Ein Tipp auf die Kachel öffnet
+den neuesten Stand, ein Tipp auf ein Bildchen genau diesen.
+
+Geöffnet wird, indem der gewünschte Stand zum **Arbeitsstand** gemacht wird –
+genau der, den die App nach einem Absturz ohnehin zurückholt
+(`projektOeffnen` in `src/lib/speicher/projekte.ts`). So gibt es einen Weg
+ins Muster hinein und nicht zwei, die auseinanderlaufen können.
+
+### Ein Bild, ein Projekt – zugeordnet über den Dateinamen
+
+Ein Projekt ist genau das, was die Nutzerin ohnehin im Kopf hat: ein
+hochgeladenes Bild und alles, was daraus geworden ist. Wer „blume.jpg" ein
+zweites Mal aussucht, arbeitet weiter an demselben Projekt: die Fassung mit
+12 Farben und die mit 30 stehen danach nebeneinander, statt zwei fremde
+Muster zu werden. Schritt 1 sagt das dazu, und die Einstellungen vom letzten
+Mal kommen gleich mit – wer dasselbe Bild noch einmal nimmt, will fast immer
+eine Kleinigkeit ändern und nicht bei den Voreinstellungen anfangen.
+
+Die Zuordnung geht über den Dateinamen, ohne Rücksicht auf Groß- und
+Kleinschreibung. Das ist die Ordnung, die beim Benennen der Fotos ohnehin
+entsteht; eine zweite, die die App sich ausdenkt, bräuchte niemand.
+
+## Versionen vergleichen
+
+„Einmal habe ich mehr Farben genommen, einmal die Größe geändert – welches
+war besser?" An zwei Bildchen von 140 Punkten Breite lässt sich das nicht
+beantworten. „Zwei Stände vergleichen" legt deshalb zwei Stände über den
+ganzen Bildschirm nebeneinander (`src/components/Vergleich.tsx`), aus dem
+Editor heraus und von der Startseite aus.
+
+Drei Entscheidungen stecken darin:
+
+- **Vergrößern und Schieben gelten für beide Seiten.** Verglichen wird sonst
+  nicht dieselbe Stelle. Geschoben wird in Anteilen der Musterbreite, damit
+  auch zwei verschieden große Muster an derselben Stelle stehen.
+- **Geblättert wird je Seite einzeln** („Früherer Stand" / „Späterer
+  Stand"), damit sich einer festhalten und am anderen entlanggehen lässt. Die
+  Knöpfe heißen nach der Zeit und nicht nach einer Richtung: eine Nutzerin
+  denkt in „vorher" und „nachher", nicht in „vorwärts".
+- **Unten steht der Unterschied in Worten**: „Rechts 8 Farben mehr · Rechts
+  40 Stiche breiter". Das ist die Antwort auf die Frage, die zum Vergleichen
+  geführt hat.
+
+Gezeichnet wird aus den vollen Rasterdaten und nicht aus den Vorschaubildern:
+bei sechsfacher Vergrößerung will man die Kästchen sehen. Ein einmal geholter
+Stand bleibt liegen, damit das Hin- und Herblättern nicht wartet.
+
+## Sicherung im Internet
+
+Ohne Einrichtung gibt es sie nicht, und die Oberfläche erwähnt sie mit keinem
+Wort. Mit Einrichtung gilt: **gespeichert wird immer zuerst auf dem Gerät,
+und was gespeichert wurde, geht bei bestehender Verbindung sofort hinauf.**
+
+Die Reihenfolge ist der Kern der Sache (`src/lib/ferne/abgleich.ts`):
+
+1. Der Stand landet in IndexedDB. Sofort, auch ohne Empfang.
+2. Er steht danach in der Vormerkliste – Art und Kennung, mehr nicht
+   (`src/lib/speicher/abgleichliste.ts`).
+3. Sobald Verbindung besteht, wird diese Liste abgearbeitet: beim Start, bei
+   jedem Speichern, sobald das Gerät wieder Netz meldet, sobald die App nach
+   vorn geholt wird, und alle 20 Sekunden, solange etwas wartet.
+
+Damit wartet die Nutzerin nie auf das Netz, und trotzdem ist binnen Sekunden
+alles oben. Bricht die Verbindung mitten im Hochladen ab, bleibt die
+Vormerkung stehen; hochgeladen wird immer unter derselben Kennung wie auf dem
+Gerät, zweimal schadet also nicht. In der Kopfzeile steht in einem Satz, wie
+es steht: „Gesichert im Internet" oder „Wird gesichert, sobald Sie Internet
+haben (3)".
+
+In die andere Richtung geht es einmal beim Start: was in der Ferne liegt und
+hier fehlt, wird geholt. Das ist der Fall, für den das Ganze gebaut ist –
+neues Gerät, geleerter Browserspeicher. Beim Arbeiten ist immer das Gerät die
+Wahrheit; die Ferne ist die Sicherung und schreibt nie etwas um, was hier
+schon liegt.
+
+Was hochgeht: eine Zeile je Projekt, eine je Stand, dazu drei Dateien im
+Dateispeicher – das Quellfoto (genau einmal, es ändert sich nie), das
+zusammengedrückte Raster und das Vorschaubild. Ein Muster mit 160 000 Feldern
+wiegt dabei ein paar Kilobyte, das Foto ist das Schwere daran.
+
+Eingerichtet ist es mit drei Handgriffen:
+
+```bash
+# 1. Tabellen und Regeln anlegen
+#    supabase/migrations/0001_muster_sichern.sql im Projekt ausführen
+# 2. In Supabase: Authentication -> Sign In / Providers -> Anonymous erlauben
+# 3. .env.local anlegen (Vorlage: .env.example)
+NEXT_PUBLIC_SUPABASE_URL=https://…supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=…
+```
+
+Angesprochen wird Supabase über seine HTTP-Schnittstelle, ohne zusätzliches
+Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Anmelden,
+Schreiben, Lesen und zwei Dateibefehle – das sind zweihundert Zeilen. Ein
+Paket dafür wöge mehr als der ganze Rest der App und läge auf einem Gerät,
+das die App gerade ohne Verbindung geöffnet hat.
+
+## Keine Anmeldung, kein Passwort
 
 Die App fragt niemanden nach irgendetwas: kein Passwort, kein Magic Link,
 kein Konto. Wer die Seite aufruft, arbeitet sofort an den Mustern.
 
-Sie braucht das auch nicht mehr: es gibt nichts in der Ferne, worauf sich
-ein Zugang beziehen könnte. Alle Daten liegen im Browser des Geräts, und
-was dort liegt, kommt ohnehin nur an, wer das Gerät hat.
+Ohne eingerichtete Sicherung gibt es dafür auch nichts einzurichten: alle
+Daten liegen im Browser des Geräts, und was dort liegt, bekommt ohnehin nur,
+wer das Gerät hat.
 
-Der Preis gehört benannt: **die Muster liegen auf genau einem Gerät.**
-Wer den Browserspeicher leert oder das Gerät wechselt, fängt neu an.
-Ein fertiges Muster gehört deshalb ausgedruckt – dafür ist Schritt 4 da.
+Mit Sicherung bleibt die Oberfläche dieselbe. Beim ersten Mal meldet sich das
+Gerät im Hintergrund **anonym** an – Supabase legt dafür einen Benutzer ohne
+Namen und ohne Passwort an –, und der Zugang liegt danach im Browser. Alle
+Zeilen und Dateien gehören diesem Benutzer, und die Regeln in der Datenbank
+lassen nur ihn heran (`supabase/migrations/0001_muster_sichern.sql`). Der
+Schlüssel im Programm ist der öffentliche; für sich genommen erlaubt er
+nichts.
+
+Zwei Dinge gehören dazugesagt:
+
+- Wer den Browserspeicher leert, verliert **den Zugang**, nicht die Daten:
+  Das Gerät meldet sich danach als neuer anonymer Benutzer an und sieht die
+  alte Sicherung nicht mehr. Deshalb ist die Sicherung ein zweites Exemplar
+  und kein Archiv, an das man sich von überall anmelden könnte.
+- Ein fertiges Muster gehört trotzdem ausgedruckt. Papier überlebt jedes
+  Konto.
 
 ## Wie die Oberfläche gebaut ist
 
@@ -251,14 +378,17 @@ Bildschirm genau eine Hauptaktion.
 ## Aufbau des Projekts
 
 ```
+src/app/page.tsx        Die Startseite: die zuletzt bearbeiteten Projekte
 src/app/schritt/…       Die vier Schritte des geführten Weges
 src/app/garne           Der eigene Garnvorrat
-src/components          Schaltflächen, Fortschrittsleiste, Fenster
+src/components          Schaltflächen, Fortschrittsleiste, Fenster, Vergleich
 src/lib/farbe           Lab, CIEDE2000 und die Farbbeschreibungen
 src/lib/garne           Der Garnkatalog, fest im Programm
-src/lib/speicher        IndexedDB: Arbeitsstand, Stände, Motive, Garnvorrat
+src/lib/speicher        IndexedDB: Projekte, Arbeitsstand, Stände, Motive, Garne
+src/lib/ferne           Die freiwillige Sicherung bei Supabase
 src/lib/sprache         Wörterbuch Deutsch/Polnisch und der Sprachumschalter
 public/sw.js            Service Worker – dafür läuft die App ohne Internet
+supabase/migrations     Tabellen und Regeln für die Sicherung
 data                    Garnlisten und ihre Quelldaten
 scripts                 Garnfarben ableiten, Katalog und Symbole erzeugen
 ```
@@ -291,14 +421,16 @@ sondern immer lauflängenkodiert und danach zusammengedrückt. Ein Muster mit
 160 000 Feldern schrumpft dabei auf wenige Kilobyte, und in IndexedDB passt
 das bequem neben Quellbild und Vorschau.
 
-In der Datenbank des Browsers liegen vier Läden:
+In der Datenbank des Browsers liegen sechs Läden:
 
 | Laden | Inhalt |
 | --- | --- |
 | `arbeit` | der aktuelle Stand, laufend mitgeschrieben – gegen Abstürze |
+| `projekte` | ein Eintrag je hochgeladenem Bild: Foto, Name, Zeitpunkt |
 | `staende` | die gespeicherten Zwischenstände je Muster |
 | `motive` | gemerkte Ausschnitte, über Muster hinweg |
 | `garnvorrat` | welche Garne zu Hause liegen |
+| `abgleich` | was noch in die Sicherung muss (nur Art und Kennung) |
 
 Aufgeräumt wird nur bei den Zwischenständen: die letzten 20 automatischen
 bleiben, gemerkte nie löschen, und ein Stand, an dem ein anderer als

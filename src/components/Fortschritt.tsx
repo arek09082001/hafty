@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { Sprachwahl } from "./Sprachwahl";
+import { Sicherungszeichen } from "./Sicherungszeichen";
 
 /** Die vier Schritte des gefuehrten Weges. */
 export const SCHRITTE = [
@@ -83,6 +84,13 @@ export function Fortschritt() {
         </ol>
 
         <div className="flex shrink-0 items-center gap-2">
+          <Sicherungszeichen klein />
+          <Link
+            href="/"
+            className="flex min-h-[48px] items-center rounded-xl px-3 text-[0.95rem] font-semibold underline hover:bg-hinweis"
+          >
+            {t("kopf.meineMuster")}
+          </Link>
           <Link
             href="/garne"
             className="flex min-h-[48px] items-center rounded-xl px-3 text-[0.95rem] font-semibold underline hover:bg-hinweis"

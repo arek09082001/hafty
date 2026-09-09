@@ -22,6 +22,7 @@ export function Staendeleiste({
   neuLaden,
   onWiederherstellen,
   onMerken,
+  onVergleichen,
 }: {
   musterId: string | null;
   aktuelleVersion: string | null;
@@ -29,6 +30,8 @@ export function Staendeleiste({
   neuLaden: number;
   onWiederherstellen: (stand: Stand) => Promise<void>;
   onMerken: () => Promise<void>;
+  /** Fehlt sie, gibt es hier nichts zu vergleichen (noch kein Muster). */
+  onVergleichen?: () => void;
 }) {
   // Der Schlüssel sagt, welchen Datenstand die Liste zeigt. Solange er nicht
   // zum gewünschten passt, wird noch geladen – so braucht es kein eigenes
@@ -95,6 +98,14 @@ export function Staendeleiste({
       <Knopf art="neben" onClick={merken} disabled={merktGerade} className="w-full">
         {merktGerade ? t("staende.wirdGemerkt") : t("staende.merken")}
       </Knopf>
+
+      {/* Zwei Stände nebeneinander – dafür ist ein Bildchen von 140 Punkten
+          zu klein, das braucht den ganzen Bildschirm. */}
+      {onVergleichen ? (
+        <Knopf art="neben" onClick={onVergleichen} disabled={staende.length < 2} className="w-full">
+          {t("staende.vergleichen")}
+        </Knopf>
+      ) : null}
 
       {!musterId ? (
         <p className="text-[1.05rem] text-gedaempft">{t("staende.erklaerung")}</p>

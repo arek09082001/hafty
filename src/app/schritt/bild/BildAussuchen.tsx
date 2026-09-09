@@ -14,7 +14,7 @@ import type { Textschluessel } from "@/lib/sprache/texte";
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export function BildAussuchen() {
-  const { bild, bildWaehlen, ausschnittSetzen } = useMuster();
+  const { bild, bildWaehlen, ausschnittSetzen, zugeordnetesProjekt } = useMuster();
   const { t } = useSprache();
   const [fehler, setFehler] = useState<Textschluessel | null>(null);
   const dateiFeld = useRef<HTMLInputElement>(null);
@@ -81,6 +81,12 @@ export function BildAussuchen() {
     >
       <div className="flex flex-col gap-8">
         {fehler ? <Hinweis art="fehler">{t(fehler)}</Hinweis> : null}
+
+        {/* Dasselbe Foto wie neulich: die neue Fassung kommt zu den alten
+            Ständen dazu, statt ein zweites Projekt aufzumachen. */}
+        {bild && zugeordnetesProjekt ? (
+          <Hinweis>{t("bild.schonBekannt", { name: zugeordnetesProjekt })}</Hinweis>
+        ) : null}
 
         {/* Das Feld ist immer da, auch wenn noch kein Bild gewählt wurde:
             beide Knöpfe tippen darauf. */}

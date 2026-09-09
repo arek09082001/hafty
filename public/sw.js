@@ -23,7 +23,7 @@
 
 const LAGER = "stickmuster-v1";
 
-/** Die vier Schritte und die Garnseite – alles, was die App an Seiten hat. */
+/** Die Startseite, die vier Schritte und die Garnseite – alle Seiten der App. */
 const SEITEN = [
   "/",
   "/schritt/bild",
@@ -146,7 +146,7 @@ self.addEventListener("fetch", (ereignis) => {
           const lager = await caches.open(LAGER);
           return (
             (await lager.match(adresse.pathname)) ??
-            (await lager.match("/schritt/bild")) ??
+            (await lager.match("/")) ??
             Response.error()
           );
         }

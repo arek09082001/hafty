@@ -10,6 +10,7 @@ import { Glaettungsregler } from "@/components/Glaettungsregler";
 import { Legende } from "@/components/Legende";
 import { Motivliste } from "@/components/Motivliste";
 import { Staendeleiste } from "@/components/Staendeleiste";
+import { Vergleich } from "@/components/Vergleich";
 import { Garnwahl } from "@/components/Garnwahl";
 import { Rasteransicht, useZoom, type Zeigerereignis } from "@/components/Rasteransicht";
 import { Werkzeugwahl, type Werkzeug } from "@/components/Werkzeugwahl";
@@ -117,6 +118,8 @@ export function MusterAnsehen() {
   const [eigenerFehler, setFehler] = useState<Textschluessel | null>(null);
   /** Für welchen Palettenindex gerade ein anderes Garn gesucht wird. */
   const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
+  /** Ob gerade zwei Stände nebeneinander liegen. */
+  const [vergleichOffen, setVergleichOffen] = useState(false);
 
   const zoom = useZoom(6);
   const flaeche = useRef<HTMLDivElement>(null);
@@ -1096,6 +1099,7 @@ export function MusterAnsehen() {
                       neuLaden={standZaehler}
                       onWiederherstellen={standWiederherstellen}
                       onMerken={standGemerkt}
+                      onVergleichen={musterId ? () => setVergleichOffen(true) : undefined}
                     />
                   </Abschnitt>
                   <Abschnitt titel={t("motive.titel")}>
@@ -1112,6 +1116,14 @@ export function MusterAnsehen() {
           )}
         </aside>
       </div>
+      <Vergleich
+        musterId={musterId}
+        offen={vergleichOffen}
+        startStandId={versionId}
+        onSchliessen={() => setVergleichOffen(false)}
+        onWiederherstellen={standWiederherstellen}
+      />
+
       <Dialog
         offen={garnwechsel !== null}
         titel={t("editor.anderesGarnTitel")}
