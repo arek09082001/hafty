@@ -153,6 +153,15 @@ export const DE = {
   "editor.auswahlFaerben": "Auswahl färben",
   "editor.auswahlKopieren": "Auswahl kopieren",
   "editor.alsMotivMerken": "Als Motiv merken",
+  "editor.nurDasSticken": "Nur das Ausgewählte sticken",
+  "editor.nurDasGestickt":
+    "Jetzt wird nur noch das Ausgewählte gestickt. Alles andere bleibt freier Stoff – mit „Rückgängig“ holen Sie es zurück.",
+  "editor.auswahlNichtSticken": "Das Ausgewählte nicht sticken",
+  "editor.auswahlWeggelassen":
+    "Diese Stelle bleibt jetzt freier Stoff. Mit „Rückgängig“ holen Sie sie zurück.",
+  "editor.wiederAllesSticken": "Wieder alles sticken",
+  "editor.wiederAllesGestickt": "Es wird wieder alles gestickt.",
+  "editor.freieFelder": "{anzahl} Felder bleiben frei – dort wird nicht gestickt.",
   "editor.auswahlAufheben": "Auswahl aufheben",
   "editor.kopiertHinweis": "Sie haben ein Stück von {w} × {h} Stichen kopiert.",
   "editor.kopieEinfuegen": "Kopie einfügen",
@@ -205,6 +214,9 @@ export const DE = {
 
   // --- Werkzeuge ---------------------------------------------------------
   "werkzeug.frage": "Womit möchten Sie arbeiten?",
+  "werkzeug.motiv": "Ganzes Motiv auswählen",
+  "werkzeug.motivText":
+    "Tippen Sie mitten in die Blume. Es wird alles ausgewählt, was farblich dazugehört – auch mehrere Farbtöne.",
   "werkzeug.flaeche": "Gleiche Fläche auswählen",
   "werkzeug.flaecheText":
     "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, wird ausgewählt.",
@@ -220,12 +232,28 @@ export const DE = {
   "werkzeug.fuellen": "Fläche färben",
   "werkzeug.fuellenText": "Tippen Sie in eine Fläche. Die ganze Fläche bekommt die gewählte Farbe.",
 
+  // --- Motiv aussuchen ---------------------------------------------------
+  "motivsuche.titel": "Ganzes Motiv auswählen",
+  "motivsuche.hinweis":
+    "Tippen Sie mitten in das Motiv, zum Beispiel in die Blüte. Passt die Auswahl nicht, ändern Sie sie mit den beiden Knöpfen.",
+  "motivsuche.mehr": "Mehr dazunehmen",
+  "motivsuche.weniger": "Weniger dazunehmen",
+  "motivsuche.weitereDazu": "Noch ein Motiv dazunehmen",
+  "motivsuche.nurEines": "Nur ein Motiv auf einmal",
+  "motivsuche.dazuAn": "Jeder Tipp nimmt ein weiteres Motiv dazu.",
+  "motivsuche.dazuAus": "Jeder Tipp wählt ein neues Motiv aus.",
+  "motivsuche.fastAlles":
+    "Ausgewählt ist fast das ganze Muster. Tippen Sie auf „Weniger dazunehmen“, wenn Sie nur ein Motiv möchten.",
+
   // --- Rückgängig-Schritte ------------------------------------------------
   "schrittname.gemalt": "Stiche gemalt",
   "schrittname.einStichGemalt": "Einen Stich gemalt",
   "schrittname.flaecheGefaerbt": "Fläche gefärbt",
   "schrittname.auswahlGefaerbt": "Auswahl gefärbt",
   "schrittname.stueckEingesetzt": "Stück eingesetzt",
+  "schrittname.freigestellt": "Motiv freigestellt",
+  "schrittname.nichtGestickt": "Stelle freigelassen",
+  "schrittname.wiederGestickt": "Wieder alles gestickt",
 
   // --- Glättung -----------------------------------------------------------
   "glaettung.frage": "Wie ruhig soll das Muster sein?",
@@ -408,6 +436,7 @@ export const DE = {
   "pdf.spalteGarnNoetig": "Garn nötig",
   "pdf.eigeneFarbe": "eigene Farbe",
   "pdf.summe": "Zusammen {stiche} Stiche und ungefähr {garn} Garn.",
+  "pdf.freieFelder": "{anzahl} Felder bleiben frei",
   "pdf.blattTitel": "{name} – {fassung}",
   "pdf.inFarbe": "in Farbe",
   "pdf.schwarzweiss": "schwarzweiß",
@@ -580,6 +609,15 @@ export const PL: Record<Textschluessel, string> = {
   "editor.auswahlFaerben": "Pokoloruj zaznaczenie",
   "editor.auswahlKopieren": "Skopiuj zaznaczenie",
   "editor.alsMotivMerken": "Zapamiętaj jako motyw",
+  "editor.nurDasSticken": "Haftuj tylko zaznaczone",
+  "editor.nurDasGestickt":
+    "Teraz haftowane będzie tylko zaznaczone. Cała reszta zostaje pustą kanwą – przyciskiem „Cofnij” można ją przywrócić.",
+  "editor.auswahlNichtSticken": "Nie haftuj zaznaczonego",
+  "editor.auswahlWeggelassen":
+    "To miejsce zostaje pustą kanwą. Przyciskiem „Cofnij” można je przywrócić.",
+  "editor.wiederAllesSticken": "Znów haftuj wszystko",
+  "editor.wiederAllesGestickt": "Znów haftowane jest wszystko.",
+  "editor.freieFelder": "{anzahl} pól zostaje pustych – tam się nie haftuje.",
   "editor.auswahlAufheben": "Usuń zaznaczenie",
   "editor.kopiertHinweis": "Skopiowano kawałek {w} × {h} ściegów.",
   "editor.kopieEinfuegen": "Wstaw kopię",
@@ -628,6 +666,9 @@ export const PL: Record<Textschluessel, string> = {
   "bereich.merken": "Zapamiętane",
 
   "werkzeug.frage": "Czym chce Pani pracować?",
+  "werkzeug.motiv": "Zaznacz cały motyw",
+  "werkzeug.motivText":
+    "Proszę dotknąć środka kwiatka. Zaznaczy się wszystko, co pasuje do niego kolorem – także kilka odcieni.",
   "werkzeug.flaeche": "Zaznacz tę samą powierzchnię",
   "werkzeug.flaecheText":
     "Proszę dotknąć powierzchni. Zaznaczy się wszystko, co się z nią łączy i ma ten sam kolor.",
@@ -643,11 +684,27 @@ export const PL: Record<Textschluessel, string> = {
   "werkzeug.fuellen": "Pokoloruj powierzchnię",
   "werkzeug.fuellenText": "Proszę dotknąć powierzchni. Cała dostanie wybrany kolor.",
 
+  // --- Motiv aussuchen ---------------------------------------------------
+  "motivsuche.titel": "Zaznacz cały motyw",
+  "motivsuche.hinweis":
+    "Proszę dotknąć środka motywu, na przykład środka kwiatka. Jeśli zaznaczenie nie pasuje, można je zmienić dwoma przyciskami.",
+  "motivsuche.mehr": "Weź więcej",
+  "motivsuche.weniger": "Weź mniej",
+  "motivsuche.weitereDazu": "Dodaj jeszcze jeden motyw",
+  "motivsuche.nurEines": "Tylko jeden motyw naraz",
+  "motivsuche.dazuAn": "Każde dotknięcie dodaje kolejny motyw.",
+  "motivsuche.dazuAus": "Każde dotknięcie zaznacza nowy motyw.",
+  "motivsuche.fastAlles":
+    "Zaznaczony jest prawie cały wzór. Proszę dotknąć „Weź mniej”, jeśli chodzi tylko o jeden motyw.",
+
   "schrittname.gemalt": "Namalowane ściegi",
   "schrittname.einStichGemalt": "Namalowany jeden ścieg",
   "schrittname.flaecheGefaerbt": "Pokolorowana powierzchnia",
   "schrittname.auswahlGefaerbt": "Pokolorowane zaznaczenie",
   "schrittname.stueckEingesetzt": "Wstawiony kawałek",
+  "schrittname.freigestellt": "Wybrany sam motyw",
+  "schrittname.nichtGestickt": "Miejsce zostawione puste",
+  "schrittname.wiederGestickt": "Znów haftowane wszystko",
 
   "glaettung.frage": "Jak spokojny ma być wzór?",
   "glaettung.erklaerung":
@@ -824,6 +881,7 @@ export const PL: Record<Textschluessel, string> = {
   "pdf.spalteGarnNoetig": "Potrzeba nici",
   "pdf.eigeneFarbe": "własny kolor",
   "pdf.summe": "Razem {stiche} ściegów i około {garn} nici.",
+  "pdf.freieFelder": "{anzahl} pól zostaje pustych",
   "pdf.blattTitel": "{name} – {fassung}",
   "pdf.inFarbe": "w kolorze",
   "pdf.schwarzweiss": "czarno-biały",

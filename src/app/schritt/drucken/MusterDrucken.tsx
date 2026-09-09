@@ -8,6 +8,7 @@ import { Legende } from "@/components/Legende";
 import { Rasteransicht, useZoom } from "@/components/Rasteransicht";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { cmText, sticheInCm } from "@/lib/muster/typen";
+import { freieFelder, paletteNachzaehlen } from "@/lib/muster/raster";
 import { blattanzahl, musterAlsPdf } from "@/lib/druck/pdf";
 import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
 import { useSprache } from "@/lib/sprache/SprachProvider";
@@ -65,8 +66,16 @@ export function MusterDrucken() {
   const breiteCm = sticheInCm(muster.breite, einstellungen.stoffzaehlung);
   const hoeheCm = sticheInCm(muster.hoehe, einstellungen.stoffzaehlung);
   const blaetter = blattanzahl(muster.breite, muster.hoehe);
-  const gesamtStiche = muster.palette.reduce((s, e) => s + e.stiche, 0);
-  const gesamtGarn = muster.palette.reduce(
+
+  // Gezählt wird das, was jetzt im Muster steht, und nicht das, was beim
+  // Erzeugen herauskam: von Hand gemalte Stiche und freigestellte Motive
+  // ändern beides. Auf dieser Seite steht die Einkaufsliste – hier darf
+  // keine Zahl von gestern stehen.
+  const paletteJetzt = paletteNachzaehlen(muster.palette, raster);
+  const paletteGebraucht = paletteJetzt.filter((e) => e.stiche > 0);
+  const freieStellen = freieFelder(raster);
+  const gesamtStiche = paletteJetzt.reduce((s, e) => s + e.stiche, 0);
+  const gesamtGarn = paletteJetzt.reduce(
     (s, e) => s + garnlaengeMeter(e.stiche, einstellungen.stoffzaehlung),
     0,
   );
@@ -83,7 +92,7 @@ export function MusterDrucken() {
         breite: muster.breite,
         hoehe: muster.hoehe,
         raster,
-        palette: muster.palette,
+        palette: paletteGebraucht,
         stoffzaehlung: einstellungen.stoffzaehlung,
         t,
         zahl,
@@ -136,7 +145,7 @@ export function MusterDrucken() {
               breite={muster.breite}
               hoehe={muster.hoehe}
               raster={raster}
-              palette={muster.palette}
+              palette={paletteJetzt}
               zoom={zoom.zoom}
               mitLinien={false}
               beschriftung={t("druck.vorschauBeschriftung")}
@@ -206,7 +215,7 @@ export function MusterDrucken() {
               </div>
               <div className="flex justify-between gap-4">
                 <dt>{t("druck.farben")}</dt>
-                <dd className="font-semibold">{muster.palette.length}</dd>
+                <dd className="font-semibold">{paletteGebraucht.length}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt>{t("druck.stiche")}</dt>
@@ -224,9 +233,17 @@ export function MusterDrucken() {
 
           <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
             <h2 className="text-[1.3rem] font-bold">
-              {t("editor.ihreGarne", { anzahl: String(muster.palette.length) })}
+              {t("editor.ihreGarne", { anzahl: String(paletteGebraucht.length) })}
             </h2>
-            <Legende palette={muster.palette} />
+            {/* Nur Garne, die auch gebraucht werden: wer ein Motiv
+                freigestellt hat, soll keine Farbe kaufen, die im Muster
+                gar nicht mehr vorkommt. */}
+            <Legende palette={paletteGebraucht} stoffzaehlung={einstellungen.stoffzaehlung} />
+            {freieStellen > 0 ? (
+              <p className="text-[1rem] text-gedaempft">
+                {t("editor.freieFelder", { anzahl: zahl(freieStellen) })}
+              </p>
+            ) : null}
           </section>
         </div>
       </div>

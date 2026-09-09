@@ -20,19 +20,31 @@ import type { Textschluessel } from "@/lib/sprache/texte";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { cmText, sticheInCm } from "@/lib/muster/typen";
 import {
+  allesWiederSticken,
   ausschnittEinsetzen,
   ausschnittHerausloesen,
   auswahlFuellen,
+  auswahlNichtSticken,
   drehen90,
+  freieFelder,
   freihandAuswahl,
   gleicheFlaecheAuswaehlen,
   linieFelder,
+  nurAuswahlSticken,
+  paletteNachzaehlen,
   rechteckAuswaehlen,
   spiegelnSenkrecht,
   spiegelnWaagerecht,
   type Ausschnitt,
   type Auswahl,
 } from "@/lib/muster/raster";
+import {
+  AEHNLICHKEITSSTUFEN,
+  STANDARD_AEHNLICHKEIT,
+  auswahlVereinen,
+  motivAuswaehlen,
+  stufeBegrenzen,
+} from "@/lib/muster/motivsuche";
 import {
   motivHolen,
   motivLoeschen,
@@ -73,9 +85,19 @@ export function MusterAnsehen() {
   const { t, zahl, landeskennung } = useSprache();
   /** Welcher der vier Bereiche rechts gerade offen ist. */
   const [bereich, setBereich] = useState("werkzeug");
-  const [werkzeug, setWerkzeug] = useState<Werkzeug>("flaeche");
+  const [werkzeug, setWerkzeug] = useState<Werkzeug>("motiv");
   const [farbe, setFarbe] = useState(0);
   const [auswahl, setAuswahl] = useState<Auswahl | null>(null);
+  /**
+   * Für die automatische Motivauswahl: wie ähnlich eine Farbe der
+   * angetippten sein muss, und wohin getippt wurde. Die Tipps werden
+   * aufgehoben, damit „Mehr dazunehmen" die Auswahl neu rechnen kann,
+   * ohne dass noch einmal getippt werden muss.
+   */
+  const [aehnlichkeit, setAehnlichkeit] = useState(STANDARD_AEHNLICHKEIT);
+  const [tipps, setTipps] = useState<Array<{ x: number; y: number }>>([]);
+  /** Nimmt jeder weitere Tipp ein Motiv dazu, statt ein neues zu wählen? */
+  const [mehrereMotive, setMehrereMotive] = useState(false);
   const [zwischenablage, setZwischenablage] = useState<Ausschnitt | null>(null);
   const [vorschau, setVorschau] = useState<{
     stueck: Ausschnitt;
@@ -156,6 +178,52 @@ export function MusterAnsehen() {
   const paletteLaenge = muster?.palette.length ?? 0;
   const farbeSicher = paletteLaenge > 0 ? Math.min(farbe, paletteLaenge - 1) : 0;
 
+  /**
+   * Die Auswahl aus allen angetippten Stellen neu rechnen.
+   *
+   * Aus den Tipps und der Stufe entsteht die Auswahl immer von Neuem, statt
+   * sie schrittweise zu verändern. Nur so ändert „Weniger dazunehmen" die
+   * Auswahl auch wieder zurück – wüchse sie nur, wäre der Weg eine
+   * Einbahnstraße.
+   */
+  const motivWaehlen = useCallback(
+    (punkte: Array<{ x: number; y: number }>, stufe: number) => {
+      if (!muster || !raster || punkte.length === 0) {
+        setAuswahl(null);
+        return;
+      }
+      let ergebnis: Auswahl | null = null;
+      for (const punkt of punkte) {
+        const teil = motivAuswaehlen(
+          raster,
+          muster.breite,
+          muster.hoehe,
+          muster.palette,
+          punkt.x,
+          punkt.y,
+          stufe,
+        );
+        ergebnis = ergebnis ? auswahlVereinen(ergebnis, teil, muster.breite) : teil;
+      }
+      setAuswahl(ergebnis);
+    },
+    [muster, raster],
+  );
+
+  /** „Mehr dazunehmen" und „Weniger": eine Stufe weiter, Auswahl neu rechnen. */
+  const aehnlichkeitAendern = (richtung: 1 | -1) => {
+    const neueStufe = stufeBegrenzen(aehnlichkeit + richtung);
+    if (neueStufe === aehnlichkeit) return;
+    setAehnlichkeit(neueStufe);
+    motivWaehlen(tipps, neueStufe);
+  };
+
+  /** Beim Wechsel des Werkzeugs die gesammelten Tipps vergessen. */
+  const werkzeugWaehlen = (neu: Werkzeug) => {
+    setWerkzeug(neu);
+    setTipps([]);
+  };
+
   // ---------------------------------------------------------------------
   // Zeigerbehandlung
   // ---------------------------------------------------------------------
@@ -175,6 +243,14 @@ export function MusterAnsehen() {
       }
 
       switch (werkzeug) {
+        case "motiv": {
+          if (!e.beginn) return;
+          const punkte = mehrereMotive ? [...tipps, { x: e.x, y: e.y }] : [{ x: e.x, y: e.y }];
+          setTipps(punkte);
+          motivWaehlen(punkte, aehnlichkeit);
+          return;
+        }
+
         case "flaeche": {
           if (!e.beginn) return;
           setAuswahl(gleicheFlaecheAuswaehlen(raster, breite, e.x, e.y));
@@ -256,7 +332,19 @@ export function MusterAnsehen() {
         }
       }
     },
-    [muster, raster, vorschau, werkzeug, farbeSicher, malSpur, felderAendern],
+    [
+      muster,
+      raster,
+      vorschau,
+      werkzeug,
+      farbeSicher,
+      malSpur,
+      felderAendern,
+      mehrereMotive,
+      tipps,
+      aehnlichkeit,
+      motivWaehlen,
+    ],
   );
 
   // Was auf der Leinwand steht: das zusammengeführte Raster, überlagert von
@@ -267,6 +355,21 @@ export function MusterAnsehen() {
     for (const [feld, wert] of malSpur) kopie[feld] = wert;
     return kopie;
   }, [raster, malSpur]);
+
+  /**
+   * Die Garnliste wird vor dem Anzeigen neu gezählt.
+   *
+   * Die Zahlen aus dem Worker gelten für das frisch erzeugte Muster. Wer von
+   * Hand malt oder ein Motiv freistellt, ändert sie – und gerade dann muss
+   * hier stehen, wie viel Garn wirklich gebraucht wird.
+   */
+  const paletteJetzt = useMemo(
+    () => (muster && raster ? paletteNachzaehlen(muster.palette, raster) : []),
+    [muster, raster],
+  );
+
+  /** Wie viele Felder bleiben frei, werden also nicht gestickt? */
+  const freieStellen = useMemo(() => (raster ? freieFelder(raster) : 0), [raster]);
 
   // ---------------------------------------------------------------------
   // Aktionen
@@ -324,6 +427,45 @@ export function MusterAnsehen() {
     if (!auswahl || auswahl.anzahl === 0) return;
     const { indizes, werte } = auswahlFuellen(auswahl, farbeSicher);
     felderAendern("schrittname.auswahlGefaerbt", indizes, werte);
+  };
+
+  /**
+   * Freistellen: nur das Ausgewählte wird gestickt, alles andere bleibt
+   * blanker Stoff.
+   *
+   * Es wird nichts gelöscht und nichts abgeschnitten – die Felder bekommen
+   * nur den Vermerk „hier nicht sticken". Deshalb genügt hier auch keine
+   * Rückfrage, sondern der Hinweis, dass ein Tipp auf „Rückgängig" alles
+   * zurückholt. Das Muster behält seine Größe; nur das Motiv steht darin.
+   */
+  const nurAuswahlBehalten = () => {
+    if (!auswahl || auswahl.anzahl === 0) return;
+    const { indizes, werte } = nurAuswahlSticken(auswahl);
+    if (indizes.length === 0) return;
+    felderAendern("schrittname.freigestellt", indizes, werte);
+    setAuswahl(null);
+    setTipps([]);
+    setMeldung(t("editor.nurDasGestickt"));
+  };
+
+  /** Der umgekehrte Weg: genau das Ausgewählte bleibt frei. */
+  const auswahlWeglassen = () => {
+    if (!auswahl || auswahl.anzahl === 0) return;
+    const { indizes, werte } = auswahlNichtSticken(auswahl);
+    if (indizes.length === 0) return;
+    felderAendern("schrittname.nichtGestickt", indizes, werte);
+    setAuswahl(null);
+    setTipps([]);
+    setMeldung(t("editor.auswahlWeggelassen"));
+  };
+
+  /** Alle freien Stellen wieder sticken. */
+  const wiederAllesSticken = () => {
+    if (!muster) return;
+    const { indizes, werte } = allesWiederSticken(muster.bearbeitung);
+    if (indizes.length === 0) return;
+    felderAendern("schrittname.wiederGestickt", indizes, werte);
+    setMeldung(t("editor.wiederAllesGestickt"));
   };
 
   const motivMerken = async () => {
@@ -669,7 +811,48 @@ export function MusterAnsehen() {
             >
               {bereich === "werkzeug" ? (
                 <>
-                  <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={setWerkzeug} />
+                  <Werkzeugwahl gewaehlt={werkzeug} onWaehlen={werkzeugWaehlen} />
+
+                  {/* Die Knöpfe zur automatischen Auswahl stehen nur da,
+                      solange auch dieses Werkzeug gewählt ist – sonst wären
+                      sie Zubehör ohne Zusammenhang. */}
+                  {werkzeug === "motiv" ? (
+                    <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
+                      <h2 className="text-[1.2rem] font-bold">{t("motivsuche.titel")}</h2>
+                      <p className="text-[1.05rem]">{t("motivsuche.hinweis")}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Knopf
+                          art="neben"
+                          onClick={() => aehnlichkeitAendern(1)}
+                          disabled={
+                            tipps.length === 0 || aehnlichkeit >= AEHNLICHKEITSSTUFEN.length - 1
+                          }
+                        >
+                          {t("motivsuche.mehr")}
+                        </Knopf>
+                        <Knopf
+                          art="neben"
+                          onClick={() => aehnlichkeitAendern(-1)}
+                          disabled={tipps.length === 0 || aehnlichkeit <= 0}
+                        >
+                          {t("motivsuche.weniger")}
+                        </Knopf>
+                      </div>
+                      <Knopf
+                        art="neben"
+                        aria-pressed={mehrereMotive}
+                        onClick={() => setMehrereMotive((an) => !an)}
+                      >
+                        {mehrereMotive ? t("motivsuche.nurEines") : t("motivsuche.weitereDazu")}
+                      </Knopf>
+                      <p className="text-[1rem] text-gedaempft">
+                        {mehrereMotive ? t("motivsuche.dazuAn") : t("motivsuche.dazuAus")}
+                      </p>
+                      {auswahl && auswahl.anzahl > 0.8 * muster.breite * muster.hoehe ? (
+                        <Hinweis>{t("motivsuche.fastAlles")}</Hinweis>
+                      ) : null}
+                    </section>
+                  ) : null}
 
                   <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
                     <h2 className="text-[1.2rem] font-bold">
@@ -679,6 +862,14 @@ export function MusterAnsehen() {
                     </h2>
                     {hatAuswahl ? (
                       <div className="flex flex-wrap gap-2">
+                        {/* Freistellen steht vorn: das ist der Grund, aus dem
+                            man ein ganzes Motiv auswählt. */}
+                        <Knopf art="neben" onClick={nurAuswahlBehalten}>
+                          {t("editor.nurDasSticken")}
+                        </Knopf>
+                        <Knopf art="neben" onClick={auswahlWeglassen}>
+                          {t("editor.auswahlNichtSticken")}
+                        </Knopf>
                         <Knopf art="neben" onClick={auswahlFaerben}>
                           {t("editor.auswahlFaerben")}
                         </Knopf>
@@ -702,6 +893,21 @@ export function MusterAnsehen() {
                       <p className="text-[1.05rem] text-gedaempft">{t("editor.tippenHinweis")}</p>
                     )}
 
+                    {/* Sobald etwas freigestellt ist, muss der Weg zurück
+                        sichtbar sein – und zwar nicht nur über
+                        „Rückgängig", das nach ein paar weiteren Schritten
+                        nicht mehr hinreicht. */}
+                    {freieStellen > 0 ? (
+                      <div className="flex flex-col gap-2 rounded-xl bg-hinweis p-4">
+                        <p className="text-[1.05rem]">
+                          {t("editor.freieFelder", { anzahl: zahl(freieStellen) })}
+                        </p>
+                        <Knopf art="neben" onClick={wiederAllesSticken}>
+                          {t("editor.wiederAllesSticken")}
+                        </Knopf>
+                      </div>
+                    ) : null}
+
                     {zwischenablage ? (
                       <div className="mt-2 flex flex-col gap-2 rounded-xl bg-hinweis p-4">
                         <p className="text-[1.05rem]">
@@ -722,22 +928,32 @@ export function MusterAnsehen() {
               {bereich === "farbe" ? (
                 <section className="flex flex-col gap-3 rounded-2xl border-2 border-tinte bg-white p-5">
                   <h2 className="text-[1.2rem] font-bold">
-                    {t("editor.ihreGarne", { anzahl: String(muster.palette.length) })}
+                    {/* Hier steht die volle Palette: dieser Bereich ist auch
+                        die Farbauswahl zum Malen, und eine Farbe, die gerade
+                        nicht im Muster vorkommt, muss trotzdem wählbar
+                        bleiben. Wie viele Garne wirklich zu kaufen sind,
+                        sagt Schritt 4. */}
+                    {t("editor.ihreGarne", { anzahl: String(paletteJetzt.length) })}
                   </h2>
                   <p className="text-[1rem] text-gedaempft">{t("editor.farbeHinweis")}</p>
                   <Legende
-                    palette={muster.palette}
+                    palette={paletteJetzt}
                     gewaehlt={farbeSicher}
                     onWaehlen={setFarbe}
                     onGarnAendern={alleGarne.length > 0 ? setGarnwechsel : undefined}
                     stoffzaehlung={einstellungen.stoffzaehlung}
                   />
+                  {freieStellen > 0 ? (
+                    <p className="text-[1rem] text-gedaempft">
+                      {t("editor.freieFelder", { anzahl: zahl(freieStellen) })}
+                    </p>
+                  ) : null}
                   {/* Was und wie viel gekauft werden muss, steht damit schon
                       hier und nicht erst auf dem Ausdruck. */}
                   <p className="text-[1rem] text-gedaempft">
                     {t("editor.garnbedarf", {
                       meter: meterText(
-                        muster.palette.reduce(
+                        paletteJetzt.reduce(
                           (summe, e) =>
                             summe + garnlaengeMeter(e.stiche, einstellungen.stoffzaehlung),
                           0,

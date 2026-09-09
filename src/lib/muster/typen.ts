@@ -105,6 +105,33 @@ export const STOFFZAEHLUNGEN = [
   { wert: 18, titel: "einst.stoff18" },
 ] as const;
 
+/**
+ * Ein Feld, das **nicht gestickt** wird – dort bleibt der Stoff frei.
+ *
+ * Das Raster hält je Feld ein Byte. Die Palette reicht von 0 bis 254 (das
+ * k-Means begrenzt sich selbst auf 255 Farben), 255 ist deshalb frei und
+ * bekommt hier seine Bedeutung: kein Garn, kein Stich, nichts.
+ *
+ * Gebraucht wird das, sobald jemand nur ein Motiv aus dem Bild sticken
+ * möchte – die Blume ja, die Wiese dahinter nicht. Der freie Grund ist beim
+ * Kreuzstich kein Sonderfall, sondern der Normalfall: gestickt wird auf
+ * hellem Stoff, und was nicht gestickt ist, bleibt eben Stoff.
+ *
+ * Wo überall darauf geachtet werden muss:
+ *   - Anzeige und Ausdruck lassen das Kästchen leer (Rasteransicht, pdf.ts)
+ *   - die Garnliste zählt es nicht mit (paletteNachzaehlen)
+ *   - beim Neuerzeugen bleibt es stehen (bearbeitungUmschreiben)
+ */
+export const LEER = 255;
+
+/**
+ * Die Farbe des unbestickten Stoffes auf dem Bildschirm.
+ *
+ * Bewusst ein Leinenton und kein Weiß: sonst wäre ein Feld ohne Stich nicht
+ * von einem Feld mit weißem Garn zu unterscheiden.
+ */
+export const STOFFFARBE = "#f1e8d6";
+
 /** Höchstzahl an Feldern, die berechnet wird. 400 × 400 Stiche. */
 export const MAX_FELDER = 160_000;
 export const MAX_BREITE = 400;

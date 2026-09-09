@@ -12,7 +12,7 @@
 
 import { browserdatenbank, entpacken, packen, LADEN_MOTIVE } from "./browserspeicher";
 import type { Ausschnitt } from "@/lib/muster/raster";
-import type { PalettenEintrag } from "@/lib/muster/typen";
+import { LEER, type PalettenEintrag } from "@/lib/muster/typen";
 import { hexNachRgb } from "@/lib/farbe/lab";
 
 export type Motiv = {
@@ -110,7 +110,9 @@ async function vorschauBauen(a: Ausschnitt): Promise<Blob | null> {
 
   for (let i = 0; i < a.daten.length; i++) {
     const p = i * 4;
-    if (!a.maske[i]) {
+    // Außerhalb der Maske und auf freien Feldern bleibt das Bild
+    // durchsichtig: beides wird nicht gestickt.
+    if (!a.maske[i] || a.daten[i] === LEER) {
       bild.data[p + 3] = 0;
       continue;
     }

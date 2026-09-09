@@ -3,17 +3,20 @@
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
-export type Werkzeug = "flaeche" | "rechteck" | "freihand" | "malen" | "fuellen";
+export type Werkzeug = "motiv" | "flaeche" | "rechteck" | "freihand" | "malen" | "fuellen";
 
 /**
  * Die Werkzeuge stehen alle nebeneinander sichtbar da – keine Auswahlliste,
  * kein Menü. Jedes hat einen Namen in ganzen Worten und darunter einen Satz,
  * der sagt, was beim Antippen des Rasters passiert.
  *
- * „Gleiche Fläche auswählen" steht bewusst an erster Stelle und ist
- * voreingestellt: damit ist ein Blütenblatt mit einem einzigen Tipp erfasst.
+ * „Ganzes Motiv auswählen" steht bewusst an erster Stelle und ist
+ * voreingestellt: ein Tipp auf die Blume, und die ganze Blume ist erfasst.
+ * Darunter folgt „Gleiche Fläche", das nur Felder derselben Farbe nimmt –
+ * genauer, aber eben nur ein Blütenblatt auf einmal.
  */
 export const WERKZEUGE = [
+  { art: "motiv", titel: "werkzeug.motiv", erklaerung: "werkzeug.motivText" },
   { art: "flaeche", titel: "werkzeug.flaeche", erklaerung: "werkzeug.flaecheText" },
   { art: "rechteck", titel: "werkzeug.rechteck", erklaerung: "werkzeug.rechteckText" },
   { art: "freihand", titel: "werkzeug.freihand", erklaerung: "werkzeug.freihandText" },

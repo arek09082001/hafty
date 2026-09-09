@@ -25,6 +25,9 @@ export function garnlaengeMeter(stiche: number, stoffzaehlung: number): number {
 
 /** Eine Länge in Metern für den Ausdruck aufbereiten. */
 export function meterText(meter: number, landeskennung = "de-DE"): string {
+  // Eine Farbe, die im Muster nicht mehr vorkommt, braucht kein Garn. Ohne
+  // diese Zeile stünden dort „1 cm" – und das wäre schlicht falsch.
+  if (meter <= 0) return "0 cm";
   if (meter < 1) return `${Math.max(1, Math.round(meter * 100))} cm`;
   const zahl = meter.toLocaleString(landeskennung, {
     minimumFractionDigits: 1,

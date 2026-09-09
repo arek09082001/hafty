@@ -150,6 +150,46 @@ Alle Farbwerte bleiben also Näherungen. Sie ersetzen keine Garnkarte, und
 deshalb lässt sich in der App jede Farbe der Legende von Hand auf ein
 anderes Garn ändern.
 
+## Nur ein Motiv sticken
+
+Ein Tipp auf die Blume, und die Blume ist ausgewählt – das ist das Werkzeug
+„Ganzes Motiv auswählen" im Editor (`src/lib/muster/motivsuche.ts`). Danach
+genügt „Nur das Ausgewählte sticken", und der Rest des Bildes bleibt blanker
+Stoff.
+
+Gesucht wird auf dem fertigen Stichraster und nicht auf dem Foto. Das ist der
+bessere Ort: dort ist das Bild bereits auf die Garnfarben zusammengefasst und
+geglättet, die Kanten sind sauber, und ausgewählt wird genau das, was später
+auch gestickt wird. Ein Tipp kostet auf einem Muster mit 400 × 400 Stichen
+rund 4 ms – kein Grund für einen Worker.
+
+Von der angetippten Stelle aus wächst die Auswahl über die Nachbarfelder
+weiter, solange deren Farbe der angetippten ähnlich genug ist, gemessen in
+CIEDE2000. Wie ähnlich, sagen zwei Knöpfe („Mehr dazunehmen" / „Weniger"),
+nie eine Zahl. Über Eck geht es nur weiter, wenn auch eines der beiden Felder
+daneben passt – sonst liefe die Auswahl durch eine einzelne Ecke hindurch, an
+der sich zwei Flächen nur berühren.
+
+Eingeschlossene Löcher kommen mit hinein: die gelbe Blütenmitte gehört zur
+Blume, obwohl ihre Farbe weit weg liegt. Damit ein Tipp **in den Hintergrund**
+trotzdem tut, was er soll, gibt es zwei Bremsen – ist mehr als die halbe
+Musterfläche gewachsen, wird gar kein Loch gefüllt, und ein einzelnes Loch
+wird nur gefüllt, wenn es kleiner ist als die Hälfte des Gewachsenen. So
+lässt sich genauso gut der Hintergrund antippen und weglassen.
+
+Freigestellt wird nicht durch Löschen: die Felder bekommen den reservierten
+Wert 255 („hier nicht sticken") in der **Bearbeitungsebene**. Damit hängt das
+Freistellen an derselben Mechanik wie ein Pinselstrich – „Rückgängig" nimmt
+es zurück, es bleibt beim Ändern der Farbanzahl erhalten, und es liegt in
+jedem gespeicherten Stand mit drin. Auf dem Bildschirm bekommt so ein Feld
+die Farbe des Stoffes (ein Leinenton, kein Weiß – sonst wäre es von weißem
+Garn nicht zu unterscheiden), auf dem Papier bleibt das Kästchen leer.
+
+Die Garnliste wird vor jeder Anzeige und vor dem Ausdruck neu gezählt. Sonst
+stünde dort weiter, was beim Erzeugen herauskam: aus zwölf Farben und 100 m
+Garn werden beim Freistellen einer Blüte schnell sieben Farben und 28 m, und
+diese Liste ist die Einkaufsliste.
+
 ## Keine Anmeldung, kein Dienst
 
 Die App fragt niemanden nach irgendetwas: kein Passwort, kein Magic Link,
