@@ -238,6 +238,11 @@ Jetzt gilt:
   auf allem Anklickbaren, „verboten" auf allem Gesperrten, Fadenkreuz über dem
   Raster, und jeder Zustand antwortet auf den Mauszeiger – auch die schon
   gewählte Zeile, die sonst als einzige tot wirkte.
+- **Zugeschnitten wird wie überall** (`src/components/Zuschnitt.tsx`): Rahmen
+  schieben, an Ecken und Kanten ziehen, neben dem Rahmen aufsetzen für einen
+  ganz neuen. Für jede dieser Bewegungen stand vorher noch eine Reihe Knöpfe
+  daneben – zusammen mehr Bedienfeld als Bild. Sichtbar sind jetzt dünne
+  weiße Winkel und die Drittellinien, anzufassen bleiben 60 Bildschirmpunkte.
 - **Der Glättungsregler hat keine Rastpunkte** (`src/lib/muster/typen.ts`): er
   läuft stufenlos von „jedes Kästchen darf seine eigene Farbe haben" bis zu
   einer Farbe je 10 × 10 Kästchen, und unter ihm steht in Kästchen, was die
