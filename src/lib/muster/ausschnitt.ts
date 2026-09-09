@@ -65,49 +65,6 @@ export function groesstesRechteck(
   );
 }
 
-/**
- * Den Ausschnitt verschieben. `dx`/`dy` sind Anteile der Ausschnittsbreite
- * beziehungsweise -höhe, damit ein Tastendruck bei jedem Bild gleich weit
- * schiebt – bei einem kleinen Ausschnitt feiner, bei einem großen gröber.
- */
-export function verschieben(
-  a: Ausschnitt,
-  dx: number,
-  dy: number,
-  bildBreite: number,
-  bildHoehe: number,
-): Ausschnitt {
-  return einpassen(
-    { ...a, x: a.x + dx * a.breite, y: a.y + dy * a.hoehe },
-    bildBreite,
-    bildHoehe,
-  );
-}
-
-/**
- * Den Ausschnitt um den Mittelpunkt vergrößern oder verkleinern. Das
- * Seitenverhältnis bleibt erhalten; wird der Rand erreicht, hört es auf.
- */
-export function groesseAendern(
-  a: Ausschnitt,
-  faktor: number,
-  bildBreite: number,
-  bildHoehe: number,
-): Ausschnitt {
-  const verhaeltnis = a.breite / a.hoehe;
-  // Nicht größer, als bei diesem Verhältnis ins Bild passt.
-  const grenze = groesstesRechteck(bildBreite, bildHoehe, verhaeltnis);
-  const breite = Math.min(grenze.breite, Math.max(MINDESTKANTE, a.breite * faktor));
-  const hoehe = breite / verhaeltnis;
-  const mitteX = a.x + a.breite / 2;
-  const mitteY = a.y + a.hoehe / 2;
-  return einpassen(
-    { x: mitteX - breite / 2, y: mitteY - hoehe / 2, breite, hoehe },
-    bildBreite,
-    bildHoehe,
-  );
-}
-
 /** Deckt der Ausschnitt noch das ganze Bild ab? */
 export function istGanzesBild(a: Ausschnitt, bildBreite: number, bildHoehe: number): boolean {
   return a.x === 0 && a.y === 0 && a.breite === bildBreite && a.hoehe === bildHoehe;
@@ -180,24 +137,4 @@ export function ausRechteck(
     bildBreite,
     bildHoehe,
   );
-}
-
-/**
- * Freihand mit Knöpfen: nur die Breite **oder** nur die Höhe ändern, um die
- * Mitte herum. Damit kommt auch ans Ziel, wer nicht ziehen mag oder mit der
- * Maus keine Ecke trifft – das Seitenverhältnis wird dabei bewusst frei.
- */
-export function seiteAendern(
-  a: Ausschnitt,
-  seite: "breite" | "hoehe",
-  faktor: number,
-  bildBreite: number,
-  bildHoehe: number,
-): Ausschnitt {
-  if (seite === "breite") {
-    const breite = Math.min(bildBreite, Math.max(MINDESTKANTE, a.breite * faktor));
-    return einpassen({ ...a, x: a.x + (a.breite - breite) / 2, breite }, bildBreite, bildHoehe);
-  }
-  const hoehe = Math.min(bildHoehe, Math.max(MINDESTKANTE, a.hoehe * faktor));
-  return einpassen({ ...a, y: a.y + (a.hoehe - hoehe) / 2, hoehe }, bildBreite, bildHoehe);
 }
