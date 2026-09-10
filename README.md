@@ -421,6 +421,29 @@ NEXT_PUBLIC_SUPABASE_URL=https://…supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=…
 ```
 
+### Erst das Projekt, dann seine Stände
+
+In der Ferne hängt jeder Stand mit einem Fremdschlüssel an seinem Projekt
+(`staende.projekt_id`). Fehlt dessen Zeile, antwortet der Dienst mit **409
+Conflict** – und das war kein Sonderfall: Beim Sichern wird zuerst der Stand
+vorgemerkt und erst danach das Projekt, das vorher noch sein kleines Foto
+baut. Ein Lauf, der genau dazwischen fiel (der Takt geht alle 20 Sekunden),
+sah einen Stand ohne sein Projekt und bekam den 409.
+
+Deshalb schiebt `standHochladen` die Projektzeile jetzt selbst voraus, statt
+sich auf die Reihenfolge in der Warteschlange zu verlassen. Ist das Projekt
+auf dem Gerät noch gar nicht angelegt, bleibt der Stand einfach vorgemerkt
+und kommt im nächsten Lauf wieder dran – ein Fehler ist das nicht.
+
+### Ein Eintrag, der klemmt, hält den Rest nicht auf
+
+Vorher brach der ganze Lauf beim ersten Fehler ab. Eine einzige Sache, die
+der Dienst dauerhaft ablehnte, hielt damit alles andere fest: alle 20
+Sekunden dieselbe abgelehnte Anfrage, und kein einziges anderes Muster kam
+hinauf. Jetzt bleibt so ein Eintrag vorgemerkt, der Rest der Liste geht
+trotzdem. Nur bei „kein Netz" und „kein Zugang" hört der Lauf sofort auf –
+dann klappt der Rest ohnehin nicht.
+
 Sagt die Kopfzeile „Die Sicherung im Internet klappt gerade nicht", hat der
 Dienst abgelehnt, und im Netzwerk-Reiter des Browsers steht, woran es liegt.
 Zweimal ist es dasselbe Loch in der Einrichtung:
@@ -429,6 +452,7 @@ Zweimal ist es dasselbe Loch in der Einrichtung:
 | --- | --- |
 | `POST /auth/v1/signup` → 422 | „Anonymous sign-ins" ist nicht erlaubt |
 | `/rest/v1/…` → 403, `permission denied for table` | die `grant`-Zeilen der Migration sind nicht gelaufen |
+| `POST /rest/v1/staende` → 409, `duplicate key` | die Zeilen in der Ferne gehören einem früheren anonymen Benutzer dieses Geräts (siehe „Keine Anmeldung, kein Passwort") |
 
 Angesprochen wird Supabase über seine HTTP-Schnittstelle, ohne zusätzliches
 Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Anmelden,
@@ -459,6 +483,10 @@ Zwei Dinge gehören dazugesagt:
   Das Gerät meldet sich danach als neuer anonymer Benutzer an und sieht die
   alte Sicherung nicht mehr. Deshalb ist die Sicherung ein zweites Exemplar
   und kein Archiv, an das man sich von überall anmelden könnte.
+  Bleiben dabei die Muster auf dem Gerät stehen und geht nur der Zugang
+  verloren, lehnt der Dienst ihre alten Kennungen ab (`409 duplicate key`) –
+  sie gehören dem alten Benutzer. Die App bleibt davon arbeitsfähig: der
+  Eintrag bleibt vorgemerkt, alles Neue geht weiter hinauf.
 - Ein fertiges Muster gehört trotzdem ausgedruckt. Papier überlebt jedes
   Konto.
 
