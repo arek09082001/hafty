@@ -134,6 +134,15 @@ export async function abgleichAnstossen(): Promise<void> {
   }
 }
 
+/**
+ * Was aus einer Vormerkung geworden ist.
+ *
+ * `spaeter` ist kein Fehler: die Sache ist noch nicht so weit und bleibt
+ * einfach vorgemerkt. So geht es einem Stand, dessen Projekt gerade erst
+ * angelegt wird – beim nächsten Lauf ist es da.
+ */
+type Ergebnis = "erledigt" | "spaeter";
+
 async function einmalHochladen(): Promise<void> {
   const offen = await offeneVormerkungen();
   if (offen.length === 0) {
@@ -154,31 +163,72 @@ async function einmalHochladen(): Promise<void> {
   const rang = { projekt: 0, stand: 1, standLoeschung: 2, loeschung: 3 } as const;
   const sortiert = [...offen].sort((a, b) => rang[a.art] - rang[b.art]);
 
+  /** Welche Projektzeilen in diesem Lauf schon hinaufgegangen sind. */
+  const schonOben = new Set<string>();
+  /** Der letzte Fehler, an dem der Lauf nicht hängenbleiben muss. */
+  let gestolpert: string | null = null;
+
   for (const vormerkung of sortiert) {
     try {
-      await einesHochladen(vormerkung);
-      await abhaken(vormerkung.id);
-      melden({ zuletzt: Date.now(), offen: await offeneAnzahl() });
+      if ((await einesHochladen(vormerkung, schonOben)) === "erledigt") {
+        await abhaken(vormerkung.id);
+        melden({ zuletzt: Date.now(), offen: await offeneAnzahl() });
+      }
     } catch (fehler) {
-      const art =
-        fehler instanceof FerneFehler && fehler.art === "netz" ? "ohneNetz" : "fehler";
-      melden({
-        art,
-        offen: await offeneAnzahl(),
-        meldung: fehler instanceof Error ? fehler.message : String(fehler),
-      });
-      return;
+      // Ohne Verbindung und ohne Zugang klappt auch der Rest der Liste
+      // nicht – da lohnt kein Weitermachen.
+      if (
+        fehler instanceof FerneFehler &&
+        (fehler.art === "netz" || fehler.art === "anmeldung")
+      ) {
+        melden({
+          art: fehler.art === "netz" ? "ohneNetz" : "fehler",
+          offen: await offeneAnzahl(),
+          meldung: fehler.message,
+        });
+        return;
+      }
+      // Eine einzelne Sache, die der Dienst ablehnt, darf nicht alles
+      // andere aufhalten. Sie bleibt vorgemerkt und wird beim nächsten Lauf
+      // noch einmal versucht; die übrigen gehen jetzt hinauf. Vorher stand
+      // die ganze Warteschlange, sobald ein einziger Eintrag klemmte.
+      gestolpert = fehler instanceof Error ? fehler.message : String(fehler);
     }
   }
 
-  melden({ art: "gesichert", offen: await offeneAnzahl(), meldung: null });
+  const offenDanach = await offeneAnzahl();
+  if (gestolpert) {
+    melden({ art: "fehler", offen: offenDanach, meldung: gestolpert });
+    return;
+  }
+  // Was auf später vertagt wurde, wartet auf den nächsten Takt – gesichert
+  // ist erst, wenn die Liste leer ist.
+  melden({
+    art: offenDanach === 0 ? "gesichert" : "laeuft",
+    offen: offenDanach,
+    meldung: null,
+  });
 }
 
-async function einesHochladen(vormerkung: Vormerkung): Promise<void> {
-  if (vormerkung.art === "projekt") return projektHochladen(vormerkung.kennung);
-  if (vormerkung.art === "loeschung") return projektEntfernen(vormerkung.kennung);
-  if (vormerkung.art === "standLoeschung") return standEntfernen(vormerkung.kennung);
-  return standHochladen(vormerkung.kennung);
+async function einesHochladen(
+  vormerkung: Vormerkung,
+  schonOben: Set<string>,
+): Promise<Ergebnis> {
+  if (vormerkung.art === "projekt") {
+    // Ist das Projekt hier gelöscht, gibt es nichts hochzuladen; die
+    // Löschung selbst steht als eigene Vormerkung in der Liste.
+    await projektHochladen(vormerkung.kennung, schonOben);
+    return "erledigt";
+  }
+  if (vormerkung.art === "loeschung") {
+    await projektEntfernen(vormerkung.kennung);
+    return "erledigt";
+  }
+  if (vormerkung.art === "standLoeschung") {
+    await standEntfernen(vormerkung.kennung);
+    return "erledigt";
+  }
+  return standHochladen(vormerkung.kennung, schonOben);
 }
 
 /**
@@ -240,10 +290,18 @@ function vorschauPfad(benutzer: string, projektId: string, standId: string) {
   return `${benutzer}/${projektId}/staende/${standId}.png`;
 }
 
-async function projektHochladen(id: string): Promise<void> {
+/**
+ * Die Projektzeile in die Ferne bringen. Gibt zurück, ob sie danach dort
+ * steht – daran hängt, ob ein Stand dieses Projekts hinaufgehen darf.
+ *
+ * `schonOben` verhindert, dass dieselbe Zeile in einem Lauf mehrfach
+ * geschrieben wird: die Stände eines Projekts fragen sie alle nach.
+ */
+async function projektHochladen(id: string, schonOben: Set<string>): Promise<boolean> {
+  if (schonOben.has(id)) return true;
   const projekt = await projektHolen(id);
   // Gelöscht, während die Vormerkung wartete: dann gibt es nichts zu tun.
-  if (!projekt) return;
+  if (!projekt) return false;
   const zugang = await zugangHolen();
 
   await zeilenSchreiben("projekte", [
@@ -261,17 +319,41 @@ async function projektHochladen(id: string): Promise<void> {
     },
   ]);
 
+  schonOben.add(id);
+
   // Das Quellfoto kann 25 Megabyte haben und ändert sich nie. Es geht genau
   // einmal hinauf; danach steht das im Projekt und wird nicht wiederholt.
   if (projekt.bild && !projekt.bildGesichert) {
     await dateiHochladen(bildPfad(zugang.benutzer, projekt.id), projekt.bild);
     await projektSatzSchreiben({ ...projekt, bildGesichert: true });
   }
+  return true;
 }
 
-async function standHochladen(id: string): Promise<void> {
+async function standHochladen(id: string, schonOben: Set<string>): Promise<Ergebnis> {
   const stand = await standSatzHolen(id);
-  if (!stand) return;
+  if (!stand) return "erledigt";
+
+  /**
+   * Erst das Projekt, dann der Stand.
+   *
+   * In der Ferne hängt jeder Stand mit einem Fremdschlüssel an seinem
+   * Projekt (`staende.projekt_id`). Fehlt dessen Zeile, lehnt der Dienst den
+   * Stand mit **409 Conflict** ab – und das ist kein Sonderfall: beim
+   * Sichern wird zuerst der Stand vorgemerkt und erst danach das Projekt
+   * (das baut vorher noch sein kleines Foto, was bei einem großen Bild
+   * spürbar dauert). Ein Lauf, der genau dazwischen fällt, sah bisher einen
+   * Stand ohne sein Projekt, bekam den 409 – und blieb daran hängen.
+   *
+   * Zweimal hochgeladen schadet nichts: es ist dieselbe Kennung, und
+   * geschrieben wird überschreibend.
+   */
+  if (!(await projektHochladen(stand.musterId, schonOben))) {
+    // Das Projekt ist hier (noch) nicht da. Der Stand bleibt vorgemerkt und
+    // kommt beim nächsten Lauf wieder dran.
+    return "spaeter";
+  }
+
   const zugang = await zugangHolen();
 
   await zeilenSchreiben("staende", [
@@ -297,6 +379,7 @@ async function standHochladen(id: string): Promise<void> {
   if (stand.vorschau) {
     await dateiHochladen(vorschauPfad(zugang.benutzer, stand.musterId, stand.id), stand.vorschau);
   }
+  return "erledigt";
 }
 
 // ---------------------------------------------------------------------------

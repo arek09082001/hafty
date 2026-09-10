@@ -88,7 +88,11 @@ export function Startseite() {
           fuss={
             <>
               <span className="text-[1.05rem] text-gedaempft">{t("start.fussHinweis")}</span>
-              <KnopfLink art="haupt" gross href="/schritt/bild">
+              {/* „neu=1": Schritt 1 fängt leer an. Ohne die Marke stünde
+                  dort das zuletzt bearbeitete Bild – der Arbeitsstand wird
+                  beim Öffnen ja zurückgeholt –, und wer ein neues Foto
+                  wollte, wäre wieder in seinem alten Projekt gelandet. */}
+              <KnopfLink art="haupt" gross href="/schritt/bild?neu=1">
                 {t("start.neuesBild")}
               </KnopfLink>
             </>

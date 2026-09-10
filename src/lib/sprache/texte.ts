@@ -60,16 +60,8 @@ export const DE = {
   "zuschnitt.hochkant": "Hochkant 3:4",
   "zuschnitt.quer": "Quer 4:3",
   "zuschnitt.breit": "Breit 16:9",
-  "zuschnitt.groesse": "Größe",
-  "zuschnitt.kleiner": "Kleiner",
-  "zuschnitt.groesser": "Größer",
-  "zuschnitt.freihand": "Freihand",
   "zuschnitt.freihandText":
-    "Freihand geht auch: Ziehen Sie an einer der weißen Ecken, dann bekommt der Ausschnitt jede Form, die Sie möchten. Oder setzen Sie neben dem Rahmen auf dem Bild auf und ziehen Sie einen ganz neuen Rahmen auf.",
-  "zuschnitt.schmaler": "Schmaler",
-  "zuschnitt.breiter": "Breiter",
-  "zuschnitt.flacher": "Flacher",
-  "zuschnitt.hoeher": "Höher",
+    "Oder von Hand: Im Rahmen aufsetzen und schieben, an einer Ecke oder Kante ziehen, bis der Ausschnitt sitzt. Neben dem Rahmen aufsetzen und ziehen spannt einen ganz neuen auf.",
   "zuschnitt.masse": "Ausschnitt: {breite} × {hoehe} Bildpunkte",
   "zuschnitt.bildBeschriftung": "Ihr Bild mit dem gewählten Ausschnitt",
   "zuschnitt.aendern": "Ausschnitt wählen",
@@ -130,6 +122,8 @@ export const DE = {
   "editor.keinMuster": "Hier ist noch kein Muster.",
   "editor.keinMusterText":
     "Es wurde noch kein Muster erstellt. Gehen Sie zurück zum ersten Schritt, suchen Sie ein Bild aus und tippen Sie dann auf „Muster erstellen“.",
+  "editor.wirdErstellt": "Aus „{name}“ wird gerade Ihr Muster gerechnet.",
+  "editor.zurueckGroesse": "Zurück zu Größe und Farben",
   "editor.kleiner": "Kleiner",
   "editor.groesser": "Größer",
   "editor.allesZeigen": "Alles zeigen",
@@ -364,6 +358,12 @@ export const DE = {
   "staende.nichtsVerloren":
     "Wenn Sie diesen Stand wiederherstellen, geht Ihre neuere Arbeit nicht verloren – sie bleibt als eigener Stand in dieser Leiste stehen.",
   "staende.dauerhaftMerken": "Diesen Stand dauerhaft merken",
+  "staende.loeschen": "Diesen Stand löschen",
+  "staende.loeschenTitel": "Diesen Stand wirklich löschen?",
+  "staende.loeschenText":
+    "Der Stand von {zeit} wird endgültig gelöscht. Ihre Arbeit auf dem Bildschirm bleibt, wie sie ist.",
+  "staende.fehlerLoeschen":
+    "Der Stand konnte nicht gelöscht werden. Bitte versuchen Sie es noch einmal.",
   "staende.nichtMehrMerken": "Nicht mehr merken",
   "staende.vorschauBeschriftung": "Vorschau des Standes von {zeit}",
   "staende.heute": "Heute, {uhr}",
@@ -372,6 +372,7 @@ export const DE = {
   "staende.vonHandGemerkt": "Von Hand gemerkt",
   "staende.neuErzeugt": "Neu erzeugt",
   "staende.farbanzahlGeaendert": "Farbanzahl geändert",
+  "staende.vorBildwechsel": "Vor dem Bildwechsel gemerkt",
   "staende.motivEingesetzt": "Motiv eingesetzt",
 
   // --- Garne ---------------------------------------------------------------
@@ -594,16 +595,8 @@ export const PL: Record<Textschluessel, string> = {
   "zuschnitt.hochkant": "Pionowo 3:4",
   "zuschnitt.quer": "Poziomo 4:3",
   "zuschnitt.breit": "Szeroko 16:9",
-  "zuschnitt.groesse": "Wielkość",
-  "zuschnitt.kleiner": "Mniejszy",
-  "zuschnitt.groesser": "Większy",
-  "zuschnitt.freihand": "Odręcznie",
   "zuschnitt.freihandText":
-    "Można też odręcznie: proszę pociągnąć za jeden z białych rogów, a wycinek przyjmie dowolny kształt. Albo dotknąć zdjęcia obok ramki i pociągnąć – powstanie zupełnie nowa ramka.",
-  "zuschnitt.schmaler": "Węższy",
-  "zuschnitt.breiter": "Szerszy",
-  "zuschnitt.flacher": "Niższy",
-  "zuschnitt.hoeher": "Wyższy",
+    "Albo ręcznie: dotknąć wnętrza ramki i przesunąć, pociągnąć za róg lub krawędź, aż wycinek będzie pasował. Dotknięcie zdjęcia obok ramki i pociągnięcie tworzy zupełnie nową ramkę.",
   "zuschnitt.masse": "Wycinek: {breite} × {hoehe} pikseli",
   "zuschnitt.bildBeschriftung": "Pani zdjęcie z wybranym wycinkiem",
   "zuschnitt.aendern": "Wybierz wycinek",
@@ -662,6 +655,8 @@ export const PL: Record<Textschluessel, string> = {
   "editor.keinMuster": "Nie ma tu jeszcze wzoru.",
   "editor.keinMusterText":
     "Nie utworzono jeszcze wzoru. Proszę wrócić do pierwszego kroku, wybrać zdjęcie i dotknąć „Utwórz wzór”.",
+  "editor.wirdErstellt": "Wzór ze zdjęcia „{name}” jest właśnie obliczany.",
+  "editor.zurueckGroesse": "Wróć do rozmiaru i kolorów",
   "editor.kleiner": "Mniejszy",
   "editor.groesser": "Większy",
   "editor.allesZeigen": "Pokaż całość",
@@ -881,6 +876,12 @@ export const PL: Record<Textschluessel, string> = {
   "staende.nichtsVerloren":
     "Przywrócenie tej wersji nie spowoduje utraty nowszej pracy – zostanie ona jako osobna wersja na tym pasku.",
   "staende.dauerhaftMerken": "Zapamiętaj tę wersję na stałe",
+  "staende.loeschen": "Usuń tę wersję",
+  "staende.loeschenTitel": "Na pewno usunąć tę wersję?",
+  "staende.loeschenText":
+    "Wersja z {zeit} zostanie trwale usunięta. Praca na ekranie pozostaje bez zmian.",
+  "staende.fehlerLoeschen":
+    "Nie udało się usunąć wersji. Proszę spróbować jeszcze raz.",
   "staende.nichtMehrMerken": "Już nie zapamiętuj",
   "staende.vorschauBeschriftung": "Podgląd wersji z: {zeit}",
   "staende.heute": "Dzisiaj, {uhr}",
@@ -889,6 +890,7 @@ export const PL: Record<Textschluessel, string> = {
   "staende.vonHandGemerkt": "Zapamiętana ręcznie",
   "staende.neuErzeugt": "Utworzona na nowo",
   "staende.farbanzahlGeaendert": "Zmieniona liczba kolorów",
+  "staende.vorBildwechsel": "Zapamiętana przed zmianą zdjęcia",
   "staende.motivEingesetzt": "Wstawiony motyw",
 
   "garne.titel": "Moje nici",

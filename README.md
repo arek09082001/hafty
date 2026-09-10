@@ -277,6 +277,46 @@ Die Zuordnung geht über den Dateinamen, ohne Rücksicht auf Groß- und
 Kleinschreibung. Das ist die Ordnung, die beim Benennen der Fotos ohnehin
 entsteht; eine zweite, die die App sich ausdenkt, bräuchte niemand.
 
+### Ein neues Foto lässt das alte Projekt los
+
+Damit ein Absturz nichts kostet, schreibt die App laufend einen
+**Arbeitsstand** mit und holt ihn beim Öffnen zurück. Genau das stand einem
+neuen Foto im Weg: Wer „Neues Bild aussuchen" tippte, fand in Schritt 1 das
+zuletzt bearbeitete Bild vor, und wer dann doch ein anderes aussuchte,
+bekam in Schritt 3 weiter das Muster des vorherigen Projekts zu sehen –
+bis er in Schritt 2 noch einmal auf „Muster erstellen" tippte. Es sah aus,
+als käme man von dem alten Projekt nicht los.
+
+Drei Stellen sorgen jetzt dafür, dass ein neues Foto wirklich ein neues
+Foto ist:
+
+- **„Neues Bild aussuchen" fängt leer an.** Der Knopf auf der Startseite
+  führt nach `/schritt/bild?neu=1`; Schritt 1 räumt daraufhin Bild, Muster
+  und Projektzuordnung aus der Anzeige. Gelöscht wird nichts – über „Meine
+  Muster" führt der Weg zu jedem Projekt zurück.
+- **Die Wahl der Nutzerin schlägt den Arbeitsstand.** Er kommt aus der
+  Datenbank und braucht dafür einen Augenblick. Trifft er ein, nachdem
+  inzwischen ein Foto ausgesucht wurde, wird er verworfen statt eingesetzt
+  (`eigeneWahl` in `MusterProvider.tsx`).
+- **Mit dem Bild geht das Muster.** `bildWaehlen` räumt das bisherige Muster
+  weg; was seit dem letzten Sichern von Hand gemalt wurde, wird vorher als
+  Stand gemerkt („Vor dem Bildwechsel gemerkt") und ist über „Alle
+  Versionen" wieder zu haben.
+
+### Schritt 3 rechnet ein fehlendes Muster selbst
+
+Wer ein Foto ausgesucht hat, will es sehen. Findet Schritt 3 ein Bild vor,
+zu dem noch kein Muster gehört, rechnet er es deshalb von selbst und zeigt
+so lange das Foto mit der Fortschrittsanzeige – statt eines fremden Musters
+oder der Meldung „Hier ist noch kein Muster". Verglichen wird dafür die
+Grundkennung des Bildes, also das Foto selbst: einen anderen **Ausschnitt**
+bestätigt die Nutzerin weiterhin in Schritt 2, sonst wären ihre von Hand
+gemalten Stiche schon beim versehentlichen Verschieben des Rahmens weg.
+
+Ein Arbeitsstand darf seither auch aus dem Bild allein bestehen (Maße
+0 × 0). Sonst stünde nach dem Neuladen der Seite wieder das vorherige
+Projekt da, obwohl gerade ein neues Foto ausgesucht wurde.
+
 ## Alle Versionen ansehen
 
 „Einmal habe ich mehr Farben genommen, einmal die Größe geändert – welches
@@ -381,6 +421,29 @@ NEXT_PUBLIC_SUPABASE_URL=https://…supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=…
 ```
 
+### Erst das Projekt, dann seine Stände
+
+In der Ferne hängt jeder Stand mit einem Fremdschlüssel an seinem Projekt
+(`staende.projekt_id`). Fehlt dessen Zeile, antwortet der Dienst mit **409
+Conflict** – und das war kein Sonderfall: Beim Sichern wird zuerst der Stand
+vorgemerkt und erst danach das Projekt, das vorher noch sein kleines Foto
+baut. Ein Lauf, der genau dazwischen fiel (der Takt geht alle 20 Sekunden),
+sah einen Stand ohne sein Projekt und bekam den 409.
+
+Deshalb schiebt `standHochladen` die Projektzeile jetzt selbst voraus, statt
+sich auf die Reihenfolge in der Warteschlange zu verlassen. Ist das Projekt
+auf dem Gerät noch gar nicht angelegt, bleibt der Stand einfach vorgemerkt
+und kommt im nächsten Lauf wieder dran – ein Fehler ist das nicht.
+
+### Ein Eintrag, der klemmt, hält den Rest nicht auf
+
+Vorher brach der ganze Lauf beim ersten Fehler ab. Eine einzige Sache, die
+der Dienst dauerhaft ablehnte, hielt damit alles andere fest: alle 20
+Sekunden dieselbe abgelehnte Anfrage, und kein einziges anderes Muster kam
+hinauf. Jetzt bleibt so ein Eintrag vorgemerkt, der Rest der Liste geht
+trotzdem. Nur bei „kein Netz" und „kein Zugang" hört der Lauf sofort auf –
+dann klappt der Rest ohnehin nicht.
+
 Sagt die Kopfzeile „Die Sicherung im Internet klappt gerade nicht", hat der
 Dienst abgelehnt, und im Netzwerk-Reiter des Browsers steht, woran es liegt.
 Zweimal ist es dasselbe Loch in der Einrichtung:
@@ -389,6 +452,7 @@ Zweimal ist es dasselbe Loch in der Einrichtung:
 | --- | --- |
 | `POST /auth/v1/signup` → 422 | „Anonymous sign-ins" ist nicht erlaubt |
 | `/rest/v1/…` → 403, `permission denied for table` | die `grant`-Zeilen der Migration sind nicht gelaufen |
+| `POST /rest/v1/staende` → 409, `duplicate key` | die Zeilen in der Ferne gehören einem früheren anonymen Benutzer dieses Geräts (siehe „Keine Anmeldung, kein Passwort") |
 
 Angesprochen wird Supabase über seine HTTP-Schnittstelle, ohne zusätzliches
 Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Anmelden,
@@ -419,6 +483,10 @@ Zwei Dinge gehören dazugesagt:
   Das Gerät meldet sich danach als neuer anonymer Benutzer an und sieht die
   alte Sicherung nicht mehr. Deshalb ist die Sicherung ein zweites Exemplar
   und kein Archiv, an das man sich von überall anmelden könnte.
+  Bleiben dabei die Muster auf dem Gerät stehen und geht nur der Zugang
+  verloren, lehnt der Dienst ihre alten Kennungen ab (`409 duplicate key`) –
+  sie gehören dem alten Benutzer. Die App bleibt davon arbeitsfähig: der
+  Eintrag bleibt vorgemerkt, alles Neue geht weiter hinauf.
 - Ein fertiges Muster gehört trotzdem ausgedruckt. Papier überlebt jedes
   Konto.
 
@@ -452,6 +520,11 @@ Jetzt gilt:
   Raster (und die offene Hand, wo geschoben wird), und jeder Zustand antwortet
   auf den Mauszeiger – auch die schon gewählte Zeile, die sonst als einzige
   tot wirkte.
+- **Zugeschnitten wird wie überall** (`src/components/Zuschnitt.tsx`): Rahmen
+  schieben, an Ecken und Kanten ziehen, neben dem Rahmen aufsetzen für einen
+  ganz neuen. Für jede dieser Bewegungen stand vorher noch eine Reihe Knöpfe
+  daneben – zusammen mehr Bedienfeld als Bild. Sichtbar sind jetzt dünne
+  weiße Winkel und die Drittellinien, anzufassen bleiben 60 Bildschirmpunkte.
 - **Der Glättungsregler hat keine Rastpunkte** (`src/lib/muster/typen.ts`): er
   läuft stufenlos von „jedes Kästchen darf seine eigene Farbe haben" bis zu
   einer Farbe je 10 × 10 Kästchen, und unter ihm steht in Kästchen, was die
