@@ -146,6 +146,21 @@ export function MusterAnsehen() {
     ausMotiv: boolean;
   } | null>(null);
   const [mitSymbolen, setMitSymbolen] = useState(false);
+  /**
+   * Das Stichgitter.
+   *
+   * Zum Sticken braucht man es: ohne die Linien zählt niemand vierzig
+   * Kästchen ab. Zum Ansehen steht es im Weg. Bei einem Muster mit vielen
+   * kleinen Flecken – und genau das ist die linke Hälfte des Detailreglers –
+   * deckt es bei ganz normalem Zoom fast ein Fünftel der Fläche mit einer
+   * dunklen Linie zu. Das Muster wirkt dadurch matter und grauer, als es
+   * ist; wer sehen will, ob das Foto noch zu erkennen ist, sieht vor allem
+   * das Gitter.
+   *
+   * Also ein Schalter, wie schon bei den Symbolen, und an bleibt die
+   * Voreinstellung. Die Druckvorschau macht es seit jeher genauso.
+   */
+  const [mitLinien, setMitLinien] = useState(true);
   const { melden, alleWeg } = useMeldungen();
 
   const [motive, setMotive] = useState<Motiv[]>([]);
@@ -933,6 +948,7 @@ export function MusterAnsehen() {
           hoehe={muster.hoehe}
           raster={anzeigeRaster}
           palette={muster.palette}
+          mitLinien={mitLinien}
           mitSymbolen={mitSymbolen}
           auswahl={auswahl?.maske ?? null}
           vorschau={
@@ -970,6 +986,9 @@ export function MusterAnsehen() {
               <Sichtknopf onClick={ansicht.ganzZeigen}>{t("editor.allesZeigen")}</Sichtknopf>
               <Sichtknopf onClick={() => setMitSymbolen((a) => !a)} gedrueckt={mitSymbolen}>
                 {mitSymbolen ? t("editor.symboleAus") : t("editor.symboleAn")}
+              </Sichtknopf>
+              <Sichtknopf onClick={() => setMitLinien((a) => !a)} gedrueckt={!mitLinien}>
+                {mitLinien ? t("editor.gitterAus") : t("editor.gitterAn")}
               </Sichtknopf>
             </div>
           </div>
