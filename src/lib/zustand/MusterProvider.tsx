@@ -13,6 +13,7 @@ import {
 } from "react";
 import {
   MAX_FELDER,
+  MIN_BREITE,
   STANDARD_EINSTELLUNGEN,
   einstellungenLesen,
   glaettungBegrenzen,
@@ -743,12 +744,21 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       const a = bild.ausschnitt;
       const bitmap = await createImageBitmap(bild.blob, a.x, a.y, a.breite, a.hoehe);
 
-      const breiteStiche = Math.round(einstellungen.breiteStiche);
+      let breiteStiche = Math.round(einstellungen.breiteStiche);
       let hoeheStiche = Math.max(1, Math.round((breiteStiche * bitmap.height) / bitmap.width));
 
       // Sicherheitsnetz gegen Muster, die den Speicher sprengen würden.
+      //
+      // Gekürzt wird die **Breite** und nicht die Höhe. Vorher stand hier die
+      // Höhe, und damit kam aus einem hochkanten Foto ein gequetschtes
+      // Muster heraus – die Nutzerin hätte ein in die Breite gezogenes Bild
+      // gestickt und den Fehler erst am Stoff gesehen. Schritt 2 lässt es
+      // ohnehin nicht so weit kommen; das hier ist der Fall, dass eine
+      // gespeicherte Einstellung von früher zu groß geworden ist.
       if (breiteStiche * hoeheStiche > MAX_FELDER) {
-        hoeheStiche = Math.max(1, Math.floor(MAX_FELDER / breiteStiche));
+        const verhaeltnis = hoeheStiche / breiteStiche;
+        breiteStiche = Math.max(MIN_BREITE, Math.floor(Math.sqrt(MAX_FELDER / verhaeltnis)));
+        hoeheStiche = Math.max(1, Math.round(breiteStiche * verhaeltnis));
       }
 
       const werte = glaettungswerte(einstellungen.glaettungsstaerke);
