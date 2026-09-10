@@ -15,18 +15,6 @@ export type AnWorker =
       verlaufStaerke: number;
       garne: Garn[];
     }
-  /**
-   * Die Farbzahl neu wählen. Das heruntergerechnete Raster bleibt im Worker
-   * liegen, gerechnet werden nur k-Means, Garnzuordnung und Glättung.
-   */
-  | {
-      art: "farben";
-      farbanzahl: number;
-      lambda: number;
-      flaechenAnteil: number;
-      verlaufStaerke: number;
-      garne: Garn[];
-    }
   /** Nur die Glättung neu rechnen – die teure Vorarbeit bleibt im Worker. */
   | { art: "glaetten"; lambda: number; flaechenAnteil: number; verlaufStaerke: number };
 

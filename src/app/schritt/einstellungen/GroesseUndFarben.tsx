@@ -86,7 +86,13 @@ export function GroesseUndFarben() {
       }
     >
       <div className="flex flex-col gap-9">
-        {laeuft ? <Rechenfortschritt fortschritt={fortschritt} /> : null}
+        {/* Der Platz für die Rechenanzeige bleibt immer stehen. Vorher kam
+            der Kasten beim Tippen auf „Muster erstellen" dazu und schob die
+            ganze Seite nach unten – genau in dem Augenblick, in dem die
+            Nutzerin noch auf den Knopf schaut. */}
+        <div className="min-h-[6.5rem]">
+          {laeuft ? <Rechenfortschritt fortschritt={fortschritt} /> : null}
+        </div>
 
         <div className="grid gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="flex flex-col gap-9">

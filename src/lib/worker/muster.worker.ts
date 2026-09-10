@@ -10,10 +10,9 @@
  * Zwischen zwei Aufträgen behält der Worker seine Zwischenergebnisse. Das ist
  * der Grund, warum sich die beiden Regler live anfühlen: Herunterrechnen,
  * Filtern, k-Means und die Abstandsliste laufen einmal, danach kostet eine
- * Änderung des Detailreglers nur noch die vier ICM-Durchläufe und den
- * Aufräumdurchgang – rund 40 ms auch beim größten Muster. Der Farbregler
- * setzt eine Stufe früher an: er rechnet ab dem k-Means neu, das Bild wird
- * auch dafür kein zweites Mal gelesen.
+ * Änderung des Detailreglers nur noch die Fehlerdiffusion, die vier
+ * ICM-Durchläufe und den Aufräumdurchgang – zehn bis hundertfünfzig
+ * Millisekunden auch beim größten Muster.
  */
 
 import {
@@ -88,8 +87,6 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
   try {
     if (e.data.art === "erzeugen") {
       erzeugen(e.data);
-    } else if (e.data.art === "farben") {
-      farbenNeu(e.data);
     } else if (e.data.art === "glaetten") {
       nurGlaetten(e.data.lambda, e.data.flaechenAnteil, e.data.verlaufStaerke);
     }
@@ -114,10 +111,9 @@ type Palettenstand = Pick<
 /**
  * Palette und Abstandsliste bestimmen – alles ab dem k-Means.
  *
- * Das braucht nur der Farbregler, weil sich dort die Zahl der Cluster
- * ändert. Der Detailregler kommt nicht mehr hierher: er ändert weder
- * Palette noch Abstandsliste und damit auch nicht die Garnliste unter der
- * Hand der Nutzerin. Das Bild wird für beides nie noch einmal angefasst.
+ * Das braucht nur der volle Lauf. Der Detailregler kommt nicht hierher: er
+ * ändert weder Palette noch Abstandsliste und damit auch nicht die Garnliste
+ * unter der Hand der Nutzerin.
  *
  * Die beiden Raster gehen an verschiedene Stellen: das gefilterte ins
  * k-Means, das rohe in die Abstandsliste (siehe `Zwischenstand`).
@@ -185,39 +181,6 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
   };
 
   nurGlaetten(lambda, flaechenAnteil, verlaufStaerke);
-}
-
-// ---------------------------------------------------------------------------
-// Nur die Farbzahl – das läuft bei jedem Zug am Farbregler
-// ---------------------------------------------------------------------------
-
-/**
- * Ein neues k-Means auf demselben heruntergerechneten Raster.
- *
- * Alles, was vor der Farbreduktion liegt – Bild lesen, herunterrechnen,
- * Medianfilter – hängt nicht an der Farbzahl und wird deshalb nicht noch
- * einmal gerechnet. Übrig bleiben k-Means, die Garnzuordnung und die
- * Abstandsliste; dahinter läuft dieselbe Glättung wie sonst auch.
- */
-function farbenNeu(auftrag: Extract<AnWorker, { art: "farben" }>) {
-  if (!stand) {
-    melden({ art: "fehler", text: "arbeit.fehlerKeinMuster" });
-    return;
-  }
-
-  stand = {
-    ...stand,
-    ...paletteRechnen(
-      stand.breite,
-      stand.hoehe,
-      stand.labGefiltert,
-      stand.labRoh,
-      auftrag.farbanzahl,
-      auftrag.garne,
-    ),
-  };
-
-  nurGlaetten(auftrag.lambda, auftrag.flaechenAnteil, auftrag.verlaufStaerke);
 }
 
 // ---------------------------------------------------------------------------

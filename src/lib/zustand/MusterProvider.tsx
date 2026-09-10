@@ -15,7 +15,6 @@ import {
   MAX_FELDER,
   STANDARD_EINSTELLUNGEN,
   einstellungenLesen,
-  farbanzahlBegrenzen,
   glaettungBegrenzen,
   glaettungswerte,
   type Einstellungen,
@@ -143,14 +142,18 @@ function aufStapel(stapel: Schritt[], schritt: Schritt): Schritt[] {
 type Geglaettet = Extract<AntwortVomWorker, { art: "fertig" }>;
 
 /**
- * Was gerechnet werden soll. Beide Regler münden darin: die Glättung braucht
- * nur den ICM-Lauf, eine neue Farbzahl zusätzlich ein neues k-Means.
+ * Was gerechnet werden soll.
+ *
+ * Nur noch der Detailregler mündet darin. Die Farbzahl steht in Schritt 2
+ * fest und wird im Editor nicht mehr verstellt – sie hing an einem neuen
+ * k-Means und damit an einer halben Sekunde Rechnen je Zug, während der
+ * Detailregler mit zehn bis hundertfünfzig Millisekunden auskommt. Zwei
+ * Regler mit so verschiedenem Tempo an derselben Warteschlange waren nicht
+ * zu durchschauen: der eine antwortete sofort, der andere schien zu hängen.
  */
 type Wunsch = {
   staerke: number;
   farbanzahl: number;
-  /** Muss die Palette neu gefunden werden, oder reicht die Glättung? */
-  farbenNeu: boolean;
 };
 
 function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
@@ -334,7 +337,6 @@ type MusterKontext = {
   /** Nur die Glättung neu rechnen – für den Schieberegler. */
   glaettungSetzen: (staerke: number) => void;
   /** Die Farbzahl neu wählen, ohne das Bild noch einmal zu lesen. */
-  farbanzahlSetzen: (anzahl: number) => void;
 
   felderAendern: (titel: Textschluessel, indizes: number[], werte: number[]) => void;
   bearbeitungErsetzen: (titel: Textschluessel, neue: Int16Array) => void;
@@ -876,15 +878,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
               garne,
             };
             mitgeben = [bitmap];
-          } else if (naechster.farbenNeu) {
-            auftrag = {
-              art: "farben",
-              farbanzahl: naechster.farbanzahl,
-              lambda: werte.lambda,
-              flaechenAnteil: werte.flaechenAnteil,
-              verlaufStaerke: werte.verlaufStaerke,
-              garne,
-            };
           } else {
             auftrag = {
               art: "glaetten",
@@ -916,18 +909,15 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * Einen Wunsch anmelden. Läuft gerade eine Runde, wird er nur gemerkt – und
-   * dabei mit einem schon wartenden verschmolzen: wer erst die Farbzahl und
-   * dann die Glättung schiebt, soll beides bekommen und nicht nur das Letzte.
+   * Einen Wunsch anmelden. Läuft gerade eine Runde, wird er nur gemerkt;
+   * gerechnet wird danach allein der zuletzt geäußerte – alles dazwischen
+   * wäre überholt, bevor es fertig ist.
    */
   const anmelden = useCallback(
     (wunsch: Wunsch) => {
       if (!muster) return;
       if (rechnenLaeuft.current) {
-        const wartet = offenerWunsch.current;
-        offenerWunsch.current = wartet
-          ? { ...wunsch, farbenNeu: wunsch.farbenNeu || wartet.farbenNeu }
-          : wunsch;
+        offenerWunsch.current = wunsch;
         return;
       }
       void nachrechnen(wunsch);
@@ -939,22 +929,9 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     (staerke: number) => {
       const wert = glaettungBegrenzen(staerke);
       setEinstellungen((e) => ({ ...e, glaettungsstaerke: wert }));
-      anmelden({ staerke: wert, farbanzahl: einstellungen.farbanzahl, farbenNeu: false });
+      anmelden({ staerke: wert, farbanzahl: einstellungen.farbanzahl });
     },
     [anmelden, einstellungen.farbanzahl],
-  );
-
-  const farbanzahlSetzen = useCallback(
-    (anzahl: number) => {
-      const wert = farbanzahlBegrenzen(anzahl);
-      setEinstellungen((e) => ({ ...e, farbanzahl: wert }));
-      anmelden({
-        staerke: einstellungen.glaettungsstaerke,
-        farbanzahl: wert,
-        farbenNeu: true,
-      });
-    },
-    [anmelden, einstellungen.glaettungsstaerke],
   );
 
   const raster = useMemo(
@@ -1053,7 +1030,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       fehlerSetzen: setFehler,
       erzeugen,
       glaettungSetzen,
-      farbanzahlSetzen,
       felderAendern: (titel, indizes, werte) =>
         ausloesen({ art: "felderAendern", titel, indizes, werte }),
       bearbeitungErsetzen: (titel, neue) =>
@@ -1096,7 +1072,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       fehler,
       erzeugen,
       glaettungSetzen,
-      farbanzahlSetzen,
       musterId,
       versionId,
       standZaehler,

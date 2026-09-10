@@ -357,41 +357,6 @@ export function farbenSchritt(wert: number): number {
   return 25;
 }
 
-/**
- * Der Farbregler im Editor.
- * ---------------------------------------------------------------------------
- *
- * Der Regler läuft in gleichen Schritten von links nach rechts, die Farbzahl
- * dahinter aber nicht. Zwischen 8 und 12 Farben liegt ein ganz anderes
- * Muster; zwischen 300 und 320 sieht niemand einen Unterschied. Auf einer
- * geraden Skala von 2 bis 375 läge der ganze interessante Bereich in den
- * ersten Millimetern, und mit dem Finger auf dem Tablet wäre er nicht zu
- * treffen.
- *
- * Deshalb wächst die Farbzahl geometrisch: gleich große Wege am Regler
- * bedeuten überall dieselbe **anteilige** Änderung. Die Mitte liegt damit bei
- * rund 27 Farben, ein Viertel bei etwa 7, drei Viertel bei etwa 100 – die
- * untere Hälfte des Reglers deckt genau den Bereich ab, in dem jede einzelne
- * Farbe zählt.
- */
-export const FARBREGLER_MAX = 100;
-
-/** Reglerstellung (0..100) -> Farbzahl. */
-export function farbanzahlAusRegler(stellung: number): number {
-  const anteil = Math.min(1, Math.max(0, stellung / FARBREGLER_MAX));
-  return farbanzahlBegrenzen(MIN_FARBEN * (MAX_FARBEN / MIN_FARBEN) ** anteil);
-}
-
-/** Farbzahl -> Reglerstellung (0..100), die Umkehrung von `farbanzahlAusRegler`. */
-export function reglerAusFarbanzahl(anzahl: number): number {
-  const wert = farbanzahlBegrenzen(anzahl);
-  const anteil = Math.log(wert / MIN_FARBEN) / Math.log(MAX_FARBEN / MIN_FARBEN);
-  return Math.round(anteil * FARBREGLER_MAX);
-}
-
-/** Orientierungspunkte am Farbregler – keine Rastpunkte. */
-export const FARBMARKEN = [MIN_FARBEN, 10, 25, 60, 150, MAX_FARBEN] as const;
-
 /** Stiche in Zentimeter umrechnen. */
 export function sticheInCm(stiche: number, stoffzaehlung: number): number {
   // Stoffzählung = Kreuze je Zoll, ein Zoll = 2,54 cm.
