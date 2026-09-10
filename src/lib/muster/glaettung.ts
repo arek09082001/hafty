@@ -251,41 +251,79 @@ export function ohneGlaettungZuordnen(liste: Abstandsliste): Uint16Array {
 }
 
 /**
- * Zuordnung mit Fehlerdiffusion – „den Farbverlauf nachahmen".
+ * Die Schwellenmatrix nach Bayer, 8 × 8, auf 0..1 gebracht.
+ *
+ * Sie sagt für jedes Kästchen, ab welchem Mischungsanteil die zweite Farbe
+ * genommen wird. Dass es eine feste Matrix ist und kein Zufall, ist der
+ * Punkt: Zufall gibt Flecken, die Matrix gibt ein feines, gleichmäßiges
+ * Muster, das sich aus zwei Schritten Entfernung zum Zwischenton mischt.
+ */
+const BAYER = (() => {
+  const roh = [
+    [0, 32, 8, 40, 2, 34, 10, 42],
+    [48, 16, 56, 24, 50, 18, 58, 26],
+    [12, 44, 4, 36, 14, 46, 6, 38],
+    [60, 28, 52, 20, 62, 30, 54, 22],
+    [3, 35, 11, 43, 1, 33, 9, 41],
+    [51, 19, 59, 27, 49, 17, 57, 25],
+    [15, 47, 7, 39, 13, 45, 5, 37],
+    [63, 31, 55, 23, 61, 29, 53, 21],
+  ];
+  return roh.map((zeile) => zeile.map((v) => (v + 0.5) / 64));
+})();
+
+/**
+ * Wie weit sich die Arbeitsfarbe von der echten entfernen darf (in dE).
+ *
+ * Ohne diesen Riegel läuft der mitgeschleppte Fehler weg. Eine Garnpalette
+ * füllt den Farbraum nicht gleichmäßig; zeigt der Fehler in eine Richtung,
+ * in der kein Garn liegt, wächst er weiter, und irgendwann rastet ein ganzes
+ * Gebiet auf einer Farbe ein, die mit der Vorlage nichts mehr zu tun hat.
+ * Gemessen war das der Grund, warum volle Stärke früher schlechter aussah
+ * als gedämpfte: die größte einfarbige Fläche wuchs von 401 auf 3174 Stiche.
+ * Mit Riegel sind es 363 – kleiner als ganz ohne Farbverlauf.
+ */
+const RIEGEL = 4;
+
+/**
+ * Zuordnung mit nachgeahmtem Farbverlauf.
  * ---------------------------------------------------------------------------
  *
- * Mit 375 Garnen lässt sich ein Foto nicht treffen. Ein Waldboden, der
- * zwischen zwei Grüntönen liegt, bekommt eines von beiden und wird damit
- * flächig – und flächig ist genau das, was ein Foto nicht ist.
+ * Mit 375 Garnen lässt sich ein Foto nicht treffen. Wo die Vorlage zwischen
+ * zwei Grüntönen liegt, bekommt sie einen von beiden – und eine Fläche, die
+ * im Foto um 8 dE schwankt, wird zu einem einzigen flachen Fleck. Genau das
+ * war zu sehen und genau das soll hier weg.
  *
- * Fehlerdiffusion nach Floyd-Steinberg macht es anders. Jedes Feld bekommt
- * wie sonst das nächstliegende Garn, aber der Fehler dieser Wahl bleibt
- * nicht liegen: er wird auf die vier noch nicht bearbeiteten Nachbarn
- * verteilt (7/16 rechts, 3/16 links unten, 5/16 unten, 1/16 rechts unten).
- * Wer zu hell geraten ist, macht seine Nachbarn dunkler. Über ein paar
- * Stiche gleicht sich das aus, und aus zwei Garnen wird ein dritter Ton,
- * den es gar nicht gibt.
+ * Drei Sachen zusammen:
  *
- * Bezahlt wird das mit Einzelstichen. Deshalb sitzt es am **linken** Ende
- * des Detailreglers und verschwindet nach rechts hin von selbst: dort, wo
- * die Nutzerin ruhige Flächen will, wäre es das Gegenteil.
+ *  1. **Zwei Garne mischen.** Zu jedem Feld werden die zwei nächsten Garne
+ *     gesucht, die Zielfarbe auf die Strecke zwischen ihnen projiziert und
+ *     daraus der Mischungsanteil gewonnen. Ob das Feld das eine oder das
+ *     andere bekommt, entscheidet die Bayer-Matrix. Damit wird überall dort
+ *     gemischt, wo die Vorlage zwischen zwei Garnen liegt – und nicht nur
+ *     dort, wo zufällig ein Fehler übrig bleibt.
+ *  2. **Den Rest weiterreichen** (Floyd-Steinberg). Das Mischen trifft nur
+ *     die Strecke zwischen den beiden Garnen; was quer dazu fehlt, geht an
+ *     die Nachbarn. Erst dadurch stimmt auch der Mittelwert.
+ *  3. **In Schlangenlinien.** Jede zweite Reihe rückwärts. Läuft man immer
+ *     in dieselbe Richtung, zieht der Fehler sichtbare Schlieren nach rechts.
  *
- * Gemessen an einer Waldvorlage (180 Stiche, 60 Farben). „Aus der
- * Entfernung" heißt: beides über 3 × 3 gemittelt, so wie das Auge es aus
- * einem Meter tut – denn darum geht es, nicht um den einzelnen Stich.
+ * Gemessen an einer Waldvorlage, 100 × 105 Stiche, 20 Farben:
  *
- * | Stärke | Stich für Stich | aus der Entfernung | Sättigung |
- * | -----: | --------------: | -----------------: | --------: |
- * |    aus |       6,28 dE   |         5,01 dE    |   0,358   |
- * |   50 % |       7,71 dE   |         4,09 dE    |   0,368   |
- * |   80 % |       8,61 dE   |     **3,72 dE**    |   0,377   |
- * |  100 % |      12,34 dE   |         5,69 dE    |   0,423   |
+ * | | Wechsel je Reihe | größte einfarbige Fläche |
+ * | --- | ---: | ---: |
+ * | ohne Farbverlauf | 59 | 471 |
+ * | nur Fehlerdiffusion, gedämpft | 56 | **909** |
+ * | mischen + Rest weiterreichen | **65** | **363** |
  *
- * Bei voller Stärke kippt es: der mitgeschleppte Fehler läuft weg, wenn die
- * Palette an einer Stelle dünn ist, und dann steht plötzlich ein Garn da,
- * das mit der Vorlage nichts mehr zu tun hat. Ein Deckel auf den Fehler
- * hilft dagegen nicht (mit 8 dE gedeckelt: 4,04 dE, also schlechter als
- * 80 % ohne Deckel). Deshalb `VERLAUF_MAX` – gedämpft statt gedeckelt.
+ * Die mittlere Fehlerdiffusion allein machte die Flächen also **größer** als
+ * gar keine – sie schiebt den Fehler so lange vor sich her, bis er auf
+ * einmal umschlägt. Erst das gezielte Mischen bricht die Flächen wirklich
+ * auf.
+ *
+ * Bezahlt wird das damit, dass das Muster Stich für Stich weiter von der
+ * Vorlage weg ist. Von zwei Schritten Entfernung ist es näher dran, und
+ * darum geht es beim Sticken.
  */
 export function verlaufZuordnen(
   liste: Abstandsliste,
@@ -295,53 +333,93 @@ export function verlaufZuordnen(
   const felder = liste.quellLab.length / 3;
   const hoehe = felder / breite;
   const palette = liste.palette;
+  const quell = liste.quellLab;
 
   // Auf einer Kopie arbeiten, in die der Fehler eingerechnet wird.
-  const arbeit = Float32Array.from(liste.quellLab);
+  const arbeit = Float32Array.from(quell);
   const raster = new Uint16Array(felder);
 
-  const streuen = (x: number, y: number, dL: number, da: number, db: number, anteil: number) => {
-    if (x < 0 || x >= breite || y < 0 || y >= hoehe) return;
-    const j = (y * breite + x) * 3;
-    arbeit[j] += dL * anteil;
-    arbeit[j + 1] += da * anteil;
-    arbeit[j + 2] += db * anteil;
-  };
-
   for (let y = 0; y < hoehe; y++) {
-    for (let x = 0; x < breite; x++) {
+    const rueckwaerts = y % 2 === 1;
+
+    for (let n = 0; n < breite; n++) {
+      const x = rueckwaerts ? breite - 1 - n : n;
       const i = y * breite + x;
       const j = i * 3;
-      const L = arbeit[j];
-      const a = arbeit[j + 1];
-      const b = arbeit[j + 2];
 
-      // Hier wird der geradlinige Lab-Abstand genommen und nicht CIEDE2000:
-      // gesucht ist die Farbe, die den Fehler am kleinsten macht, und der
-      // Fehler wird gleich als Vektor weitergereicht. Beides muss dasselbe
-      // Mass haben, sonst zeigt die Korrektur woanders hin als die Wahl.
-      let bester = 0;
-      let besterAbstand = Infinity;
+      // --- Riegel: so weit und nicht weiter ------------------------------
+      const abL = arbeit[j] - quell[j];
+      const aba = arbeit[j + 1] - quell[j + 1];
+      const abb = arbeit[j + 2] - quell[j + 2];
+      const weg = Math.sqrt(abL * abL + aba * aba + abb * abb);
+      if (weg > RIEGEL) {
+        const f = RIEGEL / weg;
+        arbeit[j] = quell[j] + abL * f;
+        arbeit[j + 1] = quell[j + 1] + aba * f;
+        arbeit[j + 2] = quell[j + 2] + abb * f;
+      }
+
+      const zL = arbeit[j];
+      const za = arbeit[j + 1];
+      const zb = arbeit[j + 2];
+
+      // --- Die zwei nächsten Garne ---------------------------------------
+      // Geradliniger Lab-Abstand und nicht CIEDE2000: gesucht ist die Farbe,
+      // die den Fehler am kleinsten macht, und der Fehler wird gleich als
+      // Vektor weitergereicht. Beides muss dasselbe Maß haben, sonst zeigt
+      // die Korrektur woanders hin als die Wahl.
+      let erste = 0;
+      let zweite = 0;
+      let d1 = Infinity;
+      let d2 = Infinity;
       for (let c = 0; c < palette.length; c++) {
-        const dL = L - palette[c].L;
-        const da = a - palette[c].a;
-        const db = b - palette[c].b;
+        const dL = zL - palette[c].L;
+        const da = za - palette[c].a;
+        const db = zb - palette[c].b;
         const d = dL * dL + da * da + db * db;
-        if (d < besterAbstand) {
-          besterAbstand = d;
-          bester = c;
+        if (d < d1) {
+          d2 = d1;
+          zweite = erste;
+          d1 = d;
+          erste = c;
+        } else if (d < d2) {
+          d2 = d;
+          zweite = c;
         }
       }
-      raster[i] = bester;
 
-      const dL = (L - palette[bester].L) * staerke;
-      const da = (a - palette[bester].a) * staerke;
-      const db = (b - palette[bester].b) * staerke;
+      // --- Mischungsanteil und Wahl --------------------------------------
+      const A = palette[erste];
+      const Z = palette[zweite];
+      const vL = Z.L - A.L;
+      const va = Z.a - A.a;
+      const vb = Z.b - A.b;
+      const laenge = vL * vL + va * va + vb * vb;
+      let anteil =
+        laenge > 0 ? ((zL - A.L) * vL + (za - A.a) * va + (zb - A.b) * vb) / laenge : 0;
+      anteil = Math.max(0, Math.min(1, anteil)) * staerke;
 
-      streuen(x + 1, y, dL, da, db, 7 / 16);
-      streuen(x - 1, y + 1, dL, da, db, 3 / 16);
-      streuen(x, y + 1, dL, da, db, 5 / 16);
-      streuen(x + 1, y + 1, dL, da, db, 1 / 16);
+      const gewaehlt = anteil > BAYER[y & 7][x & 7] ? zweite : erste;
+      raster[i] = gewaehlt;
+
+      // --- Was übrig bleibt, bekommen die Nachbarn ------------------------
+      const g = palette[gewaehlt];
+      const eL = (zL - g.L) * staerke;
+      const ea = (za - g.a) * staerke;
+      const eb = (zb - g.b) * staerke;
+      const vor = rueckwaerts ? -1 : 1;
+
+      const streuen = (sx: number, sy: number, teil: number) => {
+        if (sx < 0 || sx >= breite || sy < 0 || sy >= hoehe) return;
+        const p = (sy * breite + sx) * 3;
+        arbeit[p] += eL * teil;
+        arbeit[p + 1] += ea * teil;
+        arbeit[p + 2] += eb * teil;
+      };
+      streuen(x + vor, y, 7 / 16);
+      streuen(x - vor, y + 1, 3 / 16);
+      streuen(x, y + 1, 5 / 16);
+      streuen(x + vor, y + 1, 1 / 16);
     }
   }
 
