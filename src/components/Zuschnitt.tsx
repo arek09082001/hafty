@@ -6,10 +6,8 @@ import {
   VERHAELTNISSE,
   ausRechteck,
   einpassen,
-  groesseAendern,
   groesstesRechteck,
   kanteZiehen,
-  seiteAendern,
   type Ausschnitt,
   type Kante,
 } from "@/lib/muster/ausschnitt";
@@ -19,43 +17,40 @@ import type { Textschluessel } from "@/lib/sprache/texte";
 /**
  * Den Bildausschnitt wählen.
  *
- * Es führen bewusst mehrere Wege zum selben Ziel:
+ * Zugeschnitten wird so, wie man es von jedem Fotoprogramm kennt: im Rahmen
+ * aufsetzen und schieben, an einer Ecke oder Kante ziehen, um ihn in jede
+ * Form zu bringen, oder neben dem Rahmen aufsetzen und einen ganz neuen
+ * aufziehen. Dazu die Formknöpfe („Quadrat", „Hochkant" …), die den größten
+ * Ausschnitt dieser Form mittig auflegen – für viele Bilder ist das schon
+ * das Ergebnis.
  *
- *  - Ein Antippen auf „Quadrat“, „Hochkant“ … legt den größten Ausschnitt
- *    dieser Form mittig auf das Bild. Für viele Bilder ist das schon das
- *    Ergebnis, und man muss nichts weiter tun.
- *  - **Freihand** geht mit dem Finger: an einer Ecke oder Kante ziehen macht
- *    den Ausschnitt schmaler, breiter, höher oder flacher, ganz ohne festes
- *    Seitenverhältnis. Und wer neben dem Rahmen auf dem Bild aufsetzt und
- *    zieht, spannt einfach einen neuen Rahmen auf.
- *  - Verschoben wird mit dem Finger – **oder** mit den vier Pfeilknöpfen.
- *  - Auch die Freihandgröße geht über Knöpfe: „Breiter“, „Schmaler“,
- *    „Höher“, „Flacher“. Ziehen ist nie der einzige Weg; wer eine Maus hat
- *    oder unsicher greift, kommt genauso ans Ziel.
+ * Vorher stand daneben für jede dieser Bewegungen noch eine Reihe Knöpfe:
+ * vier zum Verschieben, zwei für kleiner und größer, vier fürs Freihand.
+ * Zusammen war das mehr Bedienfeld als Bild, und es erklärte umständlich,
+ * was der Rahmen von selbst zeigt. Wer zuschneiden kann, kann auch ziehen.
  *
- * Die Anfasser sind deshalb auch keine kleinen Punkte: sichtbar sind 24
- * Bildschirmpunkte, treffen kann man ein Feld von 48 – das ist auf einem
- * Tablet auch mit älteren Fingern zu schaffen.
+ * Die Anfasser sehen deshalb aus wie überall: dünne weiße Winkel an den
+ * Ecken, kurze Striche an den Kanten, dazu die Drittellinien im Rahmen. Zu
+ * treffen ist trotzdem ein Feld von 48 Bildschirmpunkten – das Sichtbare ist
+ * schmal, das Anfassbare bleibt groß.
  */
 
-/**
- * Die acht Anfasser: Kürzel, Lage am Rahmen in Prozent und der passende
- * Mauszeiger.
- *
- * Die Prozentzahl ist zugleich die Verschiebung: bei 0 % liegt der Anfasser
- * mit seiner linken Kante am Rahmen, bei 100 % mit seiner rechten. Dadurch
- * liegt jeder Anfasser **innerhalb** des Rahmens statt zur Hälfte darüber
- * hinaus – am Bildrand würde er sonst abgeschnitten und wäre kaum zu treffen.
- */
-const GRIFFE: { kante: Kante; links: number; oben: number; zeiger: string }[] = [
-  { kante: "nw", links: 0, oben: 0, zeiger: "nwse-resize" },
-  { kante: "n", links: 50, oben: 0, zeiger: "ns-resize" },
-  { kante: "no", links: 100, oben: 0, zeiger: "nesw-resize" },
-  { kante: "o", links: 100, oben: 50, zeiger: "ew-resize" },
-  { kante: "so", links: 100, oben: 100, zeiger: "nwse-resize" },
-  { kante: "s", links: 50, oben: 100, zeiger: "ns-resize" },
-  { kante: "sw", links: 0, oben: 100, zeiger: "nesw-resize" },
-  { kante: "w", links: 0, oben: 50, zeiger: "ew-resize" },
+const GRIFFE: {
+  kante: Kante;
+  links: number;
+  oben: number;
+  zeiger: string;
+  /** Wie der Anfasser aussieht – Winkel an den Ecken, Strich an den Kanten. */
+  stil: string;
+}[] = [
+  { kante: "nw", links: 0, oben: 0, zeiger: "nwse-resize", stil: "h-6 w-6 border-t-4 border-l-4" },
+  { kante: "n", links: 50, oben: 0, zeiger: "ns-resize", stil: "h-1 w-8 bg-white" },
+  { kante: "no", links: 100, oben: 0, zeiger: "nesw-resize", stil: "h-6 w-6 border-t-4 border-r-4" },
+  { kante: "o", links: 100, oben: 50, zeiger: "ew-resize", stil: "h-8 w-1 bg-white" },
+  { kante: "so", links: 100, oben: 100, zeiger: "nwse-resize", stil: "h-6 w-6 border-r-4 border-b-4" },
+  { kante: "s", links: 50, oben: 100, zeiger: "ns-resize", stil: "h-1 w-8 bg-white" },
+  { kante: "sw", links: 0, oben: 100, zeiger: "nesw-resize", stil: "h-6 w-6 border-b-4 border-l-4" },
+  { kante: "w", links: 0, oben: 50, zeiger: "ew-resize", stil: "h-8 w-1 bg-white" },
 ];
 
 /**
@@ -203,8 +198,12 @@ export function Zuschnitt({
     /* Auf breiten Schirmen steht das Bild links und alles zum Einstellen
        rechts daneben. Untereinander wurde die Seite so hoch, dass man vom
        Bild zu den Knöpfen blättern musste – und dabei sieht man nicht mehr,
-       was der Knopf gerade bewirkt. */
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,380px)_minmax(0,1fr)] lg:items-start">
+       was der Knopf gerade bewirkt.
+
+       Das Bild bekommt jetzt die breitere Spalte: rechts stehen nur noch die
+       fünf Formknöpfe, und je größer das Bild ist, desto leichter trifft man
+       den Rahmen und desto besser sieht man, was man zuschneidet. */
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,560px)_minmax(0,1fr)] lg:items-start">
       {/* --- Das Bild mit dem Rahmen --------------------------------------- */}
       {/* overflow-hidden ist wichtig: der Schleier um den Rahmen entsteht aus
           einem sehr weiten Schlagschatten. Ohne diese Klammer legt er sich
@@ -232,11 +231,13 @@ export function Zuschnitt({
           draggable={false}
         />
         {/* Was wegfällt, liegt unter einem Schleier – so ist auf einen Blick
-            zu sehen, was übrig bleibt. */}
+            zu sehen, was übrig bleibt. Der Rahmen selbst ist nur ein feiner
+            weißer Strich: sichtbar auf jedem Bild, aber er verdeckt nichts
+            von dem, worauf es ankommt. */}
         <div
           data-rahmen="ja"
-          className={`absolute cursor-move rounded-sm border-[3px] border-white shadow-[0_0_0_3px_#0f4c35,0_0_0_9999px_rgba(0,0,0,0.45)] ${
-            zieht ? "border-hauptaktion" : ""
+          className={`absolute cursor-move border shadow-[0_0_0_1px_rgba(0,0,0,0.45),0_0_0_9999px_rgba(0,0,0,0.45)] ${
+            zieht ? "border-white" : "border-white/85"
           }`}
           style={{
             left: anteil(ausschnitt.x, bildBreite),
@@ -245,9 +246,28 @@ export function Zuschnitt({
             height: anteil(ausschnitt.hoehe, bildHoehe),
           }}
         >
-          {/* Die Anfasser für Freihand. Sie sind nur zum Ziehen da und für
-              Vorlesegeräte unsichtbar – über die Knöpfe rechts kommt man
-              ohne Ziehen zum selben Ergebnis. */}
+          {/* Die Drittellinien. Sie gehören zu jedem Zuschneiden dazu und
+              helfen beim Ausrichten; für den Zeiger sind sie nicht da. */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 grid grid-cols-3 grid-rows-3"
+          >
+            <span className="border-r border-b border-white/30" />
+            <span className="border-r border-b border-white/30" />
+            <span className="border-b border-white/30" />
+            <span className="border-r border-b border-white/30" />
+            <span className="border-r border-b border-white/30" />
+            <span className="border-b border-white/30" />
+            <span className="border-r border-white/30" />
+            <span className="border-r border-white/30" />
+            <span />
+          </div>
+
+          {/* Die Anfasser. Das Feld zum Anfassen ist mit 48 Bildschirmpunkten
+              deutlich größer als der weiße Winkel darin; das Sichtbare selbst
+              nimmt keine Ereignisse an, sonst käme es dem Zeiger in die
+              Quere. Für Vorlesegeräte sind sie unsichtbar – dort führt der
+              Weg über die Formknöpfe. */}
           {GRIFFE.map((griff) => (
             <span
               key={griff.kante}
@@ -259,8 +279,12 @@ export function Zuschnitt({
                 transform: `translate(-${griff.links}%, -${griff.oben}%)`,
                 cursor: griff.zeiger,
               }}
-              className="absolute p-3 after:block after:h-6 after:w-6 after:rounded-[3px] after:border-2 after:border-hauptaktion after:bg-white after:shadow-[0_0_0_1px_rgba(0,0,0,0.35)] after:content-['']"
-            />
+              className="absolute p-3"
+            >
+              <span
+                className={`pointer-events-none block border-white drop-shadow-[0_0_1px_rgba(0,0,0,0.7)] ${griff.stil}`}
+              />
+            </span>
           ))}
         </div>
       </div>
@@ -290,73 +314,6 @@ export function Zuschnitt({
             hoehe: zahl(ausschnitt.hoehe),
           })}
         </p>
-
-        {/* Ein Kreuz aus vier Knöpfen zum Schieben stand hier einmal. Der
-            Ausschnitt lässt sich mit dem Finger verschieben und an den Ecken
-            ziehen; die neun Kästchen haben nur Platz gekostet. */}
-        <div className="flex flex-wrap items-start gap-8">
-        <div className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
-          <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.groesse")}</h3>
-          <div className="grid w-[260px] grid-cols-2 gap-2">
-            <Knopf
-              art="neben"
-              klein
-              onClick={() => onAendern(groesseAendern(ausschnitt, 0.85, bildBreite, bildHoehe))}
-            >
-              {t("zuschnitt.kleiner")}
-            </Knopf>
-            <Knopf
-              art="neben"
-              klein
-              onClick={() => onAendern(groesseAendern(ausschnitt, 1 / 0.85, bildBreite, bildHoehe))}
-            >
-              {t("zuschnitt.groesser")}
-            </Knopf>
-          </div>
-        </div>
-
-        {/* Freihand ohne Ziehen: Breite und Höhe lassen sich einzeln ändern,
-            das Seitenverhältnis darf dabei alles werden. */}
-        <div className="flex flex-col gap-2">
-          <h3 className="text-[1.1rem] font-semibold">{t("zuschnitt.freihand")}</h3>
-          <div className="grid w-[260px] grid-cols-2 gap-2">
-            <Knopf
-              art="neben"
-              klein
-              onClick={() => onAendern(seiteAendern(ausschnitt, "breite", 0.85, bildBreite, bildHoehe))}
-            >
-              {t("zuschnitt.schmaler")}
-            </Knopf>
-            <Knopf
-              art="neben"
-              klein
-              onClick={() =>
-                onAendern(seiteAendern(ausschnitt, "breite", 1 / 0.85, bildBreite, bildHoehe))
-              }
-            >
-              {t("zuschnitt.breiter")}
-            </Knopf>
-            <Knopf
-              art="neben"
-              klein
-              onClick={() => onAendern(seiteAendern(ausschnitt, "hoehe", 0.85, bildBreite, bildHoehe))}
-            >
-              {t("zuschnitt.flacher")}
-            </Knopf>
-            <Knopf
-              art="neben"
-              klein
-              onClick={() =>
-                onAendern(seiteAendern(ausschnitt, "hoehe", 1 / 0.85, bildBreite, bildHoehe))
-              }
-            >
-              {t("zuschnitt.hoeher")}
-            </Knopf>
-          </div>
-        </div>
-        </div>
-        </div>
       </div>
     </div>
   );
