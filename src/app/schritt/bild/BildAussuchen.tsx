@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
@@ -14,10 +15,30 @@ import { useMeldungen } from "@/components/Meldungen";
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export function BildAussuchen() {
-  const { bild, bildWaehlen, ausschnittSetzen, zugeordnetesProjekt } = useMuster();
+  const { bild, bildWaehlen, ausschnittSetzen, zugeordnetesProjekt, neuAnfangen } = useMuster();
   const { t } = useSprache();
   const { melden } = useMeldungen();
   const dateiFeld = useRef<HTMLInputElement>(null);
+  const router = useRouter();
+  const suche = useSearchParams();
+
+  /**
+   * „Neues Bild aussuchen" von der Startseite kommt mit `?neu=1` hier an und
+   * räumt den Arbeitsstand aus der Anzeige.
+   *
+   * Ohne das stand hier das zuletzt bearbeitete Bild: die App holt beim
+   * Öffnen den Arbeitsstand zurück, damit ein Absturz nichts kostet. Wer ein
+   * neues Foto wollte, war damit wieder in seinem alten Projekt. Gelöscht
+   * wird nichts – über „Meine Muster" führt der Weg zu jedem Projekt zurück.
+   */
+  const neuGewuenscht = suche.get("neu") === "1";
+  useEffect(() => {
+    if (!neuGewuenscht) return;
+    neuAnfangen();
+    // Die Marke hat ihre Aufgabe erfüllt. Bliebe sie in der Adresse stehen,
+    // räumte ein Neuladen der Seite das gerade ausgesuchte Foto wieder weg.
+    router.replace("/schritt/bild");
+  }, [neuGewuenscht, neuAnfangen, router]);
 
   /**
    * Den Dateiauswahl-Dialog des Geräts aufmachen – und zwar sofort, mit

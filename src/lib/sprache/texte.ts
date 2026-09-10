@@ -130,6 +130,8 @@ export const DE = {
   "editor.keinMuster": "Hier ist noch kein Muster.",
   "editor.keinMusterText":
     "Es wurde noch kein Muster erstellt. Gehen Sie zurück zum ersten Schritt, suchen Sie ein Bild aus und tippen Sie dann auf „Muster erstellen“.",
+  "editor.wirdErstellt": "Aus „{name}“ wird gerade Ihr Muster gerechnet.",
+  "editor.zurueckGroesse": "Zurück zu Größe und Farben",
   "editor.kleiner": "Kleiner",
   "editor.groesser": "Größer",
   "editor.allesZeigen": "Alles zeigen",
@@ -372,6 +374,7 @@ export const DE = {
   "staende.vonHandGemerkt": "Von Hand gemerkt",
   "staende.neuErzeugt": "Neu erzeugt",
   "staende.farbanzahlGeaendert": "Farbanzahl geändert",
+  "staende.vorBildwechsel": "Vor dem Bildwechsel gemerkt",
   "staende.motivEingesetzt": "Motiv eingesetzt",
 
   // --- Garne ---------------------------------------------------------------
@@ -662,6 +665,8 @@ export const PL: Record<Textschluessel, string> = {
   "editor.keinMuster": "Nie ma tu jeszcze wzoru.",
   "editor.keinMusterText":
     "Nie utworzono jeszcze wzoru. Proszę wrócić do pierwszego kroku, wybrać zdjęcie i dotknąć „Utwórz wzór”.",
+  "editor.wirdErstellt": "Wzór ze zdjęcia „{name}” jest właśnie obliczany.",
+  "editor.zurueckGroesse": "Wróć do rozmiaru i kolorów",
   "editor.kleiner": "Mniejszy",
   "editor.groesser": "Większy",
   "editor.allesZeigen": "Pokaż całość",
@@ -889,6 +894,7 @@ export const PL: Record<Textschluessel, string> = {
   "staende.vonHandGemerkt": "Zapamiętana ręcznie",
   "staende.neuErzeugt": "Utworzona na nowo",
   "staende.farbanzahlGeaendert": "Zmieniona liczba kolorów",
+  "staende.vorBildwechsel": "Zapamiętana przed zmianą zdjęcia",
   "staende.motivEingesetzt": "Wstawiony motyw",
 
   "garne.titel": "Moje nici",

@@ -6,6 +6,7 @@ import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Zahlenwahl } from "@/components/Zahlenwahl";
+import { Rechenfortschritt } from "@/components/Rechenfortschritt";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { useMeldungen } from "@/components/Meldungen";
@@ -85,22 +86,7 @@ export function GroesseUndFarben() {
       }
     >
       <div className="flex flex-col gap-9">
-        {laeuft && fortschritt ? (
-          <div className="border-l-[6px] border-hauptaktion bg-gewaehlt px-4 py-3">
-            {/* Zwei Zeilen fest: die Meldungen sind verschieden lang, und
-                während des Rechnens wechseln sie im Sekundentakt. Ohne
-                festen Platz hüpfte alles darunter bei jeder Meldung. */}
-            <p className="flex min-h-[3rem] items-center text-[1.15rem] font-semibold">
-              {t(fortschritt.text)}
-            </p>
-            <div className="mt-3 h-4 w-full overflow-hidden rounded-full bg-white">
-              <div
-                className="h-full bg-hauptaktion transition-[width] duration-300"
-                style={{ width: `${Math.round(fortschritt.anteil * 100)}%` }}
-              />
-            </div>
-          </div>
-        ) : null}
+        {laeuft ? <Rechenfortschritt fortschritt={fortschritt} /> : null}
 
         <div className="grid gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="flex flex-col gap-9">

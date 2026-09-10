@@ -115,6 +115,8 @@ type Aktion =
   | { art: "geglaettet"; antwort: Geglaettet }
   /** Einen kompletten Stand einsetzen (gespeicherter Stand, Wiederherstellung). */
   | { art: "ersetzen"; muster: Muster }
+  /** Alles wegräumen: ein neues Foto bringt sein eigenes Muster mit. */
+  | { art: "leeren" }
   | { art: "felderAendern"; titel: Textschluessel; indizes: number[]; werte: number[] }
   | { art: "bearbeitungErsetzen"; titel: Textschluessel; neue: Int16Array }
   | { art: "paletteErsetzen"; palette: PalettenEintrag[] }
@@ -192,6 +194,9 @@ function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
 
     case "ersetzen":
       return { muster: aktion.muster, rueckgaengigStapel: [], wiederholenStapel: [] };
+
+    case "leeren":
+      return { muster: null, rueckgaengigStapel: [], wiederholenStapel: [] };
 
     case "paletteErsetzen": {
       if (!zustand.muster) return zustand;
@@ -291,6 +296,11 @@ type MusterKontext = {
   bildWaehlen: (quelle: { name: string; blob: Blob }) => Promise<void>;
   ausschnittSetzen: (neu: Ausschnitt) => void;
   bildEntfernen: () => void;
+  /**
+   * Von vorn anfangen: kein Bild, kein Muster, kein Projekt. Dahin führt
+   * „Neues Bild aussuchen" auf der Startseite.
+   */
+  neuAnfangen: () => void;
 
   einstellungen: Einstellungen;
   einstellungenSetzen: (e: Partial<Einstellungen>) => void;
@@ -395,7 +405,37 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     ((m: Muster, beschriftung: Textschluessel, gemerkt: boolean) => Promise<boolean>) | null
   >(null);
 
+  /**
+   * Hat die Nutzerin in dieser Sitzung schon selbst gesagt, woran sie
+   * arbeitet – ein Foto ausgesucht oder „Neues Bild" gewählt?
+   *
+   * Der Arbeitsstand liegt in der Datenbank und braucht zum Laden einen
+   * Augenblick. Traf er ein, nachdem inzwischen ein neues Foto gewählt war,
+   * setzte er das vorherige Bild samt Projekt wieder ein: die Nutzerin
+   * landete wieder bei dem Muster, von dem sie gerade weggegangen war.
+   * Deshalb gilt ihre Wahl ab dem ersten Tipp und nicht erst, wenn die
+   * Datenbank so weit ist.
+   */
+  const eigeneWahl = useRef(false);
+
   const { muster } = zustand;
+
+  // Die Rechenschleife und das Bildaussuchen laufen über mehrere Runden
+  // weiter und dürfen dabei nicht auf einem alten Stand sitzen bleiben –
+  // deshalb über Refs statt über die Abhängigkeiten der Rückrufe.
+  const musterRef = useRef(muster);
+  const bildRef = useRef(bild);
+  /** Gibt es Handarbeit, die noch in keinem gespeicherten Stand steht? */
+  const handarbeitRef = useRef(false);
+  useEffect(() => {
+    musterRef.current = muster;
+  }, [muster]);
+  useEffect(() => {
+    bildRef.current = bild;
+  }, [bild]);
+  useEffect(() => {
+    handarbeitRef.current = zustand.rueckgaengigStapel.length > 0;
+  }, [zustand.rueckgaengigStapel]);
 
   /**
    * Für welches Bild der Worker seine Zwischenergebnisse hält.
@@ -486,25 +526,32 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     (async () => {
       const stand = await arbeitsstandLaden();
       if (abgebrochen) return;
-      if (stand) {
-        ausloesen({
-          art: "ersetzen",
-          muster: {
-            breite: stand.breite,
-            hoehe: stand.hoehe,
-            basis: stand.basis,
-            bearbeitung: stand.bearbeitung,
-            palette: stand.palette,
-            kennzahlen: kennzahlenBerechnen(
-              zusammenfuehren(stand.basis, stand.bearbeitung),
-              stand.breite,
-            ),
-            farbenVorher: stand.palette.length,
-            farbenNachher: stand.palette.length,
-            garneZusammengelegt: 0,
-            bildKennung: stand.bildKennung,
-          },
-        });
+      // Wer inzwischen selbst ein Foto ausgesucht hat, bekommt das vorherige
+      // Projekt nicht mehr untergeschoben (siehe `eigeneWahl`).
+      if (stand && !eigeneWahl.current) {
+        // Ein Arbeitsstand kann auch nur aus dem Bild bestehen: ausgesucht,
+        // aber noch nicht gerechnet. Dann gibt es kein Muster einzusetzen –
+        // Schritt 3 rechnet es aus dem Bild.
+        if (stand.breite > 0 && stand.hoehe > 0) {
+          ausloesen({
+            art: "ersetzen",
+            muster: {
+              breite: stand.breite,
+              hoehe: stand.hoehe,
+              basis: stand.basis,
+              bearbeitung: stand.bearbeitung,
+              palette: stand.palette,
+              kennzahlen: kennzahlenBerechnen(
+                zusammenfuehren(stand.basis, stand.bearbeitung),
+                stand.breite,
+              ),
+              farbenVorher: stand.palette.length,
+              farbenNachher: stand.palette.length,
+              garneZusammengelegt: 0,
+              bildKennung: stand.bildKennung,
+            },
+          });
+        }
         setEinstellungen(einstellungenLesen(stand.einstellungen));
         setMusterId(stand.musterId);
         setVersionId(stand.versionId);
@@ -539,24 +586,29 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   // --- Arbeitsstand laufend mitschreiben ------------------------------------
   // Nicht bei jedem Pinselstrich, sondern gebündelt: 800 ms nach der letzten
   // Änderung. Das reicht gegen einen Absturz und belastet nichts.
+  //
+  // Geschrieben wird auch, wenn erst das Bild da ist und noch kein Muster:
+  // sonst stünde nach dem Neuladen der Seite das **vorherige** Projekt wieder
+  // da, obwohl gerade ein neues Foto ausgesucht wurde. Ein Arbeitsstand ohne
+  // Muster hat die Maße 0 × 0; das Zurückholen kennt diesen Fall.
   useEffect(() => {
-    if (!wiederhergestellt || !muster) return;
+    if (!wiederhergestellt || (!muster && !bild)) return;
     const zeitgeber = window.setTimeout(() => {
       void arbeitsstandSichern({
         musterId,
         versionId,
         name: bild?.name ?? "Muster",
-        breite: muster.breite,
-        hoehe: muster.hoehe,
-        basis: muster.basis,
-        bearbeitung: muster.bearbeitung,
-        palette: muster.palette,
+        breite: muster?.breite ?? 0,
+        hoehe: muster?.hoehe ?? 0,
+        basis: muster?.basis ?? new Uint16Array(0),
+        bearbeitung: muster?.bearbeitung ?? new Int16Array(0),
+        palette: muster?.palette ?? [],
         einstellungen,
         bild: bild?.blob ?? null,
         bildName: bild?.name ?? "",
         bildMasse: bild?.masse ?? null,
         bildAusschnitt: bild?.ausschnitt ?? null,
-        bildKennung: muster.bildKennung,
+        bildKennung: muster?.bildKennung ?? bild?.kennung ?? "",
         gespeichertAm: Date.now(),
       });
     }, 800);
@@ -566,9 +618,23 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   // --- Bild auswählen -------------------------------------------------------
   const bildWaehlen = useCallback(
     async (quelle: { name: string; blob: Blob }) => {
+      // Ab hier gilt das neue Foto – auch dann, wenn der Arbeitsstand aus der
+      // Datenbank erst gleich eintrifft.
+      eigeneWahl.current = true;
+
       const bitmap = await createImageBitmap(quelle.blob);
       const masse = { breite: bitmap.width, hoehe: bitmap.height };
       bitmap.close();
+
+      /**
+       * Was seit dem letzten Sichern von Hand gemalt wurde, gehört zum
+       * bisherigen Bild. Es wird als Stand gemerkt, bevor das Muster weicht –
+       * sonst wäre die Arbeit einer halben Stunde mit einem Tipp auf
+       * „Anderes Bild aussuchen" verloren.
+       */
+      if (musterRef.current && handarbeitRef.current) {
+        await sichernRef.current?.(musterRef.current, "staende.vorBildwechsel", false);
+      }
 
       /**
        * Zugeordnet wird über den Dateinamen: „blume.jpg" gehört zu dem
@@ -587,6 +653,16 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       setVersionId(null);
       setZugeordnet(bekannt ? bekannt.name : null);
       if (bekannt) setEinstellungen(einstellungenLesen(bekannt.einstellungen));
+
+      /**
+       * Das bisherige Muster geht mit dem bisherigen Bild.
+       *
+       * Es weiterzuführen ginge ohnehin nicht: es hängt an der Kennung des
+       * alten Bildes, und ein Muster aus einem anderen Foto neben einem
+       * neuen Foto stehen zu lassen, hat schon manche Nutzerin glauben
+       * lassen, sie sei wieder in ihrem alten Projekt gelandet.
+       */
+      ausloesen({ art: "leeren" });
 
       setBild((vorher) => {
         if (vorher) URL.revokeObjectURL(vorher.vorschauUrl);
@@ -626,6 +702,27 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       return null;
     });
   }, []);
+
+  /**
+   * Von vorn anfangen.
+   *
+   * „Neues Bild aussuchen" auf der Startseite führt hierher. Vorher stand in
+   * Schritt 1 das zuletzt bearbeitete Bild, weil der Arbeitsstand beim
+   * Öffnen der Seite zurückgeholt wird – wer ein neues Foto wollte, sah
+   * wieder sein altes Projekt und musste es erst wegklicken.
+   *
+   * Gelöscht wird dabei nichts: Projekte und Stände liegen weiter in der
+   * Datenbank, und die Startseite führt zu ihnen zurück.
+   */
+  const neuAnfangen = useCallback(() => {
+    eigeneWahl.current = true;
+    bildEntfernen();
+    setMusterId(null);
+    setVersionId(null);
+    setZugeordnet(null);
+    setFehler(null);
+    ausloesen({ art: "leeren" });
+  }, [bildEntfernen]);
 
   // --- Der volle Durchlauf --------------------------------------------------
   const erzeugen = useCallback(async () => {
@@ -739,18 +836,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
    */
   const rechnenLaeuft = useRef(false);
   const offenerWunsch = useRef<Wunsch | null>(null);
-
-  // Die Rechenschleife läuft über mehrere Runden weiter und darf dabei nicht
-  // auf einem alten Muster sitzen bleiben – deshalb über Refs statt über die
-  // Abhängigkeiten des Callbacks.
-  const musterRef = useRef(muster);
-  const bildRef = useRef(bild);
-  useEffect(() => {
-    musterRef.current = muster;
-  }, [muster]);
-  useEffect(() => {
-    bildRef.current = bild;
-  }, [bild]);
 
   const nachrechnen = useCallback(
     async (wunsch: Wunsch) => {
@@ -949,6 +1034,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bildWaehlen,
       ausschnittSetzen,
       bildEntfernen,
+      neuAnfangen,
       einstellungen,
       einstellungenSetzen: (teil) => setEinstellungen((e) => ({ ...e, ...teil })),
       zugeordnetesProjekt: zugeordnet,
@@ -993,6 +1079,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bildWaehlen,
       ausschnittSetzen,
       bildEntfernen,
+      neuAnfangen,
       einstellungen,
       zugeordnet,
       alleGarne,
