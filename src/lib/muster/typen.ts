@@ -97,6 +97,14 @@ export const STANDARD_EINSTELLUNGEN: Einstellungen = {
  *
  * `lambda` allein ist oberhalb von etwa 7 wirkungslos (siehe glaettung.ts);
  * die obere Hälfte des Reglers lebt deshalb von `mindestFlaeche`.
+ *
+ * Ganz links kommt ein Drittes dazu: dort fällt der **Medianfilter** weg.
+ * Er sitzt vor der Farbreduktion und nimmt einzelne abweichende Felder
+ * heraus (siehe pipeline.ts) – gut gemeint, aber genau das, was zwischen dem
+ * Muster und den einzelnen Bildpunkten des Fotos steht. Wer den Regler ganz
+ * nach links schiebt, will das Foto und nicht dessen geglättete Fassung;
+ * dann bleibt jedes heruntergerechnete Feld so stehen, wie es aus dem Bild
+ * herauskam.
  */
 export const GLAETTUNG_MIN = 0;
 export const GLAETTUNG_MAX = 100;
@@ -107,9 +115,26 @@ export const GROESSTE_FLAECHE = 100;
 /** Ganz rechts erreichtes Gewicht der Nachbarschaftsstrafe. */
 const LAMBDA_MAX = 8;
 
+/**
+ * Bis zu dieser Reglerstellung bleibt der Medianfilter aus.
+ *
+ * Es ist genau die Spanne, die „sehr detaillierter" heißt (siehe
+ * STUFENNAMEN weiter unten): was der Regler dort verspricht, soll er auch
+ * halten. Ab hier greift der Filter, und von da an geht es nur noch darum,
+ * wie ruhig die Flächen werden.
+ */
+export const MEDIAN_AB = 8;
+
 export type Glaettungswerte = {
   lambda: number;
   mindestFlaeche: number;
+  /**
+   * Ob das heruntergerechnete Raster vor der Farbreduktion gefiltert wird.
+   * Kostet einen neuen Durchlauf ab dem k-Means, weil davon die ganze
+   * Palette abhängt – anders als `lambda` und `mindestFlaeche`, die nur den
+   * letzten Schritt betreffen.
+   */
+  median: boolean;
 };
 
 /** Eine Reglerstellung auf 0..100 begrenzen und auf ganze Schritte runden. */
@@ -118,12 +143,14 @@ export function glaettungBegrenzen(staerke: number): number {
   return Math.min(GLAETTUNG_MAX, Math.max(GLAETTUNG_MIN, Math.round(staerke)));
 }
 
-/** Aus der Reglerstellung die beiden Rechenwerte der Glättung. */
+/** Aus der Reglerstellung die Rechenwerte der Glättung. */
 export function glaettungswerte(staerke: number): Glaettungswerte {
-  const anteil = glaettungBegrenzen(staerke) / GLAETTUNG_MAX;
+  const wert = glaettungBegrenzen(staerke);
+  const anteil = wert / GLAETTUNG_MAX;
   return {
     lambda: Math.round(LAMBDA_MAX * anteil ** 1.4 * 1000) / 1000,
     mindestFlaeche: Math.max(1, Math.round(GROESSTE_FLAECHE ** anteil)),
+    median: wert >= MEDIAN_AB,
   };
 }
 
