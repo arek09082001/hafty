@@ -91,6 +91,7 @@ export function MusterAnsehen() {
     standZaehler,
     standAnlegen,
     standUebernehmen,
+    versionVergessen,
     alleGarne,
     paletteErsetzen,
   } = useMuster();
@@ -1300,6 +1301,7 @@ export function MusterAnsehen() {
         startStandId={versionId}
         onSchliessen={() => setVergleichOffen(false)}
         onWiederherstellen={standWiederherstellen}
+        onGeloescht={versionVergessen}
       />
 
       <Dialog

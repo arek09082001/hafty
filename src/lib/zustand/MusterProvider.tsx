@@ -344,6 +344,11 @@ type MusterKontext = {
   standAnlegen: (beschriftung: Textschluessel, gemerkt?: boolean) => Promise<boolean>;
   /** Nach dem Wiederherstellen: auf diesen Stand als Elternteil umschalten. */
   standUebernehmen: (stand: Stand, muster: Muster) => void;
+  /**
+   * Ein Stand wurde gelöscht. War es der, auf dem gearbeitet wird, hängt der
+   * nächste sonst an einem Elternteil, den es nicht mehr gibt.
+   */
+  versionVergessen: (standId: string) => void;
 
   rueckgaengig: () => void;
   wiederholen: () => void;
@@ -970,6 +975,10 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       standZaehler,
       standAnlegen,
       standUebernehmen,
+      versionVergessen: (standId) => {
+        setVersionId((jetzt) => (jetzt === standId ? null : jetzt));
+        setStandZaehler((z) => z + 1);
+      },
       rueckgaengig: () => ausloesen({ art: "rueckgaengig" }),
       wiederholen: () => ausloesen({ art: "wiederholen" }),
       kannRueckgaengig: zustand.rueckgaengigStapel.length > 0,

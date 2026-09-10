@@ -114,6 +114,21 @@ export function rasterPacken(datei: Rasterdatei): Uint8Array {
   return new Uint8Array(puffer);
 }
 
+/**
+ * Nur die Maße aus dem Kopf lesen.
+ *
+ * Sie stehen in beiden Fassungen an derselben Stelle, und wer bloß wissen
+ * will, wie groß ein gespeicherter Stand ist, muss dafür nicht das ganze
+ * Raster aufbauen – bei 160 000 Feldern ist das ein spürbarer Unterschied,
+ * wenn zwanzig Stände nebeneinander in einer Übersicht stehen.
+ */
+export function masseLesen(daten: Uint8Array): { breite: number; hoehe: number } | null {
+  if (daten.byteLength < 14) return null;
+  const sicht = new DataView(daten.buffer, daten.byteOffset, daten.byteLength);
+  if (sicht.getUint32(0, true) !== KENNUNG) return null;
+  return { breite: sicht.getUint32(6, true), hoehe: sicht.getUint32(10, true) };
+}
+
 export function rasterEntpacken(daten: Uint8Array): Rasterdatei {
   const sicht = new DataView(daten.buffer, daten.byteOffset, daten.byteLength);
 

@@ -21,7 +21,7 @@
  */
 
 import { hexNachRgb } from "@/lib/farbe/lab";
-import { rasterPacken, rasterEntpacken } from "./rle";
+import { masseLesen, rasterPacken, rasterEntpacken } from "./rle";
 import { browserdatenbank, entpacken, packen, LADEN_STAENDE } from "./browserspeicher";
 import { vormerken } from "./abgleichliste";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
@@ -78,7 +78,11 @@ export type Standsatz = {
   hoehe?: number;
 };
 
-/** Ein kleines Vorschaubild des Musters (höchstens 240 Bildpunkte breit). */
+/**
+ * Ein Vorschaubild des Musters (höchstens 480 Bildpunkte an der langen
+ * Kante). Es war lange halb so groß – das reichte für die Leiste, aber die
+ * Kachelübersicht zeigt es inzwischen über vierhundert Punkte breit.
+ */
 async function vorschauBauen(
   breite: number,
   hoehe: number,
@@ -104,7 +108,7 @@ async function vorschauBauen(
   }
   kleinStift.putImageData(bild, 0, 0);
 
-  const faktor = Math.min(1, 240 / Math.max(breite, hoehe));
+  const faktor = Math.min(1, 480 / Math.max(breite, hoehe));
   const gross = document.createElement("canvas");
   gross.width = Math.max(1, Math.round(breite * faktor));
   gross.height = Math.max(1, Math.round(hoehe * faktor));
@@ -179,7 +183,30 @@ export async function standSichern(argumente: {
 export async function staendeLaden(musterId: string): Promise<Stand[]> {
   const db = await browserdatenbank();
   const saetze = (await db.getAllFromIndex(LADEN_STAENDE, "musterId", musterId)) as Standsatz[];
-  return saetze.sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm)).map(alsStand);
+  const sortiert = saetze.sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm));
+  return Promise.all(sortiert.map(masseNachtragen)).then((liste) => liste.map(alsStand));
+}
+
+/**
+ * Stände von vor dem Vergleichen kennen ihre Maße nicht – sie stecken dort
+ * nur im gepackten Raster. Ohne sie stünde in der Übersicht „0 × 0 Stiche".
+ *
+ * Geholt wird der Kopf der Rasterdatei (14 Byte), und das Ergebnis wandert
+ * gleich in den Satz zurück: beim nächsten Mal steht es einfach da.
+ */
+async function masseNachtragen(satz: Standsatz): Promise<Standsatz> {
+  if (satz.breite && satz.hoehe) return satz;
+  try {
+    const masse = masseLesen(await entpacken(satz.raster));
+    if (!masse || masse.breite <= 0 || masse.hoehe <= 0) return satz;
+    const ergaenzt = { ...satz, breite: masse.breite, hoehe: masse.hoehe };
+    const db = await browserdatenbank();
+    await db.put(LADEN_STAENDE, ergaenzt);
+    return ergaenzt;
+  } catch {
+    // Klappt es nicht, fehlt eben die Angabe – der Stand selbst ist heil.
+    return satz;
+  }
 }
 
 /**
@@ -210,10 +237,10 @@ export async function staendeKurz(musterId: string, hoechstens: number): Promise
   try {
     const db = await browserdatenbank();
     const saetze = (await db.getAllFromIndex(LADEN_STAENDE, "musterId", musterId)) as Standsatz[];
-    return saetze
+    const neueste = saetze
       .sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm))
-      .slice(0, hoechstens)
-      .map(alsStand);
+      .slice(0, hoechstens);
+    return (await Promise.all(neueste.map(masseNachtragen))).map(alsStand);
   } catch {
     return [];
   }
@@ -265,6 +292,44 @@ export async function standMerken(standId: string, gemerkt: boolean): Promise<bo
     if (!satz) return false;
     await db.put(LADEN_STAENDE, { ...satz, gemerkt });
     await vormerken("stand", standId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Eine einzelne Version löschen.
+ *
+ * Hängt ein jüngerer Stand als Kind daran, bekommt er den Elternteil des
+ * gelöschten – sonst risse der Baum an dieser Stelle auseinander und die
+ * Herkunft der jüngeren Fassung wäre verloren.
+ *
+ * Der letzte Stand eines Musters lässt sich nicht löschen: ein Projekt ohne
+ * jede Version stünde auf der Startseite und ließe sich nicht mehr öffnen.
+ * Wer es ganz loswerden will, löscht dort das Projekt.
+ */
+export async function standLoeschen(standId: string): Promise<boolean> {
+  try {
+    const db = await browserdatenbank();
+    const satz = (await db.get(LADEN_STAENDE, standId)) as Standsatz | undefined;
+    if (!satz) return false;
+
+    const geschwister = (await db.getAllFromIndex(
+      LADEN_STAENDE,
+      "musterId",
+      satz.musterId,
+    )) as Standsatz[];
+    if (geschwister.length <= 1) return false;
+
+    for (const kind of geschwister) {
+      if (kind.elternId !== standId) continue;
+      await db.put(LADEN_STAENDE, { ...kind, elternId: satz.elternId });
+      await vormerken("stand", kind.id);
+    }
+
+    await db.delete(LADEN_STAENDE, standId);
+    await vormerken("standLoeschung", `${satz.musterId}/${standId}`);
     return true;
   } catch {
     return false;
