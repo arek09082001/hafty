@@ -287,6 +287,17 @@ export function MusterAnsehen() {
       if (!muster || !raster) return;
       const { breite, hoehe } = muster;
 
+      // Ein zweiter Finger heißt zoomen, nicht malen: alles Angefangene
+      // fällt weg, damit vom Zoomen kein Strich übrig bleibt.
+      if (e.abbruch) {
+        spur.current = [];
+        rechteckStart.current = null;
+        schiebeGriff.current = null;
+        setMalSpur(null);
+        if (modus === "faerben") setAuswahl(null);
+        return;
+      }
+
       // Liegt eine Einfügevorschau, verschiebt jeder Zug nur sie.
       if (vorschau) {
         if (e.beginn) {
@@ -330,7 +341,10 @@ export function MusterAnsehen() {
           }
 
           case "motiv": {
-            if (!e.beginn) return;
+            // Erst beim Loslassen, nicht beim Aufsetzen: sonst färbt der
+            // erste Finger einer Zwei-Finger-Geste, bevor der zweite
+            // überhaupt aufgesetzt hat, und jedes Zoomen hinterließe Farbe.
+            if (e.gedrueckt) return;
             const getroffen = motivAuswaehlen(
               raster,
               breite,
@@ -347,7 +361,7 @@ export function MusterAnsehen() {
           }
 
           case "flaeche": {
-            if (!e.beginn) return;
+            if (e.gedrueckt) return;
             const flaecheAuswahl = gleicheFlaecheAuswaehlen(raster, breite, e.x, e.y);
             if (flaecheAuswahl.anzahl === 0) return;
             const { indizes, werte } = auswahlFuellen(flaecheAuswahl, farbeSicher);
@@ -396,7 +410,9 @@ export function MusterAnsehen() {
       // --- Auswählen: der Tipp umrandet, gehandelt wird danach -----------
       switch (werkzeug) {
         case "motiv": {
-          if (!e.beginn) return;
+          // Auch hier erst beim Loslassen – ein Zwei-Finger-Zoom darf die
+          // Auswahl nicht nebenbei umschalten.
+          if (e.gedrueckt) return;
           // Jeder Tipp nimmt ein Element dazu. Wer auf ein schon
           // ausgewähltes tippt, nimmt es wieder heraus – dasselbe Tun in
           // beide Richtungen, ohne Schalter, den man erst finden muss.
@@ -412,7 +428,7 @@ export function MusterAnsehen() {
         }
 
         case "flaeche": {
-          if (!e.beginn) return;
+          if (e.gedrueckt) return;
           // Ein anderes Auswahlwerkzeug setzt die Auswahl neu. Was die
           // Motivsuche sich gemerkt hat, gehört dann nicht mehr zu dem, was
           // auf der Leinwand umrandet ist.
@@ -845,6 +861,7 @@ export function MusterAnsehen() {
                 raster={anzeigeRaster}
                 palette={muster.palette}
                 zoom={zoom.zoom}
+                onZoom={zoom.setzen}
                 mitSymbolen={mitSymbolen}
                 auswahl={auswahl?.maske ?? null}
                 vorschau={

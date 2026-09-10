@@ -133,6 +133,7 @@ export const DE = {
   "editor.weiterDrucken": "Weiter zum Drucken",
   "editor.masse": "{breite} × {hoehe} Stiche · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
   "editor.leinwandBeschriftung": "Ihr Zählmuster, {breite} mal {hoehe} Stiche",
+  "editor.zweiFinger": "Mit zwei Fingern ziehen Sie das Muster größer und schieben es hin und her.",
   "editor.ausgewaehlt": "{anzahl} Stiche ausgewählt",
   "editor.nichtsAusgewaehlt": "Noch nichts ausgewählt",
   "editor.tippenHinweis":
@@ -598,6 +599,7 @@ export const PL: Record<Textschluessel, string> = {
   "editor.weiterDrucken": "Dalej do drukowania",
   "editor.masse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
   "editor.leinwandBeschriftung": "Pani wzór, {breite} na {hoehe} ściegów",
+  "editor.zweiFinger": "Dwoma palcami powiększa się wzór i przesuwa go w bok.",
   "editor.ausgewaehlt": "Zaznaczono {anzahl} ściegów",
   "editor.nichtsAusgewaehlt": "Nic jeszcze nie zaznaczono",
   "editor.tippenHinweis":

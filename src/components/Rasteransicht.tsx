@@ -1,8 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { hexNachRgb, istDunkel } from "@/lib/farbe/lab";
 import { LEER, STOFFFARBE, type PalettenEintrag } from "@/lib/muster/typen";
+
+/**
+ * Die nächste rollbare Fläche über einem Element.
+ *
+ * Sie wird gesucht statt hereingereicht: welcher Kasten rollt, weiß die
+ * Seite, aber es wäre eine Angabe, die man beim nächsten Umbau der Seite
+ * vergisst – und dann schiebt die Geste stumm ins Leere.
+ */
+function rollflaeche(von: HTMLElement | null): HTMLElement | null {
+  let el = von?.parentElement ?? null;
+  while (el) {
+    const stil = getComputedStyle(el);
+    if (/(auto|scroll)/.test(stil.overflowY) || /(auto|scroll)/.test(stil.overflowX)) return el;
+    el = el.parentElement;
+  }
+  return null;
+}
 
 export type Zeigerereignis = {
   x: number;
@@ -11,6 +28,15 @@ export type Zeigerereignis = {
   gedrueckt: boolean;
   /** true beim ersten Ereignis einer Bewegung. */
   beginn: boolean;
+  /**
+   * Der Zug ist abgebrochen und darf nichts festschreiben.
+   *
+   * Passiert, wenn ein zweiter Finger aufsetzt: dann will die Nutzerin
+   * offensichtlich zoomen oder schieben und nicht malen. Was bis dahin
+   * gezogen wurde, wird verworfen – sonst bliebe bei jedem Zoomen ein
+   * versehentlicher Strich stehen. `x` und `y` sind dabei bedeutungslos.
+   */
+  abbruch?: boolean;
 };
 
 export type Einfuegevorschau = {
@@ -41,6 +67,7 @@ export function Rasteransicht({
   auswahl,
   vorschau,
   onZeiger,
+  onZoom,
   beschriftung,
 }: {
   breite: number;
@@ -54,12 +81,40 @@ export function Rasteransicht({
   auswahl?: Uint8Array | null;
   vorschau?: Einfuegevorschau | null;
   onZeiger?: (e: Zeigerereignis) => void;
+  /**
+   * Zwei Finger auseinanderziehen: die neue Vergrößerung in Bildpunkten je
+   * Stich. Ohne diese Rückmeldung gibt es keine Zwei-Finger-Geste.
+   */
+  onZoom?: (neu: number) => void;
   beschriftung: string;
 }) {
   const leinwand = useRef<HTMLCanvasElement>(null);
   const zwischen = useRef<HTMLCanvasElement | null>(null);
   const gedrueckt = useRef(false);
   const letztesFeld = useRef<{ x: number; y: number } | null>(null);
+
+  /**
+   * Alle Finger, die gerade auf dem Raster liegen.
+   *
+   * Einer malt, zwei zoomen und schieben. Das ist die Geste, die jeder von
+   * Fotos auf dem Tablet kennt – und ohne sie kommt man an ein Muster, das
+   * größer als der Bildschirm ist, gar nicht heran: die Leinwand nimmt jede
+   * Berührung an (`touch-none`), also rollt der Finger die Fläche nicht.
+   */
+  const finger = useRef(new Map<number, { x: number; y: number }>());
+  /**
+   * Die laufende Zwei-Finger-Geste. `anker` ist die Stelle im Muster, die
+   * beim Aufsetzen unter der Mitte zwischen den Fingern lag – sie soll dort
+   * bleiben, egal wie weit gezoomt und geschoben wird.
+   */
+  const geste = useRef<{
+    abstand: number;
+    zoomStart: number;
+    anker: { x: number; y: number };
+    mitte: { x: number; y: number };
+    /** Die rollbare Fläche darüber – einmal beim Aufsetzen gesucht. */
+    flaeche: HTMLElement | null;
+  } | null>(null);
 
   // --- Zeichnen -------------------------------------------------------------
   useEffect(() => {
@@ -269,6 +324,56 @@ export function Rasteransicht({
     [breite, hoehe],
   );
 
+  // --- Zwei Finger: zoomen und schieben ------------------------------------
+  /** Abstand und Mitte zwischen den ersten beiden Fingern, in Bildschirmpunkten. */
+  const fingerlage = useCallback(() => {
+    const [a, b] = [...finger.current.values()];
+    if (!a || !b) return null;
+    return {
+      abstand: Math.hypot(a.x - b.x, a.y - b.y),
+      mitte: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 },
+    };
+  }, []);
+
+  /**
+   * Die Stelle, die beim Aufsetzen unter den Fingern lag, wieder unter die
+   * Finger holen.
+   *
+   * Alles wird aus der gerade sichtbaren Geometrie gerechnet und nicht
+   * fortgeschrieben. Dadurch ist der Aufruf beliebig oft wiederholbar und
+   * zieht sich selbst gerade – auch dann, wenn das Neuzeichnen nach einer
+   * Zoomänderung erst einen Wimpernschlag später kommt.
+   */
+  const nachfuehren = useCallback(() => {
+    const g = geste.current;
+    const k = g?.flaeche;
+    const c = leinwand.current;
+    if (!g || !k || !c) return;
+    const r = c.getBoundingClientRect();
+    const jeStich = r.width / breite;
+    k.scrollLeft += r.left + g.anker.x * jeStich - g.mitte.x;
+    k.scrollTop += r.top + g.anker.y * jeStich - g.mitte.y;
+  }, [breite]);
+
+  // Nach jeder Zoomänderung steht das Raster neu – dann muss der Anker
+  // zurück unter die Finger, bevor das Bild zu sehen ist.
+  useLayoutEffect(() => {
+    if (geste.current) nachfuehren();
+  }, [zoom, nachfuehren]);
+
+  /** Einen begonnenen Strich verwerfen, weil daraus eine Geste geworden ist. */
+  const zugAbbrechen = useCallback(() => {
+    if (!gedrueckt.current) return;
+    gedrueckt.current = false;
+    letztesFeld.current = null;
+    onZeiger?.({ x: 0, y: 0, gedrueckt: false, beginn: false, abbruch: true });
+  }, [onZeiger]);
+
+  const fingerWeg = useCallback((zeigerId: number) => {
+    finger.current.delete(zeigerId);
+    if (finger.current.size < 2) geste.current = null;
+  }, []);
+
   // Mit `onZeiger` wird auf dem Raster gearbeitet – dann steht dort das
   // Fadenkreuz, mit dem sich ein einzelnes Kästchen treffen lässt. Ohne
   // Zeigerbehandlung ist das Raster nur ein Bild und bleibt es auch.
@@ -282,15 +387,63 @@ export function Rasteransicht({
       }`}
       style={{ width: Math.round(breite * zoom), height: Math.round(hoehe * zoom) }}
       onPointerDown={(e) => {
+        finger.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        // Der zweite Finger macht aus dem Malen eine Geste.
+        if (onZoom && finger.current.size === 2) {
+          zugAbbrechen();
+          const lage = fingerlage();
+          const c = leinwand.current;
+          if (lage && c) {
+            const r = c.getBoundingClientRect();
+            const jeStich = r.width / breite;
+            geste.current = {
+              abstand: lage.abstand,
+              zoomStart: zoom,
+              anker: {
+                x: (lage.mitte.x - r.left) / jeStich,
+                y: (lage.mitte.y - r.top) / jeStich,
+              },
+              mitte: lage.mitte,
+              flaeche: rollflaeche(c),
+            };
+          }
+          return;
+        }
+        // Ab dem dritten Finger passiert nichts mehr – sonst zappelt das Bild.
+        if (finger.current.size > 1) return;
+
         if (!onZeiger) return;
         const feld = feldAus(e);
         if (!feld) return;
         gedrueckt.current = true;
         letztesFeld.current = feld;
+        // Der Zeigerfang gilt je Finger und steht der Geste nicht im Weg:
+        // der zweite Finger meldet sich weiterhin hier. Er hält aber den
+        // ersten Zug am Leben, wenn der Finger über den Rand hinausrutscht –
+        // sonst risse eine Freihandauswahl genau am Rand ab.
         e.currentTarget.setPointerCapture(e.pointerId);
         onZeiger({ ...feld, gedrueckt: true, beginn: true });
       }}
       onPointerMove={(e) => {
+        const gemerkt = finger.current.get(e.pointerId);
+        if (gemerkt) {
+          gemerkt.x = e.clientX;
+          gemerkt.y = e.clientY;
+        }
+
+        const g = geste.current;
+        if (g && onZoom) {
+          const lage = fingerlage();
+          if (!lage || lage.abstand <= 0) return;
+          g.mitte = lage.mitte;
+          // Erst schieben (die Mitte ist gewandert), dann die neue Größe –
+          // um den Rest kümmert sich der Layout-Effekt nach dem Zeichnen.
+          nachfuehren();
+          onZoom((g.zoomStart * lage.abstand) / g.abstand);
+          return;
+        }
+
         if (!onZeiger || !gedrueckt.current) return;
         const feld = feldAus(e);
         if (!feld) return;
@@ -299,13 +452,15 @@ export function Rasteransicht({
         onZeiger({ ...feld, gedrueckt: true, beginn: false });
       }}
       onPointerUp={(e) => {
+        fingerWeg(e.pointerId);
         if (!onZeiger || !gedrueckt.current) return;
         gedrueckt.current = false;
         const feld = feldAus(e) ?? letztesFeld.current;
         if (feld) onZeiger({ ...feld, gedrueckt: false, beginn: false });
         letztesFeld.current = null;
       }}
-      onPointerCancel={() => {
+      onPointerCancel={(e) => {
+        fingerWeg(e.pointerId);
         gedrueckt.current = false;
         letztesFeld.current = null;
       }}
@@ -347,6 +502,15 @@ export function useZoom(start = 6) {
     });
   }, []);
 
+  /**
+   * Stufenlos setzen – für die Zwei-Finger-Geste. Die Rastpunkte sind für die
+   * Knöpfe gedacht; beim Ziehen mit den Fingern soll das Muster dem Abstand
+   * folgen und nicht in Sprüngen einrasten.
+   */
+  const setzen = useCallback((wert: number) => {
+    setZoom(Math.max(1, Math.min(GROESSTER, wert)));
+  }, []);
+
   const einpassen = useCallback(
     (flaecheBreite: number, flaecheHoehe: number, breite: number, hoehe: number) => {
       if (breite <= 0 || hoehe <= 0 || flaecheBreite <= 0 || flaecheHoehe <= 0) return;
@@ -362,6 +526,7 @@ export function useZoom(start = 6) {
     kleiner,
     kannGroesser: zoom < GROESSTER - 0.01,
     kannKleiner: zoom > KLEINSTER + 0.01,
+    setzen,
     einpassen,
   };
 }
