@@ -5,7 +5,13 @@ import { useEffect, useState } from "react";
 import { Knopf } from "./Knopf";
 import { Hinweis } from "./Hinweis";
 import { Dialog } from "./Dialog";
-import { staendeLaden, standMerken, zeitpunktText, type Stand } from "@/lib/speicher/staende";
+import {
+  staendeLaden,
+  standLoeschen,
+  standMerken,
+  zeitpunktText,
+  type Stand,
+} from "@/lib/speicher/staende";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
@@ -44,6 +50,9 @@ export function Staendeleiste({
   const [vorschau, setVorschau] = useState<Stand | null>(null);
   const [stelltWiederHer, setStelltWiederHer] = useState(false);
   const [merktGerade, setMerktGerade] = useState(false);
+  /** Der Stand, für den gerade die Löschfrage offen steht. */
+  const [zumLoeschen, setZumLoeschen] = useState<Stand | null>(null);
+  const [loeschfehler, setLoeschfehler] = useState(false);
 
   const staende = geladen?.staende ?? [];
   const laedt = geladen?.schluessel !== schluessel;
@@ -82,6 +91,31 @@ export function Staendeleiste({
     }
   }
 
+  /**
+   * Die Löschfrage löst die Vorschau ab, statt sich über sie zu legen.
+   * Zwei Fenster übereinander sind auf einem Tablet nicht zu durchschauen –
+   * und die Escape-Taste träfe beide auf einmal.
+   */
+  function loeschenFragen() {
+    setZumLoeschen(vorschau);
+    setVorschau(null);
+  }
+
+  async function wirklichLoeschen() {
+    const stand = zumLoeschen;
+    if (!stand) return;
+    setZumLoeschen(null);
+    const geklappt = await standLoeschen(stand.id);
+    if (!geklappt) {
+      setLoeschfehler(true);
+      return;
+    }
+    setLoeschfehler(false);
+    // Die Adresse des Vorschaubildes wird nicht mehr gebraucht.
+    if (stand.vorschauUrl) URL.revokeObjectURL(stand.vorschauUrl);
+    staendeAendern((liste) => liste.filter((s) => s.id !== stand.id));
+  }
+
   async function wiederherstellen() {
     if (!vorschau) return;
     setStelltWiederHer(true);
@@ -95,6 +129,8 @@ export function Staendeleiste({
       <Knopf art="neben" onClick={merken} disabled={merktGerade} className="w-full">
         {merktGerade ? t("staende.wirdGemerkt") : t("staende.merken")}
       </Knopf>
+
+      {loeschfehler ? <Hinweis art="fehler">{t("staende.fehlerLoeschen")}</Hinweis> : null}
 
       {!musterId ? (
         <p className="text-[1.05rem] text-gedaempft">{t("staende.erklaerung")}</p>
@@ -182,9 +218,23 @@ export function Staendeleiste({
             <Knopf art="neben" onClick={() => gemerktUmschalten(vorschau)}>
               {vorschau.gemerkt ? t("staende.nichtMehrMerken") : t("staende.dauerhaftMerken")}
             </Knopf>
+            <Knopf art="gefahr" onClick={loeschenFragen}>
+              {t("staende.loeschen")}
+            </Knopf>
           </div>
         ) : null}
       </Dialog>
+
+      <Dialog
+        offen={zumLoeschen !== null}
+        titel={t("staende.loeschenTitel")}
+        text={zumLoeschen ? t("staende.loeschenText", { zeit: zeit(zumLoeschen.angelegtAm) }) : ""}
+        bestaetigenText={t("allgemein.jaLoeschen")}
+        bestaetigenArt="gefahr"
+        abbrechenText={t("allgemein.behalten")}
+        onBestaetigen={wirklichLoeschen}
+        onAbbrechen={() => setZumLoeschen(null)}
+      />
     </div>
   );
 }
