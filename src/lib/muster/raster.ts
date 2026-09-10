@@ -3,7 +3,7 @@
  *
  * Das Muster besteht aus zwei Ebenen:
  *
- *   basis         das erzeugte Muster (ein Byte je Feld, Palettenindex)
+ *   basis         das erzeugte Muster (zwei Byte je Feld, Palettenindex)
  *   bearbeitung   die Handbearbeitungen darüber (-1 = unberührt)
  *
  * Was die Nutzerin sieht und was gedruckt wird, ist immer die
@@ -14,11 +14,11 @@
 
 import { ciede2000 } from "@/lib/farbe/ciede2000";
 import type { Lab } from "@/lib/farbe/lab";
-import { LEER, type PalettenEintrag } from "./typen";
+import { FARBINDIZES, LEER, type PalettenEintrag } from "./typen";
 
 /** Die beiden Ebenen zu einem Raster zusammenführen. */
-export function zusammenfuehren(basis: Uint8Array, bearbeitung: Int16Array): Uint8Array {
-  const ergebnis = new Uint8Array(basis.length);
+export function zusammenfuehren(basis: Uint16Array, bearbeitung: Int16Array): Uint16Array {
+  const ergebnis = new Uint16Array(basis.length);
   for (let i = 0; i < basis.length; i++) {
     ergebnis[i] = bearbeitung[i] >= 0 ? bearbeitung[i] : basis[i];
   }
@@ -26,7 +26,7 @@ export function zusammenfuehren(basis: Uint8Array, bearbeitung: Int16Array): Uin
 }
 
 /** Der Farbindex eines Feldes über beide Ebenen hinweg. */
-export function feldFarbe(basis: Uint8Array, bearbeitung: Int16Array, i: number): number {
+export function feldFarbe(basis: Uint16Array, bearbeitung: Int16Array, i: number): number {
   return bearbeitung[i] >= 0 ? bearbeitung[i] : basis[i];
 }
 
@@ -133,7 +133,7 @@ export function allesWiederSticken(bearbeitung: Int16Array): { indizes: number[]
 }
 
 /** Wie viele Felder bleiben frei? */
-export function freieFelder(raster: Uint8Array): number {
+export function freieFelder(raster: Uint16Array): number {
   let anzahl = 0;
   for (let i = 0; i < raster.length; i++) if (raster[i] === LEER) anzahl++;
   return anzahl;
@@ -155,9 +155,9 @@ export function freieFelder(raster: Uint8Array): number {
  */
 export function paletteNachzaehlen(
   palette: PalettenEintrag[],
-  raster: Uint8Array,
+  raster: Uint16Array,
 ): PalettenEintrag[] {
-  const zaehler = new Int32Array(256);
+  const zaehler = new Int32Array(FARBINDIZES);
   for (let i = 0; i < raster.length; i++) zaehler[raster[i]]++;
   return palette.map((eintrag) => ({ ...eintrag, stiche: zaehler[eintrag.index] }));
 }
@@ -238,7 +238,7 @@ export function rechteckAuswaehlen(
  * einzigen Tipp erfasst, ohne dass die Nutzerin eine Kontur nachfahren muss.
  */
 export function gleicheFlaecheAuswaehlen(
-  raster: Uint8Array,
+  raster: Uint16Array,
   breite: number,
   startX: number,
   startY: number,
@@ -287,7 +287,7 @@ export function gleicheFlaecheAuswaehlen(
 export type Ausschnitt = {
   w: number;
   h: number;
-  daten: Uint8Array;
+  daten: Uint16Array;
   /** 1 = gehört zum Ausschnitt, 0 = durchsichtig. */
   maske: Uint8Array;
   /** Die Farben des Ausschnitts – nötig, wenn er in ein anderes Muster kommt. */
@@ -296,7 +296,7 @@ export type Ausschnitt = {
 
 /** Aus einer Auswahl einen Ausschnitt herauslösen. */
 export function ausschnittHerausloesen(
-  raster: Uint8Array,
+  raster: Uint16Array,
   breite: number,
   auswahl: Auswahl,
   palette: PalettenEintrag[],
@@ -305,7 +305,7 @@ export function ausschnittHerausloesen(
 
   const w = auswahl.x1 - auswahl.x0 + 1;
   const h = auswahl.y1 - auswahl.y0 + 1;
-  const daten = new Uint8Array(w * h);
+  const daten = new Uint16Array(w * h);
   const maske = new Uint8Array(w * h);
 
   for (let y = 0; y < h; y++) {
@@ -347,7 +347,7 @@ export function ausschnittHerausloesen(
  */
 export function drehen90(a: Ausschnitt): Ausschnitt {
   const { w, h } = a;
-  const daten = new Uint8Array(w * h);
+  const daten = new Uint16Array(w * h);
   const maske = new Uint8Array(w * h);
 
   // Neues Feld (x', y') mit x' = h-1-y, y' = x; neue Breite ist h.
@@ -367,7 +367,7 @@ export function drehen90(a: Ausschnitt): Ausschnitt {
 
 export function spiegelnWaagerecht(a: Ausschnitt): Ausschnitt {
   const { w, h } = a;
-  const daten = new Uint8Array(w * h);
+  const daten = new Uint16Array(w * h);
   const maske = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -382,7 +382,7 @@ export function spiegelnWaagerecht(a: Ausschnitt): Ausschnitt {
 
 export function spiegelnSenkrecht(a: Ausschnitt): Ausschnitt {
   const { w, h } = a;
-  const daten = new Uint8Array(w * h);
+  const daten = new Uint16Array(w * h);
   const maske = new Uint8Array(w * h);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
@@ -392,6 +392,74 @@ export function spiegelnSenkrecht(a: Ausschnitt): Ausschnitt {
       maske[z] = a.maske[q];
     }
   }
+  return { w, h, daten, maske, palette: a.palette };
+}
+
+// ---------------------------------------------------------------------------
+// Größe eines Ausschnitts
+// ---------------------------------------------------------------------------
+
+/**
+ * Die Stufen, in denen ein eingesetztes Stück wächst und schrumpft, in
+ * Prozent.
+ *
+ * Keine stufenlose Eingabe: auf einem Stichraster ist der Unterschied
+ * zwischen 100 % und 104 % gar nicht zu sehen, und wer eine Zahl eintippen
+ * müsste, hätte schon verloren. Zwei Knöpfe und eine Handvoll Stufen
+ * genügen – dazwischen liegt jeweils ein sichtbarer Sprung.
+ */
+export const STUECK_STUFEN = [25, 33, 50, 75, 100, 150, 200, 300, 400] as const;
+
+/** Die Stufe, auf der ein Stück eingesetzt wird: seine eigene Größe. */
+export const STUECK_STUFE_NORMAL = STUECK_STUFEN.indexOf(100);
+
+/**
+ * Wie groß ein Stück auf einer Stufe wird.
+ *
+ * Steht als eigene Funktion da, weil die Oberfläche die Maße braucht, ohne
+ * das Stück wirklich umzurechnen: sie zeigt sie an und entscheidet daran,
+ * ob die Knöpfe noch etwas bewirken.
+ */
+export function skalierteMasse(a: Ausschnitt, prozent: number): { w: number; h: number } {
+  return {
+    w: Math.max(1, Math.round((a.w * prozent) / 100)),
+    h: Math.max(1, Math.round((a.h * prozent) / 100)),
+  };
+}
+
+/**
+ * Ein Stück größer oder kleiner machen.
+ *
+ * Gerechnet wird mit dem nächsten Nachbarn und ausdrücklich nicht gemittelt.
+ * Ein Mittelwert zwischen zwei Garnfarben ist eine dritte Farbe, die es im
+ * Katalog nicht gibt – aus einem Motiv mit vier Farben würde eines mit
+ * dreißig, und jede davon wäre ein Strang mehr zu kaufen. So bleibt die
+ * Palette genau die, die vorher da war.
+ *
+ * Beim Vergrößern wird jedes Kästchen zu einem Block, beim Verkleinern
+ * fallen Kästchen weg. Das ist auf einem Stichraster nicht zu vermeiden und
+ * der Grund für die Stufen: wer von 100 % auf 50 % und zurück geht, bekommt
+ * sein Motiv unverändert wieder, weil immer vom Original gerechnet wird und
+ * nie vom schon Gerechneten.
+ */
+export function skalieren(a: Ausschnitt, prozent: number): Ausschnitt {
+  const { w, h } = skalierteMasse(a, prozent);
+  if (w === a.w && h === a.h) return a;
+
+  const daten = new Uint16Array(w * h);
+  const maske = new Uint8Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    const qy = Math.min(a.h - 1, Math.floor((y * a.h) / h));
+    for (let x = 0; x < w; x++) {
+      const qx = Math.min(a.w - 1, Math.floor((x * a.w) / w));
+      const q = qy * a.w + qx;
+      const z = y * w + x;
+      daten[z] = a.daten[q];
+      maske[z] = a.maske[q];
+    }
+  }
+
   return { w, h, daten, maske, palette: a.palette };
 }
 

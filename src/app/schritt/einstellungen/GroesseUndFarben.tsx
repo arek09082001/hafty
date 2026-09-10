@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Zahlenwahl } from "@/components/Zahlenwahl";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { useSprache } from "@/lib/sprache/SprachProvider";
+import { useMeldungen } from "@/components/Meldungen";
 import {
   MAX_BREITE,
   MAX_FARBEN,
@@ -17,14 +17,15 @@ import {
   MIN_FARBEN,
   STOFFZAEHLUNGEN,
   cmText,
+  farbenSchritt,
   sticheInCm,
 } from "@/lib/muster/typen";
 
 export function GroesseUndFarben() {
-  const { bild, einstellungen, einstellungenSetzen, erzeugen, laeuft, fortschritt, fehler, alleGarne } =
+  const { bild, einstellungen, einstellungenSetzen, erzeugen, laeuft, fortschritt, alleGarne } =
     useMuster();
   const { t, zahl, landeskennung } = useSprache();
-  const [eigenerFehler, setEigenerFehler] = useState<string | null>(null);
+  const { melden } = useMeldungen();
   const router = useRouter();
 
   if (!bild) {
@@ -55,12 +56,12 @@ export function GroesseUndFarben() {
   const hoeheCm = sticheInCm(hoehe, einstellungen.stoffzaehlung);
 
   async function musterErstellen() {
-    setEigenerFehler(null);
     if (zuGross) {
-      setEigenerFehler(
+      melden(
         t("einst.zuGrossGenau", {
           max: String(Math.floor(Math.sqrt(MAX_FELDER / seitenverhaeltnis))),
         }),
+        "fehler",
       );
       return;
     }
@@ -84,12 +85,14 @@ export function GroesseUndFarben() {
       }
     >
       <div className="flex flex-col gap-9">
-        {fehler ? <Hinweis art="fehler">{t(fehler)}</Hinweis> : null}
-        {eigenerFehler ? <Hinweis art="fehler">{eigenerFehler}</Hinweis> : null}
-
         {laeuft && fortschritt ? (
           <div className="border-l-[6px] border-hauptaktion bg-gewaehlt px-4 py-3">
-            <p className="text-[1.15rem] font-semibold">{t(fortschritt.text)}</p>
+            {/* Zwei Zeilen fest: die Meldungen sind verschieden lang, und
+                während des Rechnens wechseln sie im Sekundentakt. Ohne
+                festen Platz hüpfte alles darunter bei jeder Meldung. */}
+            <p className="flex min-h-[3rem] items-center text-[1.15rem] font-semibold">
+              {t(fortschritt.text)}
+            </p>
             <div className="mt-3 h-4 w-full overflow-hidden rounded-full bg-white">
               <div
                 className="h-full bg-hauptaktion transition-[width] duration-300"
@@ -151,7 +154,7 @@ export function GroesseUndFarben() {
               wert={einstellungen.farbanzahl}
               min={MIN_FARBEN}
               max={MAX_FARBEN}
-              schritt={2}
+              schritt={farbenSchritt}
               einheit={t("einst.farbenEinheit")}
               onAendern={(v) => einstellungenSetzen({ farbanzahl: v })}
               hinweis={t("einst.farbanzahlHinweis")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
@@ -8,15 +8,15 @@ import { Zuschnitt } from "@/components/Zuschnitt";
 import { istGanzesBild } from "@/lib/muster/ausschnitt";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { useSprache } from "@/lib/sprache/SprachProvider";
-import type { Textschluessel } from "@/lib/sprache/texte";
+import { useMeldungen } from "@/components/Meldungen";
 
 /** Höchstgröße einer Bilddatei: 25 MB. Darüber wird es auf dem Tablet zäh. */
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export function BildAussuchen() {
-  const { bild, bildWaehlen, ausschnittSetzen } = useMuster();
+  const { bild, bildWaehlen, ausschnittSetzen, zugeordnetesProjekt } = useMuster();
   const { t } = useSprache();
-  const [fehler, setFehler] = useState<Textschluessel | null>(null);
+  const { melden } = useMeldungen();
   const dateiFeld = useRef<HTMLInputElement>(null);
 
   /**
@@ -31,7 +31,6 @@ export function BildAussuchen() {
    * bildschirmfüllende Seite legt und nicht über ein halbes Fenster.
    */
   function explorerOeffnen() {
-    setFehler(null);
     dateiFeld.current?.click();
     void vollbild();
   }
@@ -42,19 +41,18 @@ export function BildAussuchen() {
     if (!datei) return;
 
     if (!datei.type.startsWith("image/")) {
-      setFehler("bild.fehlerKeinBild");
+      melden(t("bild.fehlerKeinBild"), "fehler");
       return;
     }
     if (datei.size > MAX_BYTES) {
-      setFehler("bild.fehlerZuGross");
+      melden(t("bild.fehlerZuGross"), "fehler");
       return;
     }
 
-    setFehler(null);
     try {
       await bildWaehlen({ name: datei.name, blob: datei });
     } catch {
-      setFehler("bild.fehlerNichtLesbar");
+      melden(t("bild.fehlerNichtLesbar"), "fehler");
     }
   }
 
@@ -80,7 +78,12 @@ export function BildAussuchen() {
       }
     >
       <div className="flex flex-col gap-8">
-        {fehler ? <Hinweis art="fehler">{t(fehler)}</Hinweis> : null}
+
+        {/* Dasselbe Foto wie neulich: die neue Fassung kommt zu den alten
+            Ständen dazu, statt ein zweites Projekt aufzumachen. */}
+        {bild && zugeordnetesProjekt ? (
+          <Hinweis>{t("bild.schonBekannt", { name: zugeordnetesProjekt })}</Hinweis>
+        ) : null}
 
         {/* Das Feld ist immer da, auch wenn noch kein Bild gewählt wurde:
             beide Knöpfe tippen darauf. */}

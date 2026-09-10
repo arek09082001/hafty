@@ -82,9 +82,9 @@ export type Kante = "nw" | "n" | "no" | "o" | "so" | "s" | "sw" | "w";
 /**
  * Freihand: eine Ecke oder Kante ziehen.
  *
- * Anders als `groesseAendern` hält das **kein** Seitenverhältnis fest. Die
- * gegenüberliegende Seite bleibt liegen, wie es beim Zuschneiden von Papier
- * auch wäre: man fasst eine Ecke an, die andere bleibt, wo sie war.
+ * Das hält **kein** Seitenverhältnis fest: die gegenüberliegende Seite
+ * bleibt liegen, wie es beim Zuschneiden von Papier auch wäre – man fasst
+ * eine Ecke an, die andere bleibt, wo sie war.
  *
  * `dx`/`dy` sind Bildpunkte des Quellbildes.
  */

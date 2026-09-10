@@ -13,6 +13,7 @@ import { freieFelder, paletteNachzaehlen } from "@/lib/muster/raster";
 import { blattanzahl, musterAlsPdf } from "@/lib/druck/pdf";
 import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
 import { useSprache } from "@/lib/sprache/SprachProvider";
+import { useMeldungen } from "@/components/Meldungen";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
 export function MusterDrucken() {
@@ -22,7 +23,7 @@ export function MusterDrucken() {
     null,
   );
   const { t, zahl, landeskennung } = useSprache();
-  const [fehler, setFehler] = useState<Textschluessel | null>(null);
+  const { melden } = useMeldungen();
   const [datei, setDatei] = useState<{ url: string; name: string } | null>(null);
   const zoom = useZoom(4);
   const flaeche = useRef<HTMLDivElement>(null);
@@ -83,7 +84,6 @@ export function MusterDrucken() {
 
   async function drucken() {
     if (!muster || !raster) return;
-    setFehler(null);
     setLaeuft(true);
     setFortschritt({ text: "arbeit.vorbereiten", anteil: 0.02 });
 
@@ -112,7 +112,7 @@ export function MusterDrucken() {
       // Nutzerin die Datei nicht erst suchen.
       window.open(url, "_blank", "noopener");
     } catch {
-      setFehler("druck.fehler");
+      melden(t("druck.fehler"), "fehler");
     } finally {
       setLaeuft(false);
       setFortschritt(null);
@@ -170,17 +170,14 @@ export function MusterDrucken() {
         </section>
 
         <aside className="flex min-h-0 flex-col overflow-y-auto border-t border-linie bg-white lg:border-t-0 lg:border-l">
-          {fehler ? (
-            <div className="border-b border-linie p-4">
-              <Hinweis art="fehler">{t(fehler)}</Hinweis>
-              <Knopf art="still" klein className="mt-1" onClick={() => setFehler(null)}>
-                {t("allgemein.meldungSchliessen")}
-              </Knopf>
-            </div>
-          ) : null}
-
           {laeuft && fortschritt ? (
-            <Abschnitt titel={t(fortschritt.text)}>
+            // Wie in Schritt 2: die Meldung wechselt im Sekundentakt und ist
+            // verschieden lang – zwei Zeilen sind fest vorgesehen.
+            <Abschnitt
+              titel={
+                <span className="flex min-h-[2.8rem] items-center">{t(fortschritt.text)}</span>
+              }
+            >
               <div className="h-4 w-full overflow-hidden rounded-full bg-hinweis">
                 <div
                   className="h-full bg-hauptaktion transition-[width] duration-300"
@@ -207,8 +204,12 @@ export function MusterDrucken() {
             <ul className="flex list-disc flex-col gap-1 pl-5 text-[1.05rem]">
               <li>{t("druck.seiteVorschau")}</li>
               <li>{t("druck.seiteGarnliste")}</li>
-              <li>{t("druck.seitenSchwarzweiss", { anzahl: zahl(blaetter) })}</li>
-              <li>{t("druck.seitenFarbe", { anzahl: zahl(blaetter * 2 + 2) })}</li>
+              <li>
+                {t("druck.seitenFarbe", {
+                  anzahl: zahl(blaetter),
+                  gesamt: zahl(blaetter + 2),
+                })}
+              </li>
             </ul>
           </Abschnitt>
 

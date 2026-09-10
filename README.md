@@ -6,8 +6,11 @@ gibt es keinen Server-Roundtrip.
 
 **Die App lässt sich installieren und läuft ohne Internet.** Alles liegt auf
 dem Gerät: die Garnfarben im ausgelieferten Programm, Muster, Zwischenstände,
-Motive und der Garnvorrat im Browserspeicher. Es gibt keinen Dienst dahinter,
-keine Datenbank und keinen Schlüssel – siehe „Ohne Internet" weiter unten.
+Motive und der Garnvorrat im Browserspeicher – siehe „Ohne Internet" weiter
+unten. Wer will, hängt zusätzlich ein Supabase-Projekt an; dann liegt jeder
+gespeicherte Stand, sobald Verbindung besteht, auch dort. Ohne diese
+Einrichtung ändert sich nichts, und die Oberfläche erwähnt sie mit keinem
+Wort.
 
 Die Oberfläche gibt es auf **Deutsch und Polnisch** und ist für eine Nutzerin
 ohne Computererfahrung gebaut: Grundschrift 20px, Schaltflächen mindestens 56px
@@ -15,8 +18,9 @@ hoch, pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
 
 **Es gibt keine Anmeldung.** Die App ist für eine einzige Person gedacht, die
 ihre Muster wiederfinden will, ohne sich etwas merken zu müssen: Seite
-aufrufen und loslegen. Was das für die Sicherheit bedeutet, steht weiter
-unten unter „Keine Anmeldung – was das heißt".
+aufrufen und loslegen. Auch mit Sicherung bleibt das so – das Gerät meldet
+sich im Hintergrund anonym an. Was das für die Sicherheit bedeutet, steht
+weiter unten unter „Keine Anmeldung, kein Passwort".
 
 ## Zwei Sprachen
 
@@ -43,7 +47,9 @@ gebrauchten Zeichen zusammengestrichene Fassung der Liberation Sans
 - Next.js (App Router, TypeScript)
 - Tailwind CSS
 - `pdf-lib` für den Ausdruck, `idb` für den Speicher im Browser
-- Kein Server, keine Datenbank, keine Anmeldung
+- Für die freiwillige Sicherung: Supabase, über seine HTTP-Schnittstelle
+  angesprochen (`src/lib/ferne`) – ohne zusätzliches Programmpaket
+- Kein eigener Server, keine Anmeldung, die jemand sähe
 
 ## Einrichten
 
@@ -52,8 +58,10 @@ npm install
 npm run dev
 ```
 
-Mehr ist es nicht. Es gibt keine Umgebungsvariablen, nichts einzurichten und
-nichts freizuschalten: die App bringt alles mit, was sie braucht.
+Mehr ist es nicht: die App bringt alles mit, was sie braucht, und läuft ohne
+eine einzige Umgebungsvariable. Wer die Sicherung im Internet möchte, richtet
+sie zusätzlich ein – wie, steht unter „Sicherung im Internet" und in
+`.env.example`.
 
 ## Ohne Internet
 
@@ -66,7 +74,7 @@ Damit sie auch ohne Verbindung läuft, gehört alles auf das Gerät:
 | Was | Wo |
 | --- | --- |
 | Die 375 Ariadna-Farben | fest im Programm (`src/lib/garne/katalog-daten.ts`) |
-| Muster, Zwischenstände, Motive, Garnvorrat | IndexedDB im Browser |
+| Projekte, Muster, Zwischenstände, Motive, Garnvorrat | IndexedDB im Browser |
 | Das Programm selbst | Service Worker (`public/sw.js`) |
 
 Der Service Worker holt beim Einrichten die fünf Seiten und liest aus ihrem
@@ -80,9 +88,9 @@ Zwischenspeicher, damit eine neue Fassung ankommt, sobald Verbindung besteht.
 Die Bausteine unter `/_next/static/` kommen immer aus dem Zwischenspeicher –
 ihr Inhalt ändert sich nie, weil der Prüfwert im Namen steht.
 
-**Was das bedeutet:** die Muster liegen auf genau einem Gerät. Es gibt keine
-Kopie in der Ferne. Wer ein fertiges Muster behalten will, druckt es aus –
-dafür ist Schritt 4 da.
+**Was das bedeutet:** ohne eingerichtete Sicherung liegen die Muster auf genau
+einem Gerät. Wer ein fertiges Muster sicher behalten will, druckt es aus –
+dafür ist Schritt 4 da – oder richtet die Sicherung im Internet ein.
 
 ### Die Garnfarben
 
@@ -150,6 +158,47 @@ Alle Farbwerte bleiben also Näherungen. Sie ersetzen keine Garnkarte, und
 deshalb lässt sich in der App jede Farbe der Legende von Hand auf ein
 anderes Garn ändern.
 
+## Wie viele Farben
+
+Die Farbanzahl reicht von 2 bis 375 – so viele Garne hat der Katalog. Eine
+Zahl darunter wäre eine willkürliche Grenze: wer jede Nuance eines Fotos
+haben will, soll sie bekommen, und ob ein Muster mit 300 Farben zu sticken
+ist, entscheidet die Nutzerin.
+
+Meistens kommen weniger Farben heraus, als eingestellt sind. Das liegt nicht
+an einer Deckelung, sondern am Katalog: zwei Clusterzentren, die dicht
+beieinanderliegen, bekommen dasselbe nächstliegende Garn und werden
+zusammengelegt. Aus 375 gewünschten Farben werden bei einem Foto in voller
+Größe typischerweise um die hundert Garne – die App sagt das als ganzen Satz
+(„Aus 375 Farben sind 102 geworden …").
+
+Zwei Stellen mussten dafür umgebaut werden:
+
+- **Ein Feld hält zwei Byte statt einem.** Mit einem Byte war bei 255 Farben
+  Schluss, und die 255 war schon für „wird nicht gestickt" vergeben. Jetzt
+  laufen die Palettenindizes von 0 bis 1022, die 1023 ist das freie Feld
+  (`LEER` in `src/lib/muster/typen.ts`). Gespeicherte Muster und Motive aus
+  der Zeit davor werden beim Lesen umgeschrieben.
+- **Die Abstandstabelle ist eine Abstandsliste geworden.** Vorher stand für
+  jedes Feld der Abstand zu jeder Palettenfarbe in einer Tabelle: bei 160 000
+  Feldern und 48 Farben 30 MB, bei 375 Farben aber 240 MB – das überlebt kein
+  Tablet. Jetzt stehen dort nur noch die zwölf nächstliegenden Farben je Feld,
+  rund 12 MB, unabhängig von der Farbanzahl. Das Ergebnis ist dasselbe: für
+  jede Farbe, die in der Nachbarschaft eines Feldes nicht vorkommt, ist die
+  Strafe der Glättung gleich hoch, also kann unter ihnen nur die farbtreueste
+  gewinnen – und die steht in der Liste. Warum das genau aufgeht, steht in
+  `src/lib/muster/glaettung.ts`.
+
+Gerechnet wird dadurch nicht weniger: ein Muster in voller Größe (400 × 400
+Stiche) mit 375 Farben braucht rund fünf Sekunden statt der knapp vier bei 48
+Farben, das meiste davon im k-Means. Die Fortschrittsleiste sagt, woran
+gerade gearbeitet wird.
+
+Eines bleibt begrenzt: der Schwarzweißdruck hat 66 gut unterscheidbare
+Symbole (`src/lib/muster/symbole.ts`). Wer mehr Farben verwendet, findet
+manche Symbole doppelt und muss sich nach dem Farbdruck richten – der liegt
+demselben PDF ohnehin bei.
+
 ## Nur ein Motiv sticken
 
 Ein Tipp auf die Blume, und die Blume ist ausgewählt – das ist das Werkzeug
@@ -197,18 +246,181 @@ stünde dort weiter, was beim Erzeugen herauskam: aus zwölf Farben und 100 m
 Garn werden beim Freistellen einer Blüte schnell sieben Farben und 28 m, und
 diese Liste ist die Einkaufsliste.
 
-## Keine Anmeldung, kein Dienst
+## Meine Muster: die Startseite
+
+Vorher fing die App immer mit „Bild aussuchen" an. Für den ersten Besuch ist
+das richtig, für jeden weiteren nicht: die Nutzerin kommt zurück, um an dem
+Muster von gestern weiterzumachen – und musste das Foto dafür noch einmal auf
+der Festplatte suchen.
+
+Die Startseite (`src/app/Startseite.tsx`) zeigt deshalb, was da ist: je
+hochgeladenem Bild eine Kachel mit dem Foto, dem Zeitpunkt der letzten
+Änderung und den letzten Ständen als Bildchen. Ein Tipp auf die Kachel öffnet
+den neuesten Stand, ein Tipp auf ein Bildchen genau diesen.
+
+Geöffnet wird, indem der gewünschte Stand zum **Arbeitsstand** gemacht wird –
+genau der, den die App nach einem Absturz ohnehin zurückholt
+(`projektOeffnen` in `src/lib/speicher/projekte.ts`). So gibt es einen Weg
+ins Muster hinein und nicht zwei, die auseinanderlaufen können.
+
+### Ein Bild, ein Projekt – zugeordnet über den Dateinamen
+
+Ein Projekt ist genau das, was die Nutzerin ohnehin im Kopf hat: ein
+hochgeladenes Bild und alles, was daraus geworden ist. Wer „blume.jpg" ein
+zweites Mal aussucht, arbeitet weiter an demselben Projekt: die Fassung mit
+12 Farben und die mit 30 stehen danach nebeneinander, statt zwei fremde
+Muster zu werden. Schritt 1 sagt das dazu, und die Einstellungen vom letzten
+Mal kommen gleich mit – wer dasselbe Bild noch einmal nimmt, will fast immer
+eine Kleinigkeit ändern und nicht bei den Voreinstellungen anfangen.
+
+Die Zuordnung geht über den Dateinamen, ohne Rücksicht auf Groß- und
+Kleinschreibung. Das ist die Ordnung, die beim Benennen der Fotos ohnehin
+entsteht; eine zweite, die die App sich ausdenkt, bräuchte niemand.
+
+## Alle Versionen ansehen
+
+„Einmal habe ich mehr Farben genommen, einmal die Größe geändert – welches
+war besser?" An zwei Bildchen von 140 Punkten Breite lässt sich das nicht
+beantworten. „Alle Versionen ansehen" macht daraus einen ganzen Bildschirm –
+aus dem Editor heraus und von der Startseite aus
+(`src/components/Vergleich.tsx`).
+
+Zuerst standen dort zwei Fassungen nebeneinander, jede mit eigenen
+Blätterknöpfen. Das war nicht zu bedienen: wer wissen will, welche der acht
+Fassungen ihm gefällt, müsste sie paarweise durchgehen und dabei im Kopf
+behalten, welche er schon gesehen hat. Zwei Bilder nebeneinander helfen,
+wenn man die beiden schon kennt – nicht beim Suchen.
+
+Deshalb jetzt: **erst die Übersicht, dann das Einzelne.**
+
+- **Alle Versionen liegen als Kacheln da**, so wie Fotos auf dem Tisch. Man
+  sieht auf einen Schlag, wo es dunkler wurde, wo mehr Farben dazukamen,
+  welche die schmale war. Unter jeder steht, wann sie entstanden ist, wie
+  viele Farben und wie viele Stiche sie hat und warum es sie gibt („Neu
+  erzeugt", „Gemerkt"). Die Fassung, an der gerade gearbeitet wird, ist
+  grün hinterlegt.
+- **Drei Kachelgrößen** über „Kleiner" und „Größer" – auf einem Tablet will
+  man große Bilder, auf einem breiten Bildschirm lieber alle gleichzeitig.
+  Das Bild sitzt in einem festen Rahmen, etwas höher als breit: sonst
+  verrutschten in einer Reihe aus einem hochkanten und einem querformatigen
+  Muster die Beschriftungen gegeneinander.
+- **Ein Tipp macht eine Version groß.** Dort wird aus den vollen
+  Rasterdaten gezeichnet und nicht aus dem Vorschaubildchen – wer eine
+  Fassung groß ansieht, will die Kästchen zählen können –, es lässt sich
+  vergrößern und schieben, und mit „Frühere Version" / „Spätere Version"
+  geht es dieselbe Reihe entlang. „Diese Version nehmen" holt sie zurück in
+  die Arbeit; ist es die, an der ohnehin gearbeitet wird, steht das da,
+  statt dass der Knopf nichts täte.
+
+Die Kacheln zeigen das gespeicherte Vorschaubild – es liegt neben jedem
+Stand und ist sofort da. Erst die große Ansicht holt das volle Raster, und
+ein einmal geholtes bleibt liegen, damit das Durchblättern nicht wartet.
+
+Die Kachel hat die **Form des Musters**: alle Versionen eines Bildes sind
+fast immer gleich geformt, und dann sitzt das Vorschaubild randlos darin
+statt zwischen zwei leeren Streifen. Vorgegeben ist dabei die Höhe und nicht
+die Breite – ein hochkantes Muster wäre sonst bei der größten Stufe
+siebenhundert Punkte hoch, und von der zweiten Reihe wäre nichts mehr zu
+sehen. Vergrößert wird hart und nicht weichgezeichnet (`img.raster` in
+`globals.css`): ein Stichraster ist blockig, und so soll es auch aussehen.
+
+**Löschen** geht von hier aus, in der Kachel und in der großen Ansicht, immer
+mit Rückfrage. Hängt ein jüngerer Stand als Kind an dem gelöschten, bekommt
+er dessen Elternteil – sonst risse der Baum an dieser Stelle auseinander. Die
+**letzte** Version eines Musters bleibt: ein Projekt ohne jede Version stünde
+auf der Startseite und ließe sich nicht mehr öffnen. Wer es ganz loswerden
+will, löscht dort das Projekt.
+
+Die Maße („100 × 173 Stiche") standen bei Ständen von vor dieser Übersicht
+nicht im Satz, sondern nur im gepackten Raster – in der Kachel stand dann
+„0 × 0". Sie werden jetzt beim ersten Anzeigen aus dem 14 Byte langen Kopf
+der Rasterdatei nachgetragen (`masseLesen` in `speicher/rle.ts`) und wandern
+gleich in den Satz zurück.
+
+## Sicherung im Internet
+
+Ohne Einrichtung gibt es sie nicht, und die Oberfläche erwähnt sie mit keinem
+Wort. Mit Einrichtung gilt: **gespeichert wird immer zuerst auf dem Gerät,
+und was gespeichert wurde, geht bei bestehender Verbindung sofort hinauf.**
+
+Die Reihenfolge ist der Kern der Sache (`src/lib/ferne/abgleich.ts`):
+
+1. Der Stand landet in IndexedDB. Sofort, auch ohne Empfang.
+2. Er steht danach in der Vormerkliste – Art und Kennung, mehr nicht
+   (`src/lib/speicher/abgleichliste.ts`).
+3. Sobald Verbindung besteht, wird diese Liste abgearbeitet: beim Start, bei
+   jedem Speichern, sobald das Gerät wieder Netz meldet, sobald die App nach
+   vorn geholt wird, und alle 20 Sekunden, solange etwas wartet.
+
+Damit wartet die Nutzerin nie auf das Netz, und trotzdem ist binnen Sekunden
+alles oben. Bricht die Verbindung mitten im Hochladen ab, bleibt die
+Vormerkung stehen; hochgeladen wird immer unter derselben Kennung wie auf dem
+Gerät, zweimal schadet also nicht. In der Kopfzeile steht in einem Satz, wie
+es steht: „Gesichert im Internet" oder „Wird gesichert, sobald Sie Internet
+haben (3)".
+
+In die andere Richtung geht es einmal beim Start: was in der Ferne liegt und
+hier fehlt, wird geholt. Das ist der Fall, für den das Ganze gebaut ist –
+neues Gerät, geleerter Browserspeicher. Beim Arbeiten ist immer das Gerät die
+Wahrheit; die Ferne ist die Sicherung und schreibt nie etwas um, was hier
+schon liegt.
+
+Was hochgeht: eine Zeile je Projekt, eine je Stand, dazu drei Dateien im
+Dateispeicher – das Quellfoto (genau einmal, es ändert sich nie), das
+zusammengedrückte Raster und das Vorschaubild. Ein Muster mit 160 000 Feldern
+wiegt dabei ein paar Kilobyte, das Foto ist das Schwere daran.
+
+Eingerichtet ist es mit drei Handgriffen:
+
+```bash
+# 1. Tabellen und Regeln anlegen
+#    supabase/migrations/0001_muster_sichern.sql im Projekt ausführen
+# 2. In Supabase: Authentication -> Sign In / Providers -> Anonymous erlauben
+# 3. .env.local anlegen (Vorlage: .env.example)
+NEXT_PUBLIC_SUPABASE_URL=https://…supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=…
+```
+
+Sagt die Kopfzeile „Die Sicherung im Internet klappt gerade nicht", hat der
+Dienst abgelehnt, und im Netzwerk-Reiter des Browsers steht, woran es liegt.
+Zweimal ist es dasselbe Loch in der Einrichtung:
+
+| Antwort | Was fehlt |
+| --- | --- |
+| `POST /auth/v1/signup` → 422 | „Anonymous sign-ins" ist nicht erlaubt |
+| `/rest/v1/…` → 403, `permission denied for table` | die `grant`-Zeilen der Migration sind nicht gelaufen |
+
+Angesprochen wird Supabase über seine HTTP-Schnittstelle, ohne zusätzliches
+Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Anmelden,
+Schreiben, Lesen und zwei Dateibefehle – das sind zweihundert Zeilen. Ein
+Paket dafür wöge mehr als der ganze Rest der App und läge auf einem Gerät,
+das die App gerade ohne Verbindung geöffnet hat.
+
+## Keine Anmeldung, kein Passwort
 
 Die App fragt niemanden nach irgendetwas: kein Passwort, kein Magic Link,
 kein Konto. Wer die Seite aufruft, arbeitet sofort an den Mustern.
 
-Sie braucht das auch nicht mehr: es gibt nichts in der Ferne, worauf sich
-ein Zugang beziehen könnte. Alle Daten liegen im Browser des Geräts, und
-was dort liegt, kommt ohnehin nur an, wer das Gerät hat.
+Ohne eingerichtete Sicherung gibt es dafür auch nichts einzurichten: alle
+Daten liegen im Browser des Geräts, und was dort liegt, bekommt ohnehin nur,
+wer das Gerät hat.
 
-Der Preis gehört benannt: **die Muster liegen auf genau einem Gerät.**
-Wer den Browserspeicher leert oder das Gerät wechselt, fängt neu an.
-Ein fertiges Muster gehört deshalb ausgedruckt – dafür ist Schritt 4 da.
+Mit Sicherung bleibt die Oberfläche dieselbe. Beim ersten Mal meldet sich das
+Gerät im Hintergrund **anonym** an – Supabase legt dafür einen Benutzer ohne
+Namen und ohne Passwort an –, und der Zugang liegt danach im Browser. Alle
+Zeilen und Dateien gehören diesem Benutzer, und die Regeln in der Datenbank
+lassen nur ihn heran (`supabase/migrations/0001_muster_sichern.sql`). Der
+Schlüssel im Programm ist der öffentliche; für sich genommen erlaubt er
+nichts.
+
+Zwei Dinge gehören dazugesagt:
+
+- Wer den Browserspeicher leert, verliert **den Zugang**, nicht die Daten:
+  Das Gerät meldet sich danach als neuer anonymer Benutzer an und sieht die
+  alte Sicherung nicht mehr. Deshalb ist die Sicherung ein zweites Exemplar
+  und kein Archiv, an das man sich von überall anmelden könnte.
+- Ein fertiges Muster gehört trotzdem ausgedruckt. Papier überlebt jedes
+  Konto.
 
 ## Wie die Oberfläche gebaut ist
 
@@ -233,11 +445,13 @@ Jetzt gilt:
   nicht gefüllt wurde.
 - **Zwei Seitenarten** (`src/components/Seite.tsx`): Leseseiten haben eine
   Spalte, die schmal genug zum Lesen bleibt; Arbeitsseiten (Muster, Drucken)
-  füllen den Bildschirm, links das Muster, rechts 440 Punkte Bedienung.
+  füllen den Bildschirm. Schritt 3 hat drei Spalten: links die Werkzeuge, in
+  der Mitte das Muster, rechts 420 Punkte Bedienung.
 - **Was man anfassen kann, sagt das auch** (`src/app/globals.css`): Zeigefinger
   auf allem Anklickbaren, „verboten" auf allem Gesperrten, Fadenkreuz über dem
-  Raster, und jeder Zustand antwortet auf den Mauszeiger – auch die schon
-  gewählte Zeile, die sonst als einzige tot wirkte.
+  Raster (und die offene Hand, wo geschoben wird), und jeder Zustand antwortet
+  auf den Mauszeiger – auch die schon gewählte Zeile, die sonst als einzige
+  tot wirkte.
 - **Zugeschnitten wird wie überall** (`src/components/Zuschnitt.tsx`): Rahmen
   schieben, an Ecken und Kanten ziehen, neben dem Rahmen aufsetzen für einen
   ganz neuen. Für jede dieser Bewegungen stand vorher noch eine Reihe Knöpfe
@@ -251,19 +465,111 @@ Jetzt gilt:
 
 Was davon unberührt bleibt, sind die Regeln für die Nutzerin: Grundschrift
 20px, jede Schaltfläche mindestens 56px hoch, jede mit Text beschriftet, pro
-Bildschirm genau eine Hauptaktion.
+Bildschirm genau eine Hauptaktion. Nur zwei Leisten dürfen flacher sein: die
+Fortschrittsleiste oben und die schwebenden Ansichtsknöpfe auf der Leinwand
+haben 44 Punkte. Beide stehen auf jeder Arbeitsseite ständig im Bild, und
+jeder Punkt Höhe fehlt dem Muster.
+
+## Im Muster bewegen
+
+Schritt 3 ist die Seite, auf der wirklich gearbeitet wird – deshalb gehört
+dort so viel Bildschirm wie möglich dem Muster. Weggefallen sind: die
+Überschriftenzeile mit den Maßen (sie ändern sich beim Arbeiten nie und
+stehen jetzt im Reiter „Muster"), die Knopfleiste über der Leinwand (die
+Knöpfe schweben jetzt unten links **auf** der Leinwand) und die Rollbalken.
+Zusammen mit der flacheren Fortschritts- und Fußleiste sind das rund 180
+Punkte Höhe, die das Muster dazubekommen hat.
+
+Bewegt wird wie auf einer Landkarte (`src/components/Arbeitsflaeche.tsx`):
+
+| Was | Tut |
+| --- | --- |
+| Mausrad | größer und kleiner, **zum Zeiger hin** |
+| Ziehen mit dem Werkzeug „Verschieben" | das Muster schieben |
+| Mittlere Maustaste, Leertaste festhalten | schieben, ohne das Werkzeug zu wechseln |
+| Zwei Finger | schieben und zugleich zoomen |
+
+Vorher lag das Muster in einem Kasten mit Rollbalken. Auf einem großen Muster
+hieß das: mit der einen Hand am Balken ziehen, mit der anderen die Lupe
+suchen – und nach jedem Vergrößern war man an einer anderen Stelle als
+gedacht, weil ein Rollbalken die Mitte nicht kennt.
+
+Gezeichnet wird dabei **nur der sichtbare Ausschnitt** auf eine Leinwand in
+Fenstergröße (`src/lib/muster/leinwand.ts`). Das ist nicht nur schneller,
+sondern überhaupt die Voraussetzung für freies Zoomen: ein Muster mit
+400 × 400 Stichen bei vierzigfacher Vergrößerung wäre sonst eine Leinwand von
+16 000 Punkten Kantenlänge, und die legt kein Browser mehr an. Rasterlinien,
+Symbole und die Auswahl laufen aus demselben Grund nur über die Felder, die
+gerade im Fenster liegen.
+
+Aus dem Bild schieben lässt sich das Muster nicht: 120 Punkte davon bleiben
+immer sichtbar. Sonst zieht man einmal zu weit und sieht nur noch leere
+Fläche, ohne zu wissen, in welche Richtung das Muster liegt.
+
+## Die Werkzeuge und die Bedienspalte
+
+Die Werkzeuge stehen als Schiene an der Leinwand
+(`src/components/Werkzeugleiste.tsx`): Sinnbild und kurzes Wort, in drei
+Gruppen – Ansehen, Auswählen, Malen. Vorher waren sie eine Liste ganzer Sätze
+im Reiter „Werkzeug": sieben Zeilen, die den halben Bedienbereich füllten,
+und sobald man auf „Farbe" wechselte, war nicht mehr zu sehen, womit man
+eigentlich arbeitet.
+
+Rechts steht ganz oben – **fest über den Reitern** – der volle Name des
+gewählten Werkzeugs und ein Satz dazu, was ein Tipp ins Muster bewirkt. Das
+ist die Frage, auf die die alte Oberfläche keine Antwort gab: „Was soll ich
+hier eigentlich tun?"
+
+Darunter zeigen vier Reiter, was zum Werkzeug gehört:
+
+- **Ändern** richtet sich nach dem Werkzeug. Bei den Auswahlwerkzeugen steht
+  dort der Auswahlbereich (siehe unten). Bei Pinsel und Farbeimer steht dort
+  die Farbwahl als Kacheln, denn die Farbe gehört zum Malen und nicht in einen
+  anderen Reiter.
+- **Garne** ist die ausführliche Liste mit Marke, Nummer und Verbrauch.
+- **Muster** trägt die Maße, den Glättungsregler und die Meldung über
+  zusammengelegte Farben.
+- **Gemerkt** hält frühere Stände und eigene Motive.
+
+### Auswählen: zwei Zustände, keine toten Knöpfe
+
+Im Auswahlbereich standen zuerst immer alle sechs Knöpfe, und solange nichts
+ausgewählt war, waren alle sechs grau. Gemeint war das als Angebot („seht
+her, das ginge"), angekommen ist es als Rätsel: sechs tote Knöpfe, und keiner
+sagt, warum er nicht geht oder welchen man zuerst braucht.
+
+`src/components/Auswahlbereich.tsx` zeigt deshalb genau einen von zwei
+Zuständen:
+
+- **Noch nichts ausgewählt:** kein einziger Knopf. Stattdessen der Griff, der
+  jetzt dran ist – der Satz zum gewählten Werkzeug, also „Tippen Sie mitten
+  in die Blume" oder „Ziehen Sie einen Rahmen auf" –, und darunter in Worten,
+  wozu das gut sein wird. Nichts zu drücken heißt: der nächste Schritt liegt
+  im Muster und nicht in dieser Spalte.
+- **Etwas ausgewählt:** die Zahl der Stiche als Überschrift, dann die Knöpfe,
+  alle benutzbar. Zuoberst und größer als der Rest „Nur das sticken" – das
+  ist der Grund, aus dem man überhaupt auswählt –, darunter „Das hier
+  weglassen", beide mit einem Satz, was danach anders ist. Erst dann Färben,
+  Kopieren und Merken, und ganz unten leise der Weg zurück.
+
+Die Rangfolge läuft über Größe und Reihenfolge, nicht über Farbe: grün
+gefüllt bleibt genau ein Ding je Bildschirm, und das ist „Weiter zum Drucken"
+unten rechts.
 
 ## Aufbau des Projekts
 
 ```
+src/app/page.tsx        Die Startseite: die zuletzt bearbeiteten Projekte
 src/app/schritt/…       Die vier Schritte des geführten Weges
 src/app/garne           Der eigene Garnvorrat
-src/components          Schaltflächen, Fortschrittsleiste, Fenster
+src/components          Schaltflächen, Fortschrittsleiste, Fenster, Vergleich
 src/lib/farbe           Lab, CIEDE2000 und die Farbbeschreibungen
 src/lib/garne           Der Garnkatalog, fest im Programm
-src/lib/speicher        IndexedDB: Arbeitsstand, Stände, Motive, Garnvorrat
+src/lib/speicher        IndexedDB: Projekte, Arbeitsstand, Stände, Motive, Garne
+src/lib/ferne           Die freiwillige Sicherung bei Supabase
 src/lib/sprache         Wörterbuch Deutsch/Polnisch und der Sprachumschalter
 public/sw.js            Service Worker – dafür läuft die App ohne Internet
+supabase/migrations     Tabellen und Regeln für die Sicherung
 data                    Garnlisten und ihre Quelldaten
 scripts                 Garnfarben ableiten, Katalog und Symbole erzeugen
 ```
@@ -296,14 +602,21 @@ sondern immer lauflängenkodiert und danach zusammengedrückt. Ein Muster mit
 160 000 Feldern schrumpft dabei auf wenige Kilobyte, und in IndexedDB passt
 das bequem neben Quellbild und Vorschau.
 
-In der Datenbank des Browsers liegen vier Läden:
+Beide Formate tragen eine Fassungsnummer und lesen auch die vorige: dort
+hielt ein Feld ein Byte und die 255 stand für „wird nicht gestickt". Wer ein
+Muster gespeichert hat, findet es nach dem Aktualisieren unverändert wieder
+(`src/lib/speicher/rle.ts`, `src/lib/speicher/motive.ts`).
+
+In der Datenbank des Browsers liegen sechs Läden:
 
 | Laden | Inhalt |
 | --- | --- |
 | `arbeit` | der aktuelle Stand, laufend mitgeschrieben – gegen Abstürze |
+| `projekte` | ein Eintrag je hochgeladenem Bild: Foto, Name, Zeitpunkt |
 | `staende` | die gespeicherten Zwischenstände je Muster |
 | `motive` | gemerkte Ausschnitte, über Muster hinweg |
 | `garnvorrat` | welche Garne zu Hause liegen |
+| `abgleich` | was noch in die Sicherung muss (nur Art und Kennung) |
 
 Aufgeräumt wird nur bei den Zwischenständen: die letzten 20 automatischen
 bleiben, gemerkte nie löschen, und ein Stand, an dem ein anderer als

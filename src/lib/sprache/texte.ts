@@ -53,7 +53,7 @@ export const DE = {
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Ausschnitt wählen",
   "zuschnitt.erklaerung":
-    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach schieben Sie den Rahmen dorthin, wo er hingehört, und ziehen ihn an den Ecken in jede Form.",
+    "Sie können einen Teil des Bildes aussuchen. Tippen Sie eine Form an – der Ausschnitt legt sich mittig auf das Bild. Danach können Sie ihn mit dem Finger verschieben und an den Ecken frei in jede Form ziehen.",
   "zuschnitt.formWaehlen": "Form des Ausschnitts",
   "zuschnitt.ganzesBild": "Ganzes Bild",
   "zuschnitt.quadrat": "Quadrat 1:1",
@@ -132,19 +132,30 @@ export const DE = {
   "editor.wiederholen": "Wiederholen",
   "editor.weiterDrucken": "Weiter zum Drucken",
   "editor.masse": "{breite} × {hoehe} Stiche · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
+  "editor.groesseTitel": "Größe",
+  "editor.malfarbe": "Farbe zum Malen",
+  "editor.malfarbeHinweis": "Tippen Sie eine Kachel an. Mit dieser Farbe wird gemalt und gefüllt.",
+  "editor.gewaehlteFarbe": "Gewählt: {garn}",
   "editor.leinwandBeschriftung": "Ihr Zählmuster, {breite} mal {hoehe} Stiche",
-  "editor.zweiFinger": "Mit zwei Fingern ziehen Sie das Muster größer und schieben es hin und her.",
   "editor.ausgewaehlt": "{anzahl} Stiche ausgewählt",
-  "editor.nichtsAusgewaehlt": "Noch nichts ausgewählt",
-  "editor.tippenHinweis":
-    "Tippen Sie mit dem gewählten Werkzeug ins Muster, dann erscheinen hier die passenden Knöpfe.",
+  // Auswählen: erst der Griff ins Muster, dann die Knöpfe. Solange nichts
+  // ausgewählt ist, steht hier kein einziger Knopf – nur, was jetzt dran ist.
+  "auswahl.soGehts": "So wählen Sie aus",
+  "auswahl.danach": "Wenn etwas ausgewählt ist, können Sie hier:",
+  "auswahl.danachSticken": "nur diese Stelle sticken und den Rest weglassen",
+  "auswahl.danachWeglassen": "genau diese Stelle weglassen",
+  "auswahl.danachFaerben": "die Stelle in einer Farbe färben",
+  "auswahl.danachKopieren": "die Stelle kopieren und woanders einsetzen",
+  "auswahl.danachMerken": "die Stelle als Motiv merken, auch für andere Muster",
+  "auswahl.nurDas": "Nur das sticken",
+  "auswahl.nurDasErklaerung": "Alles außerhalb der Auswahl bleibt freier Stoff.",
+  "auswahl.weglassen": "Das hier weglassen",
+  "auswahl.weglassenErklaerung": "Nur die Auswahl bleibt freier Stoff, der Rest wird gestickt.",
   "editor.auswahlFaerben": "Auswahl färben",
   "editor.auswahlKopieren": "Auswahl kopieren",
   "editor.alsMotivMerken": "Als Motiv merken",
-  "editor.nurDasSticken": "Nur das Ausgewählte sticken",
   "editor.nurDasGestickt":
     "Jetzt wird nur noch das Ausgewählte gestickt. Alles andere bleibt freier Stoff – mit „Rückgängig“ holen Sie es zurück.",
-  "editor.auswahlNichtSticken": "Das Ausgewählte nicht sticken",
   "editor.auswahlWeggelassen":
     "Diese Stelle bleibt jetzt freier Stoff. Mit „Rückgängig“ holen Sie sie zurück.",
   "editor.wiederAllesSticken": "Wieder alles sticken",
@@ -159,13 +170,14 @@ export const DE = {
     "{anzahl} Stiche wurden kopiert. Tippen Sie jetzt auf „Kopie einfügen“.",
   "editor.stueckEinsetzen": "Stück einsetzen",
   "editor.stueckSchieben":
-    "Schieben Sie das Stück mit dem Finger an die richtige Stelle oder rücken Sie es mit den Knöpfen weiter.",
+    "Schieben Sie das Stück mit dem Finger an die richtige Stelle. Mit „Stück kleiner“ und „Stück größer“ ändern Sie seine Größe.",
   "editor.einsetzenMeldung":
     "Schieben Sie das Stück mit dem Finger an die richtige Stelle. Erst „Hier einsetzen“ schreibt es fest.",
-  "editor.hoch": "Hoch",
-  "editor.runter": "Runter",
-  "editor.links": "Links",
-  "editor.rechts": "Rechts",
+  // „Kleiner"/„Größer" allein wären zweideutig: so heißen schon die Knöpfe
+  // an der Leinwand, mit denen man das ganze Muster näher heranholt.
+  "editor.stueckKleiner": "Stück kleiner",
+  "editor.stueckGroesser": "Stück größer",
+  "editor.stueckMasse": "{breite} × {hoehe} Stiche · {cmBreite} cm × {cmHoehe} cm",
   "editor.vierteldrehung": "Vierteldrehung",
   "editor.spiegelnWaagerecht": "Waagerecht spiegeln",
   "editor.spiegelnSenkrecht": "Senkrecht spiegeln",
@@ -173,12 +185,9 @@ export const DE = {
   "editor.ihreGarne": "Ihre Garne ({anzahl})",
   "editor.garnbedarf":
     "Zusammen brauchen Sie etwa {meter} Garn. Geschätzt für zwei Fäden aus einem Strang – kaufen Sie lieber etwas mehr.",
-  "editor.farbeHinweis":
-    "Hier steht zu jedem Garn, wie viele Stiche und wie viel Faden gebraucht werden. Die Farbe zum Färben und Malen wählen Sie in der Leiste über dem Muster.",
-  "editor.farbenZusammengelegt":
-    "Aus {vorher} Farben sind {nachher} geworden – einige lagen so dicht beieinander, dass es dafür dasselbe Garn gibt.",
-  "editor.farbenWeggefallen":
-    "Aus {vorher} Farben sind {nachher} geworden – beim Glätten sind einzelne ganz verschwunden.",
+  "editor.farbeHinweis": "Die angetippte Farbe wird zum Malen und Färben verwendet.",
+  "editor.hinweisAufklappen": "Erklärung zum Werkzeug anzeigen",
+  "editor.hinweisZuklappen": "Erklärung zum Werkzeug ausblenden",
   "editor.anderesGarnTitel": "Ein anderes Garn für diese Farbe",
   "editor.anderesGarnText":
     "Die Farbwerte der Hersteller sind Näherungen. Wenn Sie Ihre Garnkarte vor sich haben und ein anderer Ton besser passt, wählen Sie ihn hier aus.",
@@ -197,54 +206,58 @@ export const DE = {
   "editor.standGemerkt":
     "Dieser Stand ist gemerkt. Er bleibt Ihnen erhalten, auch wenn Sie noch viel weiterarbeiten.",
 
-  // --- Farbleiste an der Arbeitsfläche -----------------------------------
-  "farbleiste.titel": "Farbe zum Färben und Malen:",
-
   // --- Bereiche im Editor ------------------------------------------------
-  "bereich.werkzeug": "Werkzeug",
-  "bereich.farbe": "Garne",
+  "bereich.bearbeiten": "Ändern",
+  "bereich.garne": "Garne",
   "bereich.muster": "Muster",
-  "bereich.merken": "Merken",
-
-  // --- Was ein Tipp bewirkt ----------------------------------------------
-  "tippmodus.frage": "Was soll ein Tipp ins Muster tun?",
-  "tippmodus.faerben": "Färben",
-  "tippmodus.auswaehlen": "Auswählen",
-  "tippmodus.faerbenText":
-    "Ein Tipp ins Muster färbt sofort mit der Farbe aus der Leiste über dem Muster – so wie beim Malen, ohne einen Knopf dazwischen.",
-  "tippmodus.auswaehlenText":
-    "Ein Tipp umrandet erst einmal nur. Danach können Sie das Ausgewählte freistellen, kopieren oder als Motiv merken.",
+  "bereich.gemerkt": "Gemerkt",
 
   // --- Werkzeuge ---------------------------------------------------------
   "werkzeug.frage": "Womit möchten Sie arbeiten?",
-  "werkzeug.motiv": "Ganzes Motiv",
-  "werkzeug.motivFaerben":
-    "Tippen Sie mitten in die Blume. Alles, was farblich dazugehört, bekommt sofort die gewählte Farbe.",
+  "werkzeuggruppe.ansehen": "Ansehen",
+  "werkzeuggruppe.auswaehlen": "Auswählen",
+  "werkzeuggruppe.malen": "Malen",
+  "werkzeug.schieben": "Ansehen und verschieben",
+  "werkzeug.schiebenText":
+    "Ziehen Sie das Muster an die Stelle, die Sie ansehen möchten. Dabei wird nichts verändert.",
+  "werkzeug.schiebenKurz": "Schieben",
+  "werkzeug.motivKurz": "Motiv",
+  "werkzeug.flaecheKurz": "Fläche",
+  "werkzeug.rechteckKurz": "Rechteck",
+  "werkzeug.freihandKurz": "Freihand",
+  "werkzeug.malenKurz": "Malen",
+  "werkzeug.fuellenKurz": "Füllen",
+  "werkzeug.motiv": "Ganzes Motiv auswählen",
   "werkzeug.motivText":
     "Tippen Sie mitten in die Blume. Es wird alles ausgewählt, was farblich dazugehört – auch mehrere Farbtöne. Jedes weitere Motiv kommt mit einem Tipp dazu.",
-  "werkzeug.flaeche": "Gleiche Fläche",
-  "werkzeug.flaecheFaerben":
-    "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, bekommt sofort die gewählte Farbe.",
+  "werkzeug.flaeche": "Gleiche Fläche auswählen",
   "werkzeug.flaecheText":
     "Tippen Sie in eine Fläche. Alles, was daran hängt und dieselbe Farbe hat, wird ausgewählt.",
-  "werkzeug.rechteck": "Rechteck",
-  "werkzeug.rechteckFaerben":
-    "Ziehen Sie mit dem Finger ein Rechteck auf. Beim Loslassen ist es gefärbt.",
+  "werkzeug.rechteck": "Rechteck auswählen",
   "werkzeug.rechteckText":
     "Ziehen Sie mit dem Finger ein Rechteck über den Bereich, den Sie auswählen möchten.",
-  "werkzeug.freihand": "Freihand",
-  "werkzeug.freihandFaerben":
-    "Fahren Sie einmal um den Bereich herum. Beim Loslassen ist alles darin gefärbt.",
+  "werkzeug.freihand": "Freihand auswählen",
   "werkzeug.freihandText":
     "Fahren Sie einmal um den Bereich herum. Beim Loslassen wird alles darin ausgewählt.",
-  "werkzeug.malen": "Einzelne Stiche",
+  "werkzeug.malen": "Einzelne Stiche malen",
   "werkzeug.malenText":
     "Tippen oder fahren Sie über die Felder. Sie bekommen die gewählte Farbe.",
+  "werkzeug.fuellen": "Fläche färben",
+  "werkzeug.fuellenText": "Tippen Sie in eine Fläche. Die ganze Fläche bekommt die gewählte Farbe.",
+
+  // --- Im Muster bewegen -------------------------------------------------
+  "ansicht.titel": "So bewegen Sie sich im Muster",
+  "ansicht.mausrad":
+    "Mausrad drehen: das Muster wird größer und kleiner – genau dort, wo der Zeiger steht.",
+  "ansicht.ziehen": "Mit der Maus oder dem Finger ziehen: das Muster verschieben.",
+  "ansicht.zweiFinger":
+    "Zwei Finger auf dem Bildschirm: verschieben und zugleich größer oder kleiner ziehen.",
+  "ansicht.leertaste":
+    "Leertaste gedrückt halten: verschieben, ohne das Werkzeug zu wechseln.",
 
   // --- Motiv aussuchen ---------------------------------------------------
   "motivsuche.hinweis":
     "Tippen Sie mitten in ein Motiv. Jedes weitere kommt dazu – noch einmal darauf tippen nimmt es wieder weg.",
-  "motivsuche.wieViel": "Wie viel nimmt ein Tipp mit?",
   "motivsuche.mehr": "Mehr dazunehmen",
   "motivsuche.weniger": "Weniger dazunehmen",
   "motivsuche.fastAlles":
@@ -254,8 +267,6 @@ export const DE = {
   "schrittname.gemalt": "Stiche gemalt",
   "schrittname.einStichGemalt": "Einen Stich gemalt",
   "schrittname.flaecheGefaerbt": "Fläche gefärbt",
-  "schrittname.motivGefaerbt": "Motiv gefärbt",
-  "schrittname.bereichGefaerbt": "Bereich gefärbt",
   "schrittname.auswahlGefaerbt": "Auswahl gefärbt",
   "schrittname.stueckEingesetzt": "Stück eingesetzt",
   "schrittname.freigestellt": "Motiv freigestellt",
@@ -264,19 +275,15 @@ export const DE = {
 
   // --- Glättung -----------------------------------------------------------
   "glaettung.frage": "Wie ruhig soll das Muster sein?",
-  "glaettung.erklaerung":
-    "Schieben Sie den Regler nach rechts, wenn Sie große zusammenhängende Flächen möchten. Nach links wird das Bild genauer, aber es entstehen mehr einzelne Stiche. Der Regler hat keine Stufen – jede Stellung dazwischen geht auch.",
   "glaettung.stufe0": "sehr detailliert",
   "glaettung.stufe1": "detailliert",
   "glaettung.stufe2": "ausgewogen",
   "glaettung.stufe3": "ruhig",
   "glaettung.stufe4": "ruhig und einfach zu sticken",
-  "glaettung.flaeche": "Kleinste Fläche: etwa {kante} × {kante} Kästchen.",
-  "glaettung.flaecheFrei": "Jedes einzelne Kästchen darf seine eigene Farbe haben.",
-  "glaettung.einzelstiche": "Einzelne Stiche",
-  "glaettung.einzelsticheText": "So oft müssen Sie für nur ein oder zwei Kreuze neu einfädeln.",
-  "glaettung.farbwechsel": "Farbwechsel pro Reihe",
-  "glaettung.farbwechselText": "So oft wechselt in einer Reihe im Schnitt die Farbe.",
+
+  // --- Der Farbregler im Editor --------------------------------------------
+  "farben.frage": "Wie viele Farben soll das Muster haben?",
+  "farben.gewuenscht": "{anzahl} Farben",
 
   // --- Legende ------------------------------------------------------------
   // --- Farben in Worten ----------------------------------------------------
@@ -417,8 +424,7 @@ export const DE = {
   "druck.ausDrucker": "Das kommt aus dem Drucker",
   "druck.seiteVorschau": "Eine Seite mit der Vorschau der fertigen Stickerei",
   "druck.seiteGarnliste": "Die Garnliste mit Symbol, Nummer, Farbname, Stichzahl und Garnbedarf",
-  "druck.seitenSchwarzweiss": "Das Muster auf {anzahl} Blättern in Schwarzweiß",
-  "druck.seitenFarbe": "Dasselbe noch einmal in Farbe, also {anzahl} Blätter zusammen",
+  "druck.seitenFarbe": "Das Muster in Farbe auf {anzahl} Blättern, also {gesamt} Blätter zusammen",
   "druck.blaetterHinweis":
     "Die Blätter überlappen sich um zwei Reihen. Jede zehnte Linie ist dicker, und an den Rändern stehen die Reihennummern.",
   "druck.brauchenSie": "Das brauchen Sie dafür",
@@ -453,12 +459,9 @@ export const DE = {
   "pdf.eigeneFarbe": "eigene Farbe",
   "pdf.summe": "Zusammen {stiche} Stiche und ungefähr {garn} Garn.",
   "pdf.freieFelder": "{anzahl} Felder bleiben frei",
-  "pdf.blattTitel": "{name} – {fassung}",
-  "pdf.inFarbe": "in Farbe",
-  "pdf.schwarzweiss": "schwarzweiß",
   "pdf.masseKurz": "{breite} cm × {hoehe} cm auf Aida {zaehlung}",
   "pdf.reihenSpalten": "Reihen {vonReihe} bis {bisReihe} · Spalten {vonSpalte} bis {bisSpalte}",
-  "pdf.blattFuss": "{fassung} · Blatt {spalte} von links, {reihe} von oben",
+  "pdf.blattFuss": "Blatt {spalte} von links, {reihe} von oben",
 
   // --- Fortschrittsmeldungen der Berechnung ---------------------------------
   "arbeit.bildLesen": "Das Bild wird gelesen.",
@@ -481,6 +484,61 @@ export const DE = {
     "Es ist noch kein Bild ausgesucht. Gehen Sie einen Schritt zurück und wählen Sie ein Bild aus.",
   "arbeit.fehlerBildLesen":
     "Dieses Bild konnte nicht gelesen werden. Bitte wählen Sie ein anderes Bild aus, am besten ein Foto im Format JPG oder PNG.",
+
+  // --- Startseite: die eigenen Muster --------------------------------------
+  "kopf.meineMuster": "Meine Muster",
+  "start.titel": "Meine Muster",
+  "start.erklaerung":
+    "Hier stehen die Bilder, aus denen Sie schon ein Muster gemacht haben – das zuletzt bearbeitete zuerst. Tippen Sie eines an, um weiterzuarbeiten.",
+  "start.zuletzt": "Zuletzt bearbeitet",
+  "start.wirdGeholt": "Ihre Muster werden geholt …",
+  "start.nochNichts":
+    "Hier ist noch nichts. Fangen Sie mit einem Foto an – der grüne Knopf unten führt Sie hin.",
+  "start.neuesBild": "Neues Bild aussuchen",
+  "start.fussHinweis": "Sie können jederzeit ein neues Bild nehmen.",
+  "start.ohneBild": "kein Foto",
+  "start.ohneNamen": "Ohne Namen",
+  "start.staende": "{anzahl} gespeicherte Stände",
+  "start.standEiner": "1 gespeicherter Stand",
+  "start.farben": "{anzahl} Farben",
+  "start.oeffnen": "Öffnen",
+  "start.vergleichen": "Alle Versionen",
+  "start.loeschen": "Löschen",
+  "start.loeschenTitel": "„{name}“ löschen?",
+  "start.loeschenText":
+    "Das Bild und alle gespeicherten Stände dazu werden gelöscht – auf diesem Gerät und in der Sicherung. Das lässt sich nicht rückgängig machen.",
+
+  // --- Sicherung im Internet -----------------------------------------------
+  "sicherung.gesichert": "Gesichert im Internet",
+  "sicherung.laeuft": "Wird gesichert …",
+  "sicherung.wartet": "Wird gesichert, sobald Sie Internet haben ({anzahl})",
+  "sicherung.fehler":
+    "Die Sicherung im Internet klappt gerade nicht. Auf diesem Gerät ist alles da.",
+
+  // --- Alle Versionen auf einen Blick --------------------------------------
+  "vergleich.titel": "Alle Versionen",
+  "vergleich.erklaerung":
+    "Jede gespeicherte Fassung dieses Bildes. Tippen Sie eine an, um sie groß zu sehen.",
+  "vergleich.lupeKleiner": "Kleiner",
+  "vergleich.lupeGroesser": "Größer",
+  "vergleich.einpassen": "Ganzes Muster",
+  "vergleich.fertig": "Fertig",
+  "vergleich.zurueck": "Zurück zur Übersicht",
+  "vergleich.wievielte": "Version {nummer} von {gesamt}",
+  "vergleich.frueher": "Frühere Version",
+  "vergleich.spaeter": "Spätere Version",
+  "vergleich.nehmen": "Diese Version nehmen",
+  "vergleich.schonHier": "Daran arbeiten Sie gerade",
+  "vergleich.angaben": "{farben} Farben · {breite} × {hoehe} Stiche",
+  "vergleich.nurFarben": "{farben} Farben",
+  "vergleich.loeschen": "Diese Version löschen",
+  "vergleich.loeschenKurz": "Löschen",
+  "vergleich.loeschenTitel": "Diese Version löschen?",
+  "vergleich.loeschenText":
+    "Die Fassung von {zeit} wird gelöscht – auf diesem Gerät und in der Sicherung. Die übrigen Versionen bleiben. Das lässt sich nicht rückgängig machen.",
+  "staende.vergleichen": "Alle Versionen ansehen",
+  "bild.schonBekannt":
+    "Dieses Bild war schon einmal da: die neue Fassung kommt zu „{name}“ dazu. Die früheren Stände bleiben und lassen sich damit vergleichen.",
 } as const;
 
 export type Textschluessel = keyof typeof DE;
@@ -527,7 +585,7 @@ export const PL: Record<Textschluessel, string> = {
   // --- Bild zuschneiden ----------------------------------------------------
   "zuschnitt.titel": "Wybór wycinka",
   "zuschnitt.erklaerung":
-    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem wystarczy przesunąć ramkę tam, gdzie ma być, i pociągnąć za rogi, aby nadać jej dowolny kształt.",
+    "Można wybrać część zdjęcia. Proszę dotknąć kształtu – wycinek ustawi się na środku zdjęcia. Potem można go przesunąć palcem i dowolnie uformować za rogi.",
   "zuschnitt.formWaehlen": "Kształt wycinka",
   "zuschnitt.ganzesBild": "Całe zdjęcie",
   "zuschnitt.quadrat": "Kwadrat 1:1",
@@ -604,19 +662,29 @@ export const PL: Record<Textschluessel, string> = {
   "editor.wiederholen": "Ponów",
   "editor.weiterDrucken": "Dalej do drukowania",
   "editor.masse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
+  "editor.groesseTitel": "Rozmiar",
+  "editor.malfarbe": "Kolor do malowania",
+  "editor.malfarbeHinweis":
+    "Proszę dotknąć kafelka. Tym kolorem będzie malowane i wypełniane.",
+  "editor.gewaehlteFarbe": "Wybrany: {garn}",
   "editor.leinwandBeschriftung": "Pani wzór, {breite} na {hoehe} ściegów",
-  "editor.zweiFinger": "Dwoma palcami powiększa się wzór i przesuwa go w bok.",
   "editor.ausgewaehlt": "Zaznaczono {anzahl} ściegów",
-  "editor.nichtsAusgewaehlt": "Nic jeszcze nie zaznaczono",
-  "editor.tippenHinweis":
-    "Proszę dotknąć wzoru wybranym narzędziem, wtedy pojawią się tutaj odpowiednie przyciski.",
+  "auswahl.soGehts": "Jak zaznaczyć",
+  "auswahl.danach": "Gdy coś jest zaznaczone, można tutaj:",
+  "auswahl.danachSticken": "haftować tylko to miejsce, a resztę pominąć",
+  "auswahl.danachWeglassen": "pominąć dokładnie to miejsce",
+  "auswahl.danachFaerben": "pokolorować to miejsce jednym kolorem",
+  "auswahl.danachKopieren": "skopiować to miejsce i wstawić gdzie indziej",
+  "auswahl.danachMerken": "zapamiętać to miejsce jako motyw, także do innych wzorów",
+  "auswahl.nurDas": "Haftuj tylko to",
+  "auswahl.nurDasErklaerung": "Wszystko poza zaznaczeniem zostaje pustą kanwą.",
+  "auswahl.weglassen": "Pomiń to miejsce",
+  "auswahl.weglassenErklaerung": "Pustą kanwą zostaje tylko zaznaczenie, reszta jest haftowana.",
   "editor.auswahlFaerben": "Pokoloruj zaznaczenie",
   "editor.auswahlKopieren": "Skopiuj zaznaczenie",
   "editor.alsMotivMerken": "Zapamiętaj jako motyw",
-  "editor.nurDasSticken": "Haftuj tylko zaznaczone",
   "editor.nurDasGestickt":
     "Teraz haftowane będzie tylko zaznaczone. Cała reszta zostaje pustą kanwą – przyciskiem „Cofnij” można ją przywrócić.",
-  "editor.auswahlNichtSticken": "Nie haftuj zaznaczonego",
   "editor.auswahlWeggelassen":
     "To miejsce zostaje pustą kanwą. Przyciskiem „Cofnij” można je przywrócić.",
   "editor.wiederAllesSticken": "Znów haftuj wszystko",
@@ -630,13 +698,12 @@ export const PL: Record<Textschluessel, string> = {
   "editor.kopiertMeldung": "Skopiowano {anzahl} ściegów. Proszę teraz dotknąć „Wstaw kopię”.",
   "editor.stueckEinsetzen": "Wstawianie kawałka",
   "editor.stueckSchieben":
-    "Proszę przesunąć kawałek palcem we właściwe miejsce albo przestawić go przyciskami.",
+    "Proszę przesunąć kawałek palcem we właściwe miejsce. Przyciskami „Zmniejsz kawałek” i „Powiększ kawałek” zmienia się jego rozmiar.",
   "editor.einsetzenMeldung":
     "Proszę przesunąć kawałek palcem we właściwe miejsce. Dopiero „Wstaw tutaj” zapisuje go na stałe.",
-  "editor.hoch": "Do góry",
-  "editor.runter": "W dół",
-  "editor.links": "W lewo",
-  "editor.rechts": "W prawo",
+  "editor.stueckKleiner": "Zmniejsz kawałek",
+  "editor.stueckGroesser": "Powiększ kawałek",
+  "editor.stueckMasse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm",
   "editor.vierteldrehung": "Obróć o ćwierć",
   "editor.spiegelnWaagerecht": "Odbij w poziomie",
   "editor.spiegelnSenkrecht": "Odbij w pionie",
@@ -644,12 +711,9 @@ export const PL: Record<Textschluessel, string> = {
   "editor.ihreGarne": "Moje nici ({anzahl})",
   "editor.garnbedarf":
     "Razem potrzeba około {meter} nici. Szacunek dla dwóch nitek z jednej muliny – lepiej kupić trochę więcej.",
-  "editor.farbeHinweis":
-    "Tutaj przy każdej nici widać, ile ściegów i ile nitki potrzeba. Kolor do kolorowania i malowania wybiera się na pasku nad wzorem.",
-  "editor.farbenZusammengelegt":
-    "Z {vorher} kolorów zostało {nachher} – kilka leżało tak blisko siebie, że przypada na nie ta sama nitka.",
-  "editor.farbenWeggefallen":
-    "Z {vorher} kolorów zostało {nachher} – przy wygładzaniu pojedyncze zniknęły całkiem.",
+  "editor.farbeHinweis": "Dotknięty kolor będzie używany do malowania i kolorowania.",
+  "editor.hinweisAufklappen": "Pokaż objaśnienie narzędzia",
+  "editor.hinweisZuklappen": "Ukryj objaśnienie narzędzia",
   "editor.anderesGarnTitel": "Inna nitka dla tego koloru",
   "editor.anderesGarnText":
     "Kolory podawane przez producentów są przybliżone. Jeśli ma Pani przed sobą wzornik nici i inny odcień pasuje lepiej, proszę wybrać go tutaj.",
@@ -667,50 +731,54 @@ export const PL: Record<Textschluessel, string> = {
   "editor.standGemerkt":
     "Ta wersja została zapamiętana. Zostanie zachowana, nawet jeśli będzie Pani jeszcze dużo pracować.",
 
-  "farbleiste.titel": "Kolor do kolorowania i malowania:",
-
-  "bereich.werkzeug": "Narzędzie",
-  "bereich.farbe": "Nici",
+  "bereich.bearbeiten": "Zmiana",
+  "bereich.garne": "Nici",
   "bereich.muster": "Wzór",
-  "bereich.merken": "Zapamiętane",
-
-  "tippmodus.frage": "Co ma robić dotknięcie wzoru?",
-  "tippmodus.faerben": "Koloruj",
-  "tippmodus.auswaehlen": "Zaznacz",
-  "tippmodus.faerbenText":
-    "Dotknięcie wzoru od razu koloruje kolorem z paska nad wzorem – tak jak przy malowaniu, bez żadnego przycisku po drodze.",
-  "tippmodus.auswaehlenText":
-    "Dotknięcie najpierw tylko obrysowuje. Potem można zaznaczenie wyodrębnić, skopiować albo zapamiętać jako motyw.",
+  "bereich.gemerkt": "Zapisane",
 
   "werkzeug.frage": "Czym chce Pani pracować?",
-  "werkzeug.motiv": "Cały motyw",
-  "werkzeug.motivFaerben":
-    "Proszę dotknąć środka kwiatka. Wszystko, co pasuje kolorem, od razu dostanie wybrany kolor.",
+  "werkzeuggruppe.ansehen": "Oglądanie",
+  "werkzeuggruppe.auswaehlen": "Zaznaczanie",
+  "werkzeuggruppe.malen": "Malowanie",
+  "werkzeug.schieben": "Oglądanie i przesuwanie",
+  "werkzeug.schiebenText":
+    "Proszę przeciągnąć wzór w miejsce, które chce Pani obejrzeć. Nic przy tym nie zostaje zmienione.",
+  "werkzeug.schiebenKurz": "Przesuń",
+  "werkzeug.motivKurz": "Motyw",
+  "werkzeug.flaecheKurz": "Obszar",
+  "werkzeug.rechteckKurz": "Prostokąt",
+  "werkzeug.freihandKurz": "Odręcznie",
+  "werkzeug.malenKurz": "Maluj",
+  "werkzeug.fuellenKurz": "Wypełnij",
+  "werkzeug.motiv": "Zaznacz cały motyw",
   "werkzeug.motivText":
     "Proszę dotknąć środka kwiatka. Zaznaczy się wszystko, co pasuje do niego kolorem – także kilka odcieni. Każdy następny motyw dochodzi jednym dotknięciem.",
-  "werkzeug.flaeche": "Ta sama powierzchnia",
-  "werkzeug.flaecheFaerben":
-    "Proszę dotknąć powierzchni. Wszystko, co się z nią łączy i ma ten sam kolor, od razu dostanie wybrany kolor.",
+  "werkzeug.flaeche": "Zaznacz tę samą powierzchnię",
   "werkzeug.flaecheText":
     "Proszę dotknąć powierzchni. Zaznaczy się wszystko, co się z nią łączy i ma ten sam kolor.",
-  "werkzeug.rechteck": "Prostokąt",
-  "werkzeug.rechteckFaerben":
-    "Proszę wyciągnąć palcem prostokąt. Po puszczeniu jest pokolorowany.",
+  "werkzeug.rechteck": "Zaznacz prostokąt",
   "werkzeug.rechteckText":
     "Proszę przeciągnąć palcem prostokąt nad obszarem, który ma zostać zaznaczony.",
-  "werkzeug.freihand": "Odręcznie",
-  "werkzeug.freihandFaerben":
-    "Proszę objechać obszar dookoła. Po puszczeniu wszystko w środku jest pokolorowane.",
+  "werkzeug.freihand": "Zaznacz odręcznie",
   "werkzeug.freihandText":
     "Proszę obrysować obszar dookoła. Po puszczeniu palca zaznaczy się wszystko w środku.",
-  "werkzeug.malen": "Pojedyncze ściegi",
+  "werkzeug.malen": "Maluj pojedyncze ściegi",
   "werkzeug.malenText":
     "Proszę dotknąć pól albo przejechać po nich palcem. Dostaną wybrany kolor.",
+  "werkzeug.fuellen": "Pokoloruj powierzchnię",
+  "werkzeug.fuellenText": "Proszę dotknąć powierzchni. Cała dostanie wybrany kolor.",
+
+  "ansicht.titel": "Jak poruszać się po wzorze",
+  "ansicht.mausrad":
+    "Kółko myszy: wzór staje się większy i mniejszy – dokładnie tam, gdzie stoi wskaźnik.",
+  "ansicht.ziehen": "Przeciąganie myszą albo palcem: przesuwanie wzoru.",
+  "ansicht.zweiFinger":
+    "Dwa palce na ekranie: przesuwanie i jednoczesne powiększanie albo pomniejszanie.",
+  "ansicht.leertaste": "Przytrzymana spacja: przesuwanie bez zmiany narzędzia.",
 
   // --- Motiv aussuchen ---------------------------------------------------
   "motivsuche.hinweis":
     "Proszę dotknąć środka motywu. Każdy następny dochodzi – dotknięcie go jeszcze raz usuwa go z zaznaczenia.",
-  "motivsuche.wieViel": "Ile obejmuje jedno dotknięcie?",
   "motivsuche.mehr": "Weź więcej",
   "motivsuche.weniger": "Weź mniej",
   "motivsuche.fastAlles":
@@ -719,8 +787,6 @@ export const PL: Record<Textschluessel, string> = {
   "schrittname.gemalt": "Namalowane ściegi",
   "schrittname.einStichGemalt": "Namalowany jeden ścieg",
   "schrittname.flaecheGefaerbt": "Pokolorowana powierzchnia",
-  "schrittname.motivGefaerbt": "Pokolorowany motyw",
-  "schrittname.bereichGefaerbt": "Pokolorowany obszar",
   "schrittname.auswahlGefaerbt": "Pokolorowane zaznaczenie",
   "schrittname.stueckEingesetzt": "Wstawiony kawałek",
   "schrittname.freigestellt": "Wybrany sam motyw",
@@ -728,20 +794,14 @@ export const PL: Record<Textschluessel, string> = {
   "schrittname.wiederGestickt": "Znów haftowane wszystko",
 
   "glaettung.frage": "Jak spokojny ma być wzór?",
-  "glaettung.erklaerung":
-    "Proszę przesunąć suwak w prawo, jeśli chce Pani dużych, jednolitych powierzchni. W lewo obraz będzie dokładniejszy, ale powstanie więcej pojedynczych ściegów. Suwak nie ma stopni – każde położenie pomiędzy też jest możliwe.",
   "glaettung.stufe0": "bardzo szczegółowy",
   "glaettung.stufe1": "szczegółowy",
   "glaettung.stufe2": "wyważony",
   "glaettung.stufe3": "spokojny",
   "glaettung.stufe4": "spokojny i łatwy do haftowania",
-  "glaettung.flaeche": "Najmniejsza powierzchnia: około {kante} × {kante} kratek.",
-  "glaettung.flaecheFrei": "Każda pojedyncza kratka może mieć swój własny kolor.",
-  "glaettung.einzelstiche": "Pojedyncze ściegi",
-  "glaettung.einzelsticheText":
-    "Tyle razy trzeba będzie nawlekać igłę dla jednego lub dwóch krzyżyków.",
-  "glaettung.farbwechsel": "Zmian koloru na rząd",
-  "glaettung.farbwechselText": "Tyle razy średnio zmienia się kolor w jednym rzędzie.",
+
+  "farben.frage": "Ile kolorów ma mieć wzór?",
+  "farben.gewuenscht": "kolorów: {anzahl}",
 
   // --- Farben in Worten ----------------------------------------------------
   // Im Polnischen steht die Stufe vor dem Farbwort und beide sind
@@ -877,8 +937,7 @@ export const PL: Record<Textschluessel, string> = {
   "druck.ausDrucker": "To wyjdzie z drukarki",
   "druck.seiteVorschau": "Strona z podglądem gotowego haftu",
   "druck.seiteGarnliste": "Lista nici z symbolem, numerem, nazwą koloru, liczbą ściegów i zapotrzebowaniem",
-  "druck.seitenSchwarzweiss": "Wzór na {anzahl} kartkach w czerni i bieli",
-  "druck.seitenFarbe": "To samo jeszcze raz w kolorze, czyli razem {anzahl} kartek",
+  "druck.seitenFarbe": "Wzór w kolorze na {anzahl} kartkach, czyli razem {gesamt} kartek",
   "druck.blaetterHinweis":
     "Kartki zachodzą na siebie o dwa rzędy. Co dziesiąta linia jest grubsza, a na brzegach stoją numery rzędów.",
   "druck.brauchenSie": "To będzie Pani potrzebne",
@@ -912,12 +971,9 @@ export const PL: Record<Textschluessel, string> = {
   "pdf.eigeneFarbe": "własny kolor",
   "pdf.summe": "Razem {stiche} ściegów i około {garn} nici.",
   "pdf.freieFelder": "{anzahl} pól zostaje pustych",
-  "pdf.blattTitel": "{name} – {fassung}",
-  "pdf.inFarbe": "w kolorze",
-  "pdf.schwarzweiss": "czarno-biały",
   "pdf.masseKurz": "{breite} cm × {hoehe} cm na kanwie Aida {zaehlung}",
   "pdf.reihenSpalten": "Rzędy {vonReihe} do {bisReihe} · kolumny {vonSpalte} do {bisSpalte}",
-  "pdf.blattFuss": "{fassung} · kartka {spalte} od lewej, {reihe} od góry",
+  "pdf.blattFuss": "kartka {spalte} od lewej, {reihe} od góry",
 
   "arbeit.bildLesen": "Wczytywanie zdjęcia.",
   "arbeit.herunterrechnen": "Przeliczanie zdjęcia na siatkę ściegów.",
@@ -939,4 +995,59 @@ export const PL: Record<Textschluessel, string> = {
     "Nie wybrano jeszcze zdjęcia. Proszę cofnąć się o krok i wybrać zdjęcie.",
   "arbeit.fehlerBildLesen":
     "Nie udało się odczytać tego zdjęcia. Proszę wybrać inne, najlepiej zdjęcie w formacie JPG albo PNG.",
+
+  // --- Strona startowa: moje wzory -----------------------------------------
+  "kopf.meineMuster": "Moje wzory",
+  "start.titel": "Moje wzory",
+  "start.erklaerung":
+    "Tu są zdjęcia, z których powstał już wzór – ostatnio używane na początku. Proszę dotknąć jednego, żeby pracować dalej.",
+  "start.zuletzt": "Ostatnio używane",
+  "start.wirdGeholt": "Pobieranie wzorów …",
+  "start.nochNichts":
+    "Tu jeszcze nic nie ma. Proszę zacząć od zdjęcia – zielony przycisk na dole prowadzi dalej.",
+  "start.neuesBild": "Wybierz nowe zdjęcie",
+  "start.fussHinweis": "Nowe zdjęcie można wybrać w każdej chwili.",
+  "start.ohneBild": "bez zdjęcia",
+  "start.ohneNamen": "Bez nazwy",
+  "start.staende": "Zapisane wersje: {anzahl}",
+  "start.standEiner": "Zapisana wersja: 1",
+  "start.farben": "{anzahl} kolorów",
+  "start.oeffnen": "Otwórz",
+  "start.vergleichen": "Wszystkie wersje",
+  "start.loeschen": "Usuń",
+  "start.loeschenTitel": "Usunąć „{name}”?",
+  "start.loeschenText":
+    "Zdjęcie i wszystkie zapisane wersje zostaną usunięte – z tego urządzenia i z kopii w internecie. Tego nie da się cofnąć.",
+
+  // --- Kopia w internecie --------------------------------------------------
+  "sicherung.gesichert": "Zapisane w internecie",
+  "sicherung.laeuft": "Zapisywanie …",
+  "sicherung.wartet": "Zapisze się, gdy będzie internet ({anzahl})",
+  "sicherung.fehler":
+    "Kopia w internecie w tej chwili nie działa. Na tym urządzeniu wszystko jest.",
+
+  // --- Wszystkie wersje na raz ---------------------------------------------
+  "vergleich.titel": "Wszystkie wersje",
+  "vergleich.erklaerung":
+    "Każda zapisana wersja tego zdjęcia. Proszę dotknąć jednej, żeby zobaczyć ją w dużym widoku.",
+  "vergleich.lupeKleiner": "Mniejsze",
+  "vergleich.lupeGroesser": "Większe",
+  "vergleich.einpassen": "Cały wzór",
+  "vergleich.fertig": "Gotowe",
+  "vergleich.zurueck": "Wróć do przeglądu",
+  "vergleich.wievielte": "Wersja {nummer} z {gesamt}",
+  "vergleich.frueher": "Wcześniejsza wersja",
+  "vergleich.spaeter": "Późniejsza wersja",
+  "vergleich.nehmen": "Weź tę wersję",
+  "vergleich.schonHier": "Tu Pani właśnie pracuje",
+  "vergleich.angaben": "{farben} kolorów · {breite} × {hoehe} ściegów",
+  "vergleich.nurFarben": "{farben} kolorów",
+  "vergleich.loeschen": "Usuń tę wersję",
+  "vergleich.loeschenKurz": "Usuń",
+  "vergleich.loeschenTitel": "Usunąć tę wersję?",
+  "vergleich.loeschenText":
+    "Wersja z {zeit} zostanie usunięta – z tego urządzenia i z kopii w internecie. Pozostałe wersje zostają. Tego nie da się cofnąć.",
+  "staende.vergleichen": "Zobacz wszystkie wersje",
+  "bild.schonBekannt":
+    "To zdjęcie już tu było: nowa wersja dołączy do „{name}”. Wcześniejsze wersje zostają i można je porównać.",
 };

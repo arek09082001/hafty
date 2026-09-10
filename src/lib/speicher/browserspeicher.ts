@@ -21,7 +21,7 @@ import { rasterPacken, rasterEntpacken } from "./rle";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
 
 const DATENBANK = "stickmuster";
-const AUSGABE = 2;
+const AUSGABE = 3;
 const LADEN = "arbeit";
 const SCHLUESSEL = "aktuell";
 
@@ -29,13 +29,17 @@ const SCHLUESSEL = "aktuell";
 export const LADEN_VORRAT = "garnvorrat";
 export const LADEN_STAENDE = "staende";
 export const LADEN_MOTIVE = "motive";
+export const LADEN_PROJEKTE = "projekte";
+export const LADEN_ABGLEICH = "abgleich";
 
 export type Arbeitsstand = {
   musterId: string | null;
+  /** Auf welchem gespeicherten Stand gearbeitet wird – der nächste hängt daran. */
+  versionId: string | null;
   name: string;
   breite: number;
   hoehe: number;
-  basis: Uint8Array;
+  basis: Uint16Array;
   bearbeitung: Int16Array;
   palette: PalettenEintrag[];
   einstellungen: Einstellungen;
@@ -71,6 +75,17 @@ function datenbank() {
         if (!db.objectStoreNames.contains(LADEN_MOTIVE)) {
           db.createObjectStore(LADEN_MOTIVE, { keyPath: "id" });
         }
+        if (!db.objectStoreNames.contains(LADEN_PROJEKTE)) {
+          const laden = db.createObjectStore(LADEN_PROJEKTE, { keyPath: "id" });
+          // Nach Dateiname, damit dasselbe Foto wieder in seinem Projekt
+          // landet, und nach Zeit, damit die Startseite die zuletzt
+          // angefassten Projekte zuerst zeigt.
+          laden.createIndex("name", "name");
+          laden.createIndex("zuletztAm", "zuletztAm");
+        }
+        if (!db.objectStoreNames.contains(LADEN_ABGLEICH)) {
+          db.createObjectStore(LADEN_ABGLEICH, { keyPath: "id" });
+        }
       },
     });
   }
@@ -87,6 +102,7 @@ export async function arbeitsstandSichern(stand: Arbeitsstand): Promise<void> {
     const db = await datenbank();
     const abgelegt: Abgelegt = {
       musterId: stand.musterId,
+      versionId: stand.versionId,
       name: stand.name,
       breite: stand.breite,
       hoehe: stand.hoehe,
@@ -121,6 +137,7 @@ export async function arbeitsstandLaden(): Promise<Arbeitsstand | null> {
     const entpackt = rasterEntpacken(abgelegt.raster);
     return {
       musterId: abgelegt.musterId,
+      versionId: abgelegt.versionId ?? null,
       name: abgelegt.name,
       breite: entpackt.breite,
       hoehe: entpackt.hoehe,
