@@ -320,9 +320,31 @@ export const LEER = FARBINDIZES - 1;
  */
 export const STOFFFARBE = "#f1e8d6";
 
-/** Höchstzahl an Feldern, die berechnet wird. 400 × 400 Stiche. */
-export const MAX_FELDER = 160_000;
-export const MAX_BREITE = 400;
+/**
+ * Wie groß ein Muster werden darf.
+ * ---------------------------------------------------------------------------
+ *
+ * Die Grenze ist Rechenzeit und Speicher, nicht Vorsicht. Gemessen an einer
+ * Waldvorlage mit 60 Farben, hier auf einem Rechner (auf einem Tablet das
+ * Zwei- bis Dreifache):
+ *
+ * | Breite | Felder  | einmal erstellen | ein Zug am Regler | Abstandsliste |
+ * | -----: | ------: | ---------------: | ----------------: | ------------: |
+ * |    180 |  34 000 |            1,6 s |            0,20 s |          3 MB |
+ * |    400 | 168 000 |            7,2 s |            0,49 s |         13 MB |
+ * |    500 | 262 000 |           11,2 s |            0,55 s |         21 MB |
+ * |    600 | 378 000 |           16,0 s |            0,71 s |         30 MB |
+ *
+ * Das Erstellen läuft einmal und mit Fortschrittsbalken; der Regler bleibt
+ * überall unter einer Sekunde. Bei 600 wäre das Erstellen auf einem Tablet
+ * fast eine Minute – das ist zu viel. 500 × 500 ist der Kompromiss.
+ *
+ * Warum überhaupt so fein: erst ab ungefähr 400 Stichen Breite ist auf einem
+ * Foto eines Baumes ein einzelnes Blatt mehr als ein Stich. Wer das sehen
+ * will, muss dorthin können.
+ */
+export const MAX_FELDER = 250_000;
+export const MAX_BREITE = 500;
 export const MIN_BREITE = 20;
 /**
  * Höchstzahl an Farben: so viele Garne hat der Katalog.
