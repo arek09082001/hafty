@@ -111,7 +111,8 @@ export const STANDARD_EINSTELLUNGEN: Einstellungen = {
  *
  *  - **0 bis 20** – der Farbverlauf, von voller Stärke auf null. Sonst
  *    passiert hier nichts: kein ICM, kein Aufräumen. Wer ganz links steht,
- *    bekommt das Foto, so nah es 375 Garne zulassen.
+ *    bekommt das Foto, so nah es 375 Garne zulassen – mit allem Korn und
+ *    aller Struktur, die das Stichraster hergibt.
  *  - **20 bis 40** – `lambda`, von 0 auf 0,5. Jetzt gehen die einzelnen
  *    Stiche weg. Über 0,5 hinaus ändert sich nichts mehr, auch bei 100
  *    nicht: das ICM wählt je Feld nur unter den Farben, die in seiner
@@ -135,14 +136,15 @@ const LAMBDA_MAX = 0.5;
 /**
  * Ganz links: wie stark der Farbverlauf nachgeahmt wird.
  *
- * Mit 375 Garnen lässt sich ein Foto nicht treffen; Fehlerdiffusion mischt
- * deshalb zwei Garne nebeneinander zu einem Ton, den es nicht gibt (siehe
+ * Mit 375 Garnen lässt sich ein Foto nicht treffen; deshalb werden dort zwei
+ * Garne nebeneinandergesetzt und ergeben einen Ton, den es nicht gibt (siehe
  * `verlaufZuordnen` in glaettung.ts).
  *
- * 0,8 und nicht 1,0, weil es bei voller Stärke kippt – gemessen wird das
- * Muster dann wieder schlechter statt besser. Die Zahlen dazu stehen dort.
+ * Volle Stärke. Gedämpft war es einmal, weil die reine Fehlerdiffusion bei
+ * 1,0 wegläuft – das ist mit dem Riegel dort erledigt, und gedämpft brachte
+ * es zu wenig: die Flächen wurden davon sogar größer statt kleiner.
  */
-const VERLAUF_MAX = 0.8;
+const VERLAUF_MAX = 1;
 
 /**
  * Wie viel vom Muster die Flächenauflösung ganz rechts schlucken darf.
