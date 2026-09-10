@@ -80,53 +80,69 @@ export const STANDARD_EINSTELLUNGEN: Einstellungen = {
  * Der Glättungsregler.
  * ---------------------------------------------------------------------------
  *
- * Der Regler läuft stufenlos von 0 bis 100, und aus seiner Stellung werden
- * die beiden Zahlen gerechnet, an denen die Glättung hängt. Wie er gekrümmt
- * ist, steht nicht nach Gefühl hier, sondern ist ausgemessen: an einem
- * Muster mit 180 × 240 Stichen und 20 Farben wurde geschaut, wie viele
- * Farbwechsel je Reihe übrig bleiben. Denn genau das ist es, was die
- * Nutzerin sieht – ein Muster mit 18 Wechseln je Reihe ist ein Foto, eines
- * mit 5 sind ruhige Flächen.
+ * Der Regler läuft stufenlos von 0 bis 100. Wie er gekrümmt ist, steht
+ * nicht nach Gefühl hier, sondern ist ausgemessen: an einer Waldvorlage mit
+ * 180 Stichen Breite und 60 Farben wurde geschaut, wie viele Farbwechsel je
+ * Reihe übrig bleiben und wie weit das Muster vom Foto weg ist, wenn man es
+ * über 3 × 3 mittelt – also so, wie das Auge es aus einem Meter sieht.
  *
- *  - `lambda` – das Gewicht der Nachbarschaftsstrafe im ICM (siehe
- *    glaettung.ts). Es trägt die **linke** Spanne: 0 → 18,0 Wechsel je
- *    Reihe, 0,1 → 12,5, 0,25 → 10,6, 0,5 → 10,1. Darüber ändert sich nichts
- *    mehr, auch bei 100 nicht: das ICM wählt je Feld nur unter den Farben,
- *    die in seiner Nachbarschaft schon vorkommen, und ist damit nach zwei
- *    Durchläufen fertig. Deshalb endet die Kurve bei `LAMBDA_MAX`.
- *  - `flaechenAnteil` – wie viel vom Muster die Flächenauflösung schlucken
- *    darf. Er trägt die **rechte** Spanne, und zwar als einziger.
+ * Ganz links steht damit das Foto, so nah es 375 echte Garne zulassen; ganz
+ * rechts ruhige Flächen, die zu sticken sind. Wie sich das aufteilt, steht
+ * gleich darunter.
  *
- * Der Anteil stand hier früher als feste Feldzahl („alles unter 200 Feldern
- * wird aufgelöst"). Das ist die anschaulichere Zahl und die unbrauchbarere:
- * je nach Foto und Farbzahl fand sie alles oder nichts, und zwischen den
- * Stellungen 25 und 70 änderte sich an einem Muster kein einziges Feld.
- * Woran die Grenze stattdessen abgelesen wird, steht bei
- * `mindestflaecheFinden` in glaettung.ts.
+ * Was hier früher stand und heute nicht mehr stimmt: `lambda` lief bis 8,
+ * obwohl über 0,5 nichts mehr passiert, und die Flächengrenze war eine feste
+ * Feldzahl. Beides zusammen ergab einen Regler, der auf 92 % seines Weges
+ * nichts tat. Und der Medianfilter, der einmal das linke Ende trug, hing an
+ * der ganzen Palette und war deshalb ein Sprung und kein Regler – er geht
+ * heute nur noch ins k-Means (siehe muster.worker.ts).
+ */
+/**
+ * Die drei Spannen des Reglers.
+ * ---------------------------------------------------------------------------
  *
- * Der Medianfilter kommt hier nicht mehr vor. Er sitzt vor der
- * Farbreduktion, hing also an der ganzen Palette – und war damit ein
- * Absturz mitten im Regler: 31 % des Musters änderten sich in einem
- * einzigen Schritt, während der ganze Rest des Weges 1 % brachte. Heute
- * bekommt das k-Means weiterhin das gefilterte Raster (ruhigere Farben),
- * die Zuordnung je Feld aber immer das rohe. Was der Filter früher grob
- * wegnahm, nimmt jetzt `lambda` fein weg – und der Regler kommt ohne einen
- * einzigen Sprung aus.
+ * Sie laufen **nacheinander** und nicht übereinander, und das ist keine
+ * Ordnungsliebe. Der nachgeahmte Farbverlauf setzt Einzelstiche, das ICM
+ * nimmt sie weg – beides zugleich zu drehen hiess, dass schon der erste
+ * Schritt nach rechts die ganze Fehlerdiffusion wieder wegbügelte: gemessen
+ * sprang das Muster von Stellung 0 auf 3 um 54 % um, und der Gewinn (3,72
+ * statt 5,02 dE aus der Entfernung) war nach einem einzigen Schritt weg.
+ * Nacheinander gibt es diesen Sprung nicht.
+ *
+ *  - **0 bis 20** – der Farbverlauf, von voller Stärke auf null. Sonst
+ *    passiert hier nichts: kein ICM, kein Aufräumen. Wer ganz links steht,
+ *    bekommt das Foto, so nah es 375 Garne zulassen.
+ *  - **20 bis 40** – `lambda`, von 0 auf 0,5. Jetzt gehen die einzelnen
+ *    Stiche weg. Über 0,5 hinaus ändert sich nichts mehr, auch bei 100
+ *    nicht: das ICM wählt je Feld nur unter den Farben, die in seiner
+ *    Nachbarschaft schon vorkommen, und ist nach zwei Durchläufen fertig.
+ *  - **40 bis 100** – die Flächenauflösung. Sie fragt nicht nach einer
+ *    Feldzahl, sondern nach einem Anteil: wie viel vom Muster darf
+ *    zusammenfallen? Siehe `mindestflaecheFinden` in glaettung.ts.
  */
 export const GLAETTUNG_MIN = 0;
 export const GLAETTUNG_MAX = 100;
 
-/**
- * Bis hierher trägt `lambda` allein – danach beginnt die Flächenauflösung.
- *
- * Nicht willkürlich: bei 0,5 hat das ICM den letzten Einzelstich getilgt,
- * und der Aufräumdurchgang, der rechts davon dazukommt, findet nichts mehr
- * zu tun. Genau deshalb ist an dieser Stelle kein Übergang zu sehen.
- */
-const LAMBDA_BIS = 20;
+/** Ende der ersten Spanne: bis hierher läuft der Farbverlauf aus. */
+const VERLAUF_BIS = 20;
+
+/** Ende der zweiten: bis hierher steigt `lambda`. */
+const LAMBDA_BIS = 40;
 
 /** Das Gewicht, ab dem mehr Strafe nichts mehr ändert. */
 const LAMBDA_MAX = 0.5;
+
+/**
+ * Ganz links: wie stark der Farbverlauf nachgeahmt wird.
+ *
+ * Mit 375 Garnen lässt sich ein Foto nicht treffen; Fehlerdiffusion mischt
+ * deshalb zwei Garne nebeneinander zu einem Ton, den es nicht gibt (siehe
+ * `verlaufZuordnen` in glaettung.ts).
+ *
+ * 0,8 und nicht 1,0, weil es bei voller Stärke kippt – gemessen wird das
+ * Muster dann wieder schlechter statt besser. Die Zahlen dazu stehen dort.
+ */
+const VERLAUF_MAX = 0.8;
 
 /**
  * Wie viel vom Muster die Flächenauflösung ganz rechts schlucken darf.
@@ -148,6 +164,8 @@ export type Glaettungswerte = {
   lambda: number;
   /** Anteil des Musters, den die Flächenauflösung schlucken darf (0..1). */
   flaechenAnteil: number;
+  /** Wie stark der Farbverlauf nachgeahmt wird (0 = gar nicht). */
+  verlaufStaerke: number;
 };
 
 /** Eine Reglerstellung auf 0..100 begrenzen und auf ganze Schritte runden. */
@@ -159,19 +177,24 @@ export function glaettungBegrenzen(staerke: number): number {
 /** Aus der Reglerstellung die Rechenwerte der Glättung. */
 export function glaettungswerte(staerke: number): Glaettungswerte {
   const wert = glaettungBegrenzen(staerke);
+  const runden = (x: number) => Math.round(x * 1000) / 1000;
 
-  // Linke Spanne: nur lambda.
-  const lambda =
-    wert >= LAMBDA_BIS
-      ? LAMBDA_MAX
-      : Math.round(LAMBDA_MAX * (wert / LAMBDA_BIS) ** 1.5 * 1000) / 1000;
+  // Erste Spanne: der Farbverlauf läuft aus. Geradlinig – gemessen sind die
+  // Schritte damit gleichmäßig (5,01 → 4,68 → 4,09 → 3,72 dE).
+  const verlaufStaerke = wert >= VERLAUF_BIS ? 0 : runden(VERLAUF_MAX * (1 - wert / VERLAUF_BIS));
 
-  // Rechte Spanne: der Anteil wächst geradlinig. Er darf das, weil er in der
+  // Zweite Spanne: lambda steigt. Mit einer Kurve, weil schon die ersten
+  // Zehntel den größten Teil der Wirkung haben (0 → 18,0 Wechsel je Reihe,
+  // 0,1 → 12,5, 0,25 → 10,6, 0,5 → 10,1).
+  const lambdaAnteil = Math.min(1, Math.max(0, (wert - VERLAUF_BIS) / (LAMBDA_BIS - VERLAUF_BIS)));
+  const lambda = runden(LAMBDA_MAX * lambdaAnteil ** 1.5);
+
+  // Dritte Spanne: der Anteil wächst geradlinig. Er darf das, weil er in der
   // Größe gemessen ist, die man am Muster auch sieht – anders als eine feste
   // Feldzahl, die erst spät und dann auf einmal wirkte.
-  const anteil = Math.max(0, wert - LAMBDA_BIS) / (GLAETTUNG_MAX - LAMBDA_BIS);
+  const flaeche = Math.max(0, wert - LAMBDA_BIS) / (GLAETTUNG_MAX - LAMBDA_BIS);
 
-  return { lambda, flaechenAnteil: Math.round(ANTEIL_MAX * anteil * 1000) / 1000 };
+  return { lambda, flaechenAnteil: runden(ANTEIL_MAX * flaeche), verlaufStaerke };
 }
 
 /**

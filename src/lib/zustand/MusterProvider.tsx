@@ -762,6 +762,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
           farbanzahl: einstellungen.farbanzahl,
           lambda: werte.lambda,
           flaechenAnteil: werte.flaechenAnteil,
+          verlaufStaerke: werte.verlaufStaerke,
           garne,
         },
         [bitmap],
@@ -871,6 +872,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
               farbanzahl: naechster.farbanzahl,
               lambda: werte.lambda,
               flaechenAnteil: werte.flaechenAnteil,
+              verlaufStaerke: werte.verlaufStaerke,
               garne,
             };
             mitgeben = [bitmap];
@@ -880,6 +882,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
               farbanzahl: naechster.farbanzahl,
               lambda: werte.lambda,
               flaechenAnteil: werte.flaechenAnteil,
+              verlaufStaerke: werte.verlaufStaerke,
               garne,
             };
           } else {
@@ -887,6 +890,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
               art: "glaetten",
               lambda: werte.lambda,
               flaechenAnteil: werte.flaechenAnteil,
+              verlaufStaerke: werte.verlaufStaerke,
             };
           }
 

@@ -27,6 +27,7 @@ import {
 import {
   abstandslisteBauen,
   glaetten,
+  verlaufZuordnen,
   ohneGlaettungZuordnen,
   paletteNeuZaehlen,
   type Abstandsliste,
@@ -90,7 +91,7 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
     } else if (e.data.art === "farben") {
       farbenNeu(e.data);
     } else if (e.data.art === "glaetten") {
-      nurGlaetten(e.data.lambda, e.data.flaechenAnteil);
+      nurGlaetten(e.data.lambda, e.data.flaechenAnteil, e.data.verlaufStaerke);
     }
   } catch (fehler) {
     // Die Nutzerin bekommt nie den technischen Text zu sehen, aber für die
@@ -150,7 +151,8 @@ function paletteRechnen(
 }
 
 function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
-  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, flaechenAnteil, garne } = auftrag;
+  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, flaechenAnteil, verlaufStaerke, garne } =
+    auftrag;
 
   // --- Schritt 1: Bild als ImageData ---------------------------------------
   fortschritt("arbeit.bildLesen", 0.05);
@@ -182,7 +184,7 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
     ...paletteRechnen(roh.breite, roh.hoehe, gefiltert.lab, roh.lab, farbanzahl, garne),
   };
 
-  nurGlaetten(lambda, flaechenAnteil);
+  nurGlaetten(lambda, flaechenAnteil, verlaufStaerke);
 }
 
 // ---------------------------------------------------------------------------
@@ -215,14 +217,14 @@ function farbenNeu(auftrag: Extract<AnWorker, { art: "farben" }>) {
     ),
   };
 
-  nurGlaetten(auftrag.lambda, auftrag.flaechenAnteil);
+  nurGlaetten(auftrag.lambda, auftrag.flaechenAnteil, auftrag.verlaufStaerke);
 }
 
 // ---------------------------------------------------------------------------
 // Nur die Glättung – das läuft bei jedem Zug am Schieberegler
 // ---------------------------------------------------------------------------
 
-function nurGlaetten(lambda: number, flaechenAnteil: number) {
+function nurGlaetten(lambda: number, flaechenAnteil: number, verlaufStaerke: number) {
   if (!stand) {
     melden({ art: "fehler", text: "arbeit.fehlerKeinMuster" });
     return;
@@ -231,8 +233,19 @@ function nurGlaetten(lambda: number, flaechenAnteil: number) {
   fortschritt("arbeit.glaetten", 0.85);
 
   const k = stand.paletteLab.length;
+
+  // Ganz links am Regler wird der Farbverlauf nachgeahmt. Das ändert nicht
+  // die Glättung, sondern schon den Ausgangspunkt: statt jedem Feld einfach
+  // sein nächstes Garn zu geben, wird der Fehler dieser Wahl an die Nachbarn
+  // weitergereicht (siehe `verlaufZuordnen`). Rund 15 ms beim größten
+  // Muster – der Regler bleibt also flüssig.
+  const start =
+    verlaufStaerke > 0
+      ? verlaufZuordnen(stand.tabelle, stand.breite, verlaufStaerke)
+      : stand.startRaster;
+
   const { raster, kennzahlen } = glaetten(
-    stand.startRaster,
+    start,
     stand.tabelle,
     stand.breite,
     lambda,

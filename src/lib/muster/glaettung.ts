@@ -250,6 +250,104 @@ export function ohneGlaettungZuordnen(liste: Abstandsliste): Uint16Array {
   return raster;
 }
 
+/**
+ * Zuordnung mit Fehlerdiffusion – „den Farbverlauf nachahmen".
+ * ---------------------------------------------------------------------------
+ *
+ * Mit 375 Garnen lässt sich ein Foto nicht treffen. Ein Waldboden, der
+ * zwischen zwei Grüntönen liegt, bekommt eines von beiden und wird damit
+ * flächig – und flächig ist genau das, was ein Foto nicht ist.
+ *
+ * Fehlerdiffusion nach Floyd-Steinberg macht es anders. Jedes Feld bekommt
+ * wie sonst das nächstliegende Garn, aber der Fehler dieser Wahl bleibt
+ * nicht liegen: er wird auf die vier noch nicht bearbeiteten Nachbarn
+ * verteilt (7/16 rechts, 3/16 links unten, 5/16 unten, 1/16 rechts unten).
+ * Wer zu hell geraten ist, macht seine Nachbarn dunkler. Über ein paar
+ * Stiche gleicht sich das aus, und aus zwei Garnen wird ein dritter Ton,
+ * den es gar nicht gibt.
+ *
+ * Bezahlt wird das mit Einzelstichen. Deshalb sitzt es am **linken** Ende
+ * des Detailreglers und verschwindet nach rechts hin von selbst: dort, wo
+ * die Nutzerin ruhige Flächen will, wäre es das Gegenteil.
+ *
+ * Gemessen an einer Waldvorlage (180 Stiche, 60 Farben). „Aus der
+ * Entfernung" heißt: beides über 3 × 3 gemittelt, so wie das Auge es aus
+ * einem Meter tut – denn darum geht es, nicht um den einzelnen Stich.
+ *
+ * | Stärke | Stich für Stich | aus der Entfernung | Sättigung |
+ * | -----: | --------------: | -----------------: | --------: |
+ * |    aus |       6,28 dE   |         5,01 dE    |   0,358   |
+ * |   50 % |       7,71 dE   |         4,09 dE    |   0,368   |
+ * |   80 % |       8,61 dE   |     **3,72 dE**    |   0,377   |
+ * |  100 % |      12,34 dE   |         5,69 dE    |   0,423   |
+ *
+ * Bei voller Stärke kippt es: der mitgeschleppte Fehler läuft weg, wenn die
+ * Palette an einer Stelle dünn ist, und dann steht plötzlich ein Garn da,
+ * das mit der Vorlage nichts mehr zu tun hat. Ein Deckel auf den Fehler
+ * hilft dagegen nicht (mit 8 dE gedeckelt: 4,04 dE, also schlechter als
+ * 80 % ohne Deckel). Deshalb `VERLAUF_MAX` – gedämpft statt gedeckelt.
+ */
+export function verlaufZuordnen(
+  liste: Abstandsliste,
+  breite: number,
+  staerke: number,
+): Uint16Array {
+  const felder = liste.quellLab.length / 3;
+  const hoehe = felder / breite;
+  const palette = liste.palette;
+
+  // Auf einer Kopie arbeiten, in die der Fehler eingerechnet wird.
+  const arbeit = Float32Array.from(liste.quellLab);
+  const raster = new Uint16Array(felder);
+
+  const streuen = (x: number, y: number, dL: number, da: number, db: number, anteil: number) => {
+    if (x < 0 || x >= breite || y < 0 || y >= hoehe) return;
+    const j = (y * breite + x) * 3;
+    arbeit[j] += dL * anteil;
+    arbeit[j + 1] += da * anteil;
+    arbeit[j + 2] += db * anteil;
+  };
+
+  for (let y = 0; y < hoehe; y++) {
+    for (let x = 0; x < breite; x++) {
+      const i = y * breite + x;
+      const j = i * 3;
+      const L = arbeit[j];
+      const a = arbeit[j + 1];
+      const b = arbeit[j + 2];
+
+      // Hier wird der geradlinige Lab-Abstand genommen und nicht CIEDE2000:
+      // gesucht ist die Farbe, die den Fehler am kleinsten macht, und der
+      // Fehler wird gleich als Vektor weitergereicht. Beides muss dasselbe
+      // Mass haben, sonst zeigt die Korrektur woanders hin als die Wahl.
+      let bester = 0;
+      let besterAbstand = Infinity;
+      for (let c = 0; c < palette.length; c++) {
+        const dL = L - palette[c].L;
+        const da = a - palette[c].a;
+        const db = b - palette[c].b;
+        const d = dL * dL + da * da + db * db;
+        if (d < besterAbstand) {
+          besterAbstand = d;
+          bester = c;
+        }
+      }
+      raster[i] = bester;
+
+      const dL = (L - palette[bester].L) * staerke;
+      const da = (a - palette[bester].a) * staerke;
+      const db = (b - palette[bester].b) * staerke;
+
+      streuen(x + 1, y, dL, da, db, 7 / 16);
+      streuen(x - 1, y + 1, dL, da, db, 3 / 16);
+      streuen(x, y + 1, dL, da, db, 5 / 16);
+      streuen(x + 1, y + 1, dL, da, db, 1 / 16);
+    }
+  }
+
+  return raster;
+}
+
 export type GlaettungsErgebnis = {
   raster: Uint16Array;
   kennzahlen: Kennzahlen;
