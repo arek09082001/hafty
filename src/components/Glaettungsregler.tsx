@@ -16,7 +16,7 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  * grob: zwischen „detailliert" und „ausgewogen" lag ein ganzes Muster
  * Unterschied, und dazwischen kam man nicht. Jetzt läuft er stufenlos von
  * ganz links – jedes Kästchen darf seine eigene Farbe haben – bis ganz
- * rechts, wo im Schnitt eine Farbe für 10 × 10 Kästchen steht.
+ * rechts, wo nur noch ein paar große Flächen übrig sind.
  *
  * In der Oberfläche taucht die Zahl dahinter nirgends auf, sie sagt der
  * Nutzerin nichts. Stattdessen steht dort die Stellung in ganzen Worten.

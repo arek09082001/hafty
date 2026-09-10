@@ -452,18 +452,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
    */
   const workerBereitFuer = useRef<string | null>(null);
 
-  /**
-   * Mit welchem Filterzustand der Worker seine Palette gerechnet hat.
-   *
-   * Ganz links am Detailregler fällt der Medianfilter weg (siehe
-   * `glaettungswerte`). Das ist keine Sache des letzten Schrittes mehr,
-   * sondern verlangt eine neue Palette – sonst zeigte der Regler zwar eine
-   * andere Stellung, das Muster bliebe aber das gefilterte. Deshalb wird hier
-   * mitgeschrieben, was der Worker hält, und beim Umschalten ab dem k-Means
-   * neu gerechnet.
-   */
-  const workerMedian = useRef<boolean>(glaettungswerte(STANDARD_EINSTELLUNGEN.glaettungsstaerke).median);
-
   // --- Worker ---------------------------------------------------------------
   const workerHolen = useCallback(() => {
     if (!worker.current) {
@@ -773,8 +761,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
           hoeheStiche,
           farbanzahl: einstellungen.farbanzahl,
           lambda: werte.lambda,
-          mindestFlaeche: werte.mindestFlaeche,
-          median: werte.median,
+          flaechenAnteil: werte.flaechenAnteil,
           garne,
         },
         [bitmap],
@@ -785,7 +772,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         return false;
       }
       workerBereitFuer.current = bild.kennung;
-      workerMedian.current = werte.median;
 
       // Handbearbeitungen aus einem früheren Durchlauf übernehmen, indem
       // ihre Farben auf die neue Palette umgeschrieben werden.
@@ -871,11 +857,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
           const nachzuholen =
             quelle !== null && jetzt !== null && workerBereitFuer.current !== quelle.kennung;
 
-          // Ein Wechsel am linken Anschlag des Detailreglers schaltet zwischen
-          // gefiltertem und rohem Raster um. Daran hängt die ganze Palette,
-          // also reicht der ICM-Lauf allein nicht mehr.
-          const farbenNeu = naechster.farbenNeu || werte.median !== workerMedian.current;
-
           let auftrag: AnWorker;
           let mitgeben: Transferable[] = [];
 
@@ -889,25 +870,23 @@ export function MusterProvider({ children }: { children: ReactNode }) {
               hoeheStiche: jetzt.hoehe,
               farbanzahl: naechster.farbanzahl,
               lambda: werte.lambda,
-              mindestFlaeche: werte.mindestFlaeche,
-              median: werte.median,
+              flaechenAnteil: werte.flaechenAnteil,
               garne,
             };
             mitgeben = [bitmap];
-          } else if (farbenNeu) {
+          } else if (naechster.farbenNeu) {
             auftrag = {
               art: "farben",
               farbanzahl: naechster.farbanzahl,
               lambda: werte.lambda,
-              mindestFlaeche: werte.mindestFlaeche,
-              median: werte.median,
+              flaechenAnteil: werte.flaechenAnteil,
               garne,
             };
           } else {
             auftrag = {
               art: "glaetten",
               lambda: werte.lambda,
-              mindestFlaeche: werte.mindestFlaeche,
+              flaechenAnteil: werte.flaechenAnteil,
             };
           }
 
@@ -917,7 +896,6 @@ export function MusterProvider({ children }: { children: ReactNode }) {
             setFehler(antwort.text);
           } else {
             if (nachzuholen && quelle) workerBereitFuer.current = quelle.kennung;
-            if (nachzuholen || farbenNeu) workerMedian.current = werte.median;
             ausloesen({ art: "geglaettet", antwort });
           }
 

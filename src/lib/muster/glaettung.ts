@@ -34,9 +34,11 @@
  * gesetzt. ICM lässt solche Felder stehen, wenn ihre Farbtreue die Strafe
  * gerade noch aufwiegt – gestickt werden will das trotzdem niemand.
  *
- * Nur ganz links am Regler bleibt auch dieser Durchgang aus: dort ist
+ * In der linken Hälfte des Reglers bleibt dieser Durchgang aus: dort ist
  * ausdrücklich das ungeglättete Bild gewollt, in dem jedes Kästchen seine
- * eigene Farbe haben darf.
+ * eigene Farbe haben darf. Wie viel davon übrig bleibt, entscheidet dort
+ * allein `lambda` – fein und in Stufen, während der Aufräumdurchgang alle
+ * Einzelstiche auf einmal nähme.
  */
 
 import { ciede2000 } from "@/lib/farbe/ciede2000";
@@ -260,7 +262,9 @@ export type GlaettungsErgebnis = {
  * @param liste     Abstandsliste aus `abstandslisteBauen`
  * @param breite    Rasterbreite
  * @param lambda    Gewicht der Nachbarschaftsstrafe
- * @param mindestGroesse  Flächen darunter werden anschließend aufgelöst
+ * @param flaechenAnteil  Wie viel vom Muster die Flächenauflösung schlucken
+ *                        darf, als Anteil aller Felder (0 = gar nichts).
+ *                        Siehe `mindestflaecheFinden`.
  * @param durchlaeufe  3 bis 5 – mehr bringt praktisch nichts mehr
  */
 export function glaetten(
@@ -268,7 +272,7 @@ export function glaetten(
   liste: Abstandsliste,
   breite: number,
   lambda: number,
-  mindestGroesse = 1,
+  flaechenAnteil = 0,
   durchlaeufe = 4,
 ): GlaettungsErgebnis {
   const raster = Uint16Array.from(start);
@@ -358,18 +362,75 @@ export function glaetten(
   }
 
   // --- Aufräumdurchgang -----------------------------------------------------
-  // Ganz links am Regler (lambda = 0, mindestFlaeche = 1) wird gar nichts
-  // aufgeräumt. Dort will die Nutzerin das Bild sehen, wie die Farbwahl es
-  // ergibt: jedes einzelne Kästchen darf seine eigene Farbe haben. Erst mit
-  // dem ersten Schritt nach rechts greifen die beiden Durchgänge.
-  if (lambda > 0 || mindestGroesse > 1) {
+  // Die linke Hälfte des Reglers lässt beide Durchgänge aus. Dort will die
+  // Nutzerin das Bild sehen, wie die Farbwahl es ergibt: jedes einzelne
+  // Kästchen darf seine eigene Farbe haben, und wie viel davon übrig bleibt,
+  // entscheidet allein `lambda`.
+  //
+  // Früher hing das auch an `lambda`, und schon der erste Schritt nach
+  // rechts riss deshalb alle Einzelstiche auf einmal heraus – ein Absturz
+  // gleich am Anfang des Weges. `aufraeumen` ist eine harte Ja/Nein-Regel
+  // und taugt nicht als Anfang einer Kurve. Es greift jetzt erst dort, wo
+  // die Flächenauflösung beginnt, und findet dann nichts mehr zu tun: bei
+  // dem `lambda`, das dort steht, hat das ICM den letzten Einzelstich
+  // schon getilgt. Genau deshalb ist die Stelle unsichtbar.
+  if (flaechenAnteil > 0) {
     // Erst die harte Regel für Felder ohne jeden gleichfarbigen Nachbarn …
     aufraeumen(raster, breite, k);
-    // … danach die gröberen Flecken, deren Größe am Schieberegler hängt.
-    kleineFlaechenAufloesen(raster, breite, mindestGroesse);
+    // … danach die gröberen Flecken. Wie groß „klein" ist, steht nicht im
+    // Regler, sondern wird am Muster selbst abgelesen.
+    const mindestGroesse = mindestflaecheFinden(raster, breite, flaechenAnteil);
+    if (mindestGroesse > 1) kleineFlaechenAufloesen(raster, breite, mindestGroesse);
   }
 
   return { raster, kennzahlen: kennzahlenBerechnen(raster, breite) };
+}
+
+/**
+ * Aus „so viel darf verschwinden" die Fläche machen, unter der aufgelöst wird.
+ * ---------------------------------------------------------------------------
+ *
+ * Der Regler gab früher direkt eine Zahl vor: „alles unter 200 Feldern wird
+ * aufgelöst". Das klingt greifbar und ist trotzdem unbrauchbar, weil 200
+ * Felder in jedem Muster etwas anderes bedeuten. Bei einem Foto mit vielen
+ * kleinen Flecken ist es ein großer Eingriff, bei einem mit wenigen großen
+ * Flächen findet es überhaupt nichts – und dann steht der halbe Regler still,
+ * ohne dass man ihm ansieht, warum. Genau das war zu sehen: zwischen den
+ * Stellungen 25 und 70 änderte sich buchstäblich kein einziges Feld.
+ *
+ * Also andersherum gefragt: **wie viel vom Muster** darf die Glättung
+ * schlucken? Dazu werden die vorhandenen Flächen der Größe nach aufgereiht
+ * und von unten aufsummiert, bis der erlaubte Anteil erreicht ist. Die
+ * Fläche, bei der Schluss ist, ist die Grenze.
+ *
+ * Damit heißt eine Reglerstellung in jedem Muster dasselbe – nicht „unter
+ * 200 Feldern", sondern „ungefähr ein Fünftel des Bildes darf zusammenfallen".
+ * Und weil das die Größe ist, die die Nutzerin am Muster auch sieht, sind die
+ * Schritte am Regler von links nach rechts ungefähr gleich groß.
+ */
+export function mindestflaecheFinden(
+  raster: Uint16Array,
+  breite: number,
+  anteil: number,
+): number {
+  if (anteil <= 0) return 1;
+  const { groessen } = flaechenFinden(raster, breite);
+  if (groessen.length === 0) return 1;
+
+  const sortiert = Int32Array.from(groessen).sort();
+  const ziel = raster.length * anteil;
+
+  let summe = 0;
+  for (let i = 0; i < sortiert.length; i++) {
+    // Die erste Fläche, die das Maß sprengt, ist die Grenze: alles echt
+    // darunter fällt weg, sie selbst bleibt stehen.
+    if (summe + sortiert[i] > ziel) return sortiert[i];
+    summe += sortiert[i];
+  }
+
+  // Selbst alle Flächen zusammen bleiben unter dem Maß – dann darf auch die
+  // größte fallen. Das ist die Stellung ganz rechts.
+  return sortiert[sortiert.length - 1] + 1;
 }
 
 /**
@@ -504,8 +565,8 @@ export function flaechenFinden(
  * Stiche zuverlässig weg, aber es kommt gegen einen zwei Felder breiten
  * Streifen nicht an – für jedes einzelne Feld dieses Streifens ist Bleiben
  * billiger als Wechseln, egal wie groß `lambda` wird. Messungen an
- * fotoartigen Vorlagen zeigen das deutlich: oberhalb von lambda ≈ 7 ändert
- * sich am Muster nichts mehr.
+ * fotoartigen Vorlagen zeigen das deutlich: oberhalb von lambda ≈ 0,5 ändert
+ * sich am Muster nichts mehr, auch bei 100 nicht.
  *
  * Deshalb dieser zweite, gröbere Durchgang: eine zusammenhängende Fläche,
  * die kleiner als `mindestGroesse` Stiche ist, wird komplett auf die Farbe
@@ -513,8 +574,18 @@ export function flaechenFinden(
  * obere Hälfte des Schiebereglers einen sichtbaren Unterschied und die
  * Beschriftung „ruhig und einfach zu sticken" hält, was sie verspricht.
  *
- * Der Durchgang wird wiederholt, weil aus zwei benachbarten kleinen Flächen
- * nach dem Auflösen eine größere werden kann, die dann stehen bleiben darf.
+ * Der Durchgang wird wiederholt, und die Grenze wächst dabei von Durchlauf
+ * zu Durchlauf bis zu `mindestGroesse` heran. Das ist wichtiger, als es
+ * aussieht: alle zu kleinen Flächen auf einmal aufzulösen geht schief,
+ * sobald die Grenze groß wird. Dann ist auf einmal fast alles „zu klein",
+ * jede Fläche sucht sich gleichzeitig einen Nachbarn, und zwei benachbarte
+ * Flächen wandern in verschiedene Richtungen. Gemessen kippte das Ergebnis
+ * genau dort: ab etwa der Hälfte des Musters stieg die Zahl der Flächen
+ * wieder an, statt weiter zu fallen – der Regler lief rückwärts.
+ *
+ * Von unten nach oben stimmt die Reihenfolge dagegen: erst gehen die
+ * kleinsten Flecken in ihren Nachbarn auf, und wenn die Grenze dann steigt,
+ * sind die Nachbarn wirklich größer geworden.
  */
 export function kleineFlaechenAufloesen(
   raster: Uint16Array,
@@ -527,6 +598,13 @@ export function kleineFlaechenAufloesen(
   let aufgeloest = 0;
 
   for (let durchlauf = 0; durchlauf < maxDurchlaeufe; durchlauf++) {
+    // Die Grenze dieses Durchlaufs: geometrisch bis zur eigentlichen hoch,
+    // im letzten Durchlauf ist sie es genau.
+    const grenze =
+      durchlauf === maxDurchlaeufe - 1
+        ? mindestGroesse
+        : Math.max(2, Math.round(mindestGroesse ** ((durchlauf + 1) / maxDurchlaeufe)));
+
     const { flaeche, groessen } = flaechenFinden(raster, breite);
 
     // Für jede zu kleine Fläche zählen, an welche Farbe sie am längsten
@@ -536,9 +614,9 @@ export function kleineFlaechenAufloesen(
     // Vielfaches an Speicher.
     const zuKlein = new Map<number, Map<number, number>>();
     for (let f = 0; f < groessen.length; f++) {
-      if (groessen[f] < mindestGroesse) zuKlein.set(f, new Map());
+      if (groessen[f] < grenze) zuKlein.set(f, new Map());
     }
-    if (zuKlein.size === 0) break;
+    if (zuKlein.size === 0) continue;
 
     for (let y = 0; y < hoehe; y++) {
       for (let x = 0; x < breite; x++) {
@@ -576,7 +654,9 @@ export function kleineFlaechenAufloesen(
       }
       if (beste >= 0) ersatz.set(f, beste);
     }
-    if (ersatz.size === 0) break;
+    // Nichts zu tun heißt hier nur „bei dieser Grenze nicht" – der nächste
+    // Durchlauf hat eine größere und findet vielleicht doch etwas.
+    if (ersatz.size === 0) continue;
 
     let geaendert = 0;
     for (let i = 0; i < raster.length; i++) {
@@ -587,7 +667,6 @@ export function kleineFlaechenAufloesen(
     }
 
     aufgeloest += geaendert;
-    if (geaendert === 0) break;
   }
 
   return aufgeloest;
