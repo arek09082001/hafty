@@ -11,9 +11,7 @@ export type AnWorker =
       hoeheStiche: number;
       farbanzahl: number;
       lambda: number;
-      mindestFlaeche: number;
-      /** Medianfilter vor der Farbreduktion – ganz links am Regler aus. */
-      median: boolean;
+      flaechenAnteil: number;
       garne: Garn[];
     }
   /**
@@ -24,17 +22,11 @@ export type AnWorker =
       art: "farben";
       farbanzahl: number;
       lambda: number;
-      mindestFlaeche: number;
-      /**
-       * Welches heruntergerechnete Raster gemeint ist: das gefilterte oder
-       * das rohe. Der Worker hält beide, ein Wechsel kostet deshalb nur das
-       * k-Means und nicht das Bild noch einmal.
-       */
-      median: boolean;
+      flaechenAnteil: number;
       garne: Garn[];
     }
   /** Nur die Glättung neu rechnen – die teure Vorarbeit bleibt im Worker. */
-  | { art: "glaetten"; lambda: number; mindestFlaeche: number };
+  | { art: "glaetten"; lambda: number; flaechenAnteil: number };
 
 export type VomWorker =
   /** `text` ist ein Textschlüssel; übersetzt wird erst in der Oberfläche. */

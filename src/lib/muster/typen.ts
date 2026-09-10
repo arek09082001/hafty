@@ -80,61 +80,74 @@ export const STANDARD_EINSTELLUNGEN: Einstellungen = {
  * Der Glättungsregler.
  * ---------------------------------------------------------------------------
  *
- * Früher waren das fünf Rastpunkte. Fünf Stellungen reichen aber nicht: die
- * Nutzerin möchte einmal jedes Kästchen einzeln haben und ein andermal
- * wirklich ruhige Flächen, und dazwischen jeden Zwischenschritt. Deshalb
- * läuft der Regler jetzt stufenlos von 0 bis 100, und aus seiner Stellung
- * werden die beiden Zahlen gerechnet, an denen die Glättung wirklich hängt:
+ * Der Regler läuft stufenlos von 0 bis 100, und aus seiner Stellung werden
+ * die beiden Zahlen gerechnet, an denen die Glättung hängt. Wie er gekrümmt
+ * ist, steht nicht nach Gefühl hier, sondern ist ausgemessen: an einem
+ * Muster mit 180 × 240 Stichen und 20 Farben wurde geschaut, wie viele
+ * Farbwechsel je Reihe übrig bleiben. Denn genau das ist es, was die
+ * Nutzerin sieht – ein Muster mit 18 Wechseln je Reihe ist ein Foto, eines
+ * mit 5 sind ruhige Flächen.
  *
- *  - `lambda` – das Gewicht der Nachbarschaftsstrafe im ICM
- *    (siehe glaettung.ts). Es wächst mit einer leichten Kurve, damit die
- *    ersten Millimeter am Regler nicht gleich das halbe Bild glattbügeln.
- *  - `mindestFlaeche` – die Größe, unterhalb derer ein zusammenhängender
- *    Fleck anschließend ganz aufgelöst wird. Sie wächst geometrisch von
- *    einem einzelnen Kästchen bis auf 100, also 10 × 10 Kästchen: ganz
- *    rechts bekommt die Nutzerin im Schnitt eine Farbe je 10 × 10 Feldern,
- *    ganz links darf jedes einzelne Feld die Farbe wechseln.
+ *  - `lambda` – das Gewicht der Nachbarschaftsstrafe im ICM (siehe
+ *    glaettung.ts). Es trägt die **linke** Spanne: 0 → 18,0 Wechsel je
+ *    Reihe, 0,1 → 12,5, 0,25 → 10,6, 0,5 → 10,1. Darüber ändert sich nichts
+ *    mehr, auch bei 100 nicht: das ICM wählt je Feld nur unter den Farben,
+ *    die in seiner Nachbarschaft schon vorkommen, und ist damit nach zwei
+ *    Durchläufen fertig. Deshalb endet die Kurve bei `LAMBDA_MAX`.
+ *  - `flaechenAnteil` – wie viel vom Muster die Flächenauflösung schlucken
+ *    darf. Er trägt die **rechte** Spanne, und zwar als einziger.
  *
- * `lambda` allein ist oberhalb von etwa 7 wirkungslos (siehe glaettung.ts);
- * die obere Hälfte des Reglers lebt deshalb von `mindestFlaeche`.
+ * Der Anteil stand hier früher als feste Feldzahl („alles unter 200 Feldern
+ * wird aufgelöst"). Das ist die anschaulichere Zahl und die unbrauchbarere:
+ * je nach Foto und Farbzahl fand sie alles oder nichts, und zwischen den
+ * Stellungen 25 und 70 änderte sich an einem Muster kein einziges Feld.
+ * Woran die Grenze stattdessen abgelesen wird, steht bei
+ * `mindestflaecheFinden` in glaettung.ts.
  *
- * Ganz links kommt ein Drittes dazu: dort fällt der **Medianfilter** weg.
- * Er sitzt vor der Farbreduktion und nimmt einzelne abweichende Felder
- * heraus (siehe pipeline.ts) – gut gemeint, aber genau das, was zwischen dem
- * Muster und den einzelnen Bildpunkten des Fotos steht. Wer den Regler ganz
- * nach links schiebt, will das Foto und nicht dessen geglättete Fassung;
- * dann bleibt jedes heruntergerechnete Feld so stehen, wie es aus dem Bild
- * herauskam.
+ * Der Medianfilter kommt hier nicht mehr vor. Er sitzt vor der
+ * Farbreduktion, hing also an der ganzen Palette – und war damit ein
+ * Absturz mitten im Regler: 31 % des Musters änderten sich in einem
+ * einzigen Schritt, während der ganze Rest des Weges 1 % brachte. Heute
+ * bekommt das k-Means weiterhin das gefilterte Raster (ruhigere Farben),
+ * die Zuordnung je Feld aber immer das rohe. Was der Filter früher grob
+ * wegnahm, nimmt jetzt `lambda` fein weg – und der Regler kommt ohne einen
+ * einzigen Sprung aus.
  */
 export const GLAETTUNG_MIN = 0;
 export const GLAETTUNG_MAX = 100;
 
-/** Ganz rechts: eine Farbe je 10 × 10 Kästchen. */
-export const GROESSTE_FLAECHE = 100;
+/**
+ * Bis hierher trägt `lambda` allein – danach beginnt die Flächenauflösung.
+ *
+ * Nicht willkürlich: bei 0,5 hat das ICM den letzten Einzelstich getilgt,
+ * und der Aufräumdurchgang, der rechts davon dazukommt, findet nichts mehr
+ * zu tun. Genau deshalb ist an dieser Stelle kein Übergang zu sehen.
+ */
+const LAMBDA_BIS = 20;
 
-/** Ganz rechts erreichtes Gewicht der Nachbarschaftsstrafe. */
-const LAMBDA_MAX = 8;
+/** Das Gewicht, ab dem mehr Strafe nichts mehr ändert. */
+const LAMBDA_MAX = 0.5;
 
 /**
- * Bis zu dieser Reglerstellung bleibt der Medianfilter aus.
+ * Wie viel vom Muster die Flächenauflösung ganz rechts schlucken darf.
  *
- * Es ist genau die Spanne, die „sehr detaillierter" heißt (siehe
- * STUFENNAMEN weiter unten): was der Regler dort verspricht, soll er auch
- * halten. Ab hier greift der Filter, und von da an geht es nur noch darum,
- * wie ruhig die Flächen werden.
+ * Ein Anteil und keine Feldzahl – warum, steht bei `mindestflaecheFinden`
+ * in glaettung.ts. Kurz: „alles unter 200 Feldern" bedeutet in jedem Muster
+ * etwas anderes und ließ den halben Regler still stehen, „drei Viertel des
+ * Bildes dürfen zusammenfallen" bedeutet überall dasselbe.
+ *
+ * Warum nicht mehr: darüber gibt es nichts mehr zu holen. Gemessen kommt
+ * die Auflösung bei rund 20 Flächen zum Stehen, egal wie weit man die
+ * Grenze noch treibt – und dafür änderte der letzte Schritt am Regler dann
+ * auf einmal ein Drittel des Musters, bei kleinen Mustern sogar mit einem
+ * schlechteren Ergebnis als der Schritt davor.
  */
-export const MEDIAN_AB = 8;
+const ANTEIL_MAX = 0.75;
 
 export type Glaettungswerte = {
   lambda: number;
-  mindestFlaeche: number;
-  /**
-   * Ob das heruntergerechnete Raster vor der Farbreduktion gefiltert wird.
-   * Kostet einen neuen Durchlauf ab dem k-Means, weil davon die ganze
-   * Palette abhängt – anders als `lambda` und `mindestFlaeche`, die nur den
-   * letzten Schritt betreffen.
-   */
-  median: boolean;
+  /** Anteil des Musters, den die Flächenauflösung schlucken darf (0..1). */
+  flaechenAnteil: number;
 };
 
 /** Eine Reglerstellung auf 0..100 begrenzen und auf ganze Schritte runden. */
@@ -146,24 +159,36 @@ export function glaettungBegrenzen(staerke: number): number {
 /** Aus der Reglerstellung die Rechenwerte der Glättung. */
 export function glaettungswerte(staerke: number): Glaettungswerte {
   const wert = glaettungBegrenzen(staerke);
-  const anteil = wert / GLAETTUNG_MAX;
-  return {
-    lambda: Math.round(LAMBDA_MAX * anteil ** 1.4 * 1000) / 1000,
-    mindestFlaeche: Math.max(1, Math.round(GROESSTE_FLAECHE ** anteil)),
-    median: wert >= MEDIAN_AB,
-  };
+
+  // Linke Spanne: nur lambda.
+  const lambda =
+    wert >= LAMBDA_BIS
+      ? LAMBDA_MAX
+      : Math.round(LAMBDA_MAX * (wert / LAMBDA_BIS) ** 1.5 * 1000) / 1000;
+
+  // Rechte Spanne: der Anteil wächst geradlinig. Er darf das, weil er in der
+  // Größe gemessen ist, die man am Muster auch sieht – anders als eine feste
+  // Feldzahl, die erst spät und dann auf einmal wirkte.
+  const anteil = Math.max(0, wert - LAMBDA_BIS) / (GLAETTUNG_MAX - LAMBDA_BIS);
+
+  return { lambda, flaechenAnteil: Math.round(ANTEIL_MAX * anteil * 1000) / 1000 };
 }
 
 /**
  * Die Beschriftung über dem Regler. Sie bleibt in ganzen Worten – eine Zahl
  * sagt der Nutzerin nichts – und wechselt an fünf Stellen der Skala.
+ *
+ * Die Stellen liegen gleichmäßig. Früher war die erste bei 8: dort saß der
+ * Sprung des Medianfilters, und die Beschriftung sollte ihn wenigstens
+ * ankündigen. Den Sprung gibt es nicht mehr, also gibt es auch keinen Grund
+ * für eine krumme Skala.
  */
 const STUFENNAMEN = [
   { ab: 0, titel: "glaettung.stufe0" },
-  { ab: 8, titel: "glaettung.stufe1" },
-  { ab: 28, titel: "glaettung.stufe2" },
-  { ab: 52, titel: "glaettung.stufe3" },
-  { ab: 78, titel: "glaettung.stufe4" },
+  { ab: 20, titel: "glaettung.stufe1" },
+  { ab: 40, titel: "glaettung.stufe2" },
+  { ab: 60, titel: "glaettung.stufe3" },
+  { ab: 80, titel: "glaettung.stufe4" },
 ] as const;
 
 export function glaettungTitel(staerke: number): (typeof STUFENNAMEN)[number]["titel"] {

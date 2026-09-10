@@ -154,6 +154,12 @@ export function herunterrechnen(
  * Für den Abstand reicht hier der quadrierte euklidische Lab-Abstand; es geht
  * nur um „welcher der neun Punkte liegt am zentralsten", nicht um einen
  * absoluten Farbunterschied.
+ *
+ * Wohin das Ergebnis geht: **nur ins k-Means**. Welche Garne gekauft werden,
+ * soll nicht an einzelnen Ausreißern hängen. Welche Farbe ein bestimmtes
+ * Feld bekommt, dagegen schon – die Zuordnung rechnet deshalb mit dem rohen
+ * Raster weiter (siehe muster.worker.ts). Früher lief beides über das
+ * gefilterte, und damit war das Foto schon vor dem Regler geglättet.
  */
 export function medianFilter(bild: Rasterbild): Rasterbild {
   const { breite, hoehe, lab } = bild;

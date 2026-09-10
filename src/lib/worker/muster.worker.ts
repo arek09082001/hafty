@@ -10,9 +10,10 @@
  * Zwischen zwei Aufträgen behält der Worker seine Zwischenergebnisse. Das ist
  * der Grund, warum sich die beiden Regler live anfühlen: Herunterrechnen,
  * Filtern, k-Means und die Abstandsliste laufen einmal, danach kostet eine
- * Änderung des Glättungsreglers nur noch die vier ICM-Durchläufe. Der
- * Farbregler setzt eine Stufe früher an – er rechnet ab dem k-Means neu, das
- * Bild wird auch dafür kein zweites Mal gelesen.
+ * Änderung des Detailreglers nur noch die vier ICM-Durchläufe und den
+ * Aufräumdurchgang – rund 40 ms auch beim größten Muster. Der Farbregler
+ * setzt eine Stufe früher an: er rechnet ab dem k-Means neu, das Bild wird
+ * auch dafür kein zweites Mal gelesen.
  */
 
 import {
@@ -45,17 +46,20 @@ type Zwischenstand = {
   /**
    * Das heruntergerechnete Raster in Lab – in beiden Fassungen.
    *
-   * `roh` ist, was aus dem Bild herauskam; `gefiltert` dasselbe, nachdem der
-   * Medianfilter einzelne Ausreißer herausgenommen hat. Beide bleiben
-   * liegen, damit sowohl der Farbregler als auch das linke Ende des
-   * Detailreglers ab dem k-Means neu rechnen können, ohne das Bild noch
-   * einmal zu lesen. Selbst beim größten Muster sind das zusammen keine
-   * 4 MB – gegen einen zweiten Durchlauf über das ganze Foto ist das nichts.
+   * Die beiden haben verschiedene Aufgaben, und deshalb liegen beide hier:
+   *
+   *  - `labGefiltert` (Medianfilter) geht ins **k-Means**. Einzelne
+   *    Ausreißer sollen keine eigene Garnfarbe bekommen; die Palette wird
+   *    ruhiger, wenn sie aus dem gefilterten Raster kommt.
+   *  - `labRoh` geht in die **Abstandsliste**, also in die Zuordnung Feld
+   *    für Feld. Was das Foto an dieser Stelle wirklich hatte, steht nur
+   *    hier – und ganz links am Regler will die Nutzerin genau das sehen.
+   *
+   * Nur `labRoh` wird bei einer neuen Farbzahl noch einmal gebraucht.
+   * Beide zusammen sind selbst beim größten Muster keine 4 MB.
    */
   labRoh: Float32Array;
   labGefiltert: Float32Array;
-  /** Mit welcher der beiden Fassungen die Palette gerade gerechnet ist. */
-  medianAn: boolean;
   /** Palettenfarben im Lab-Raum (nach dem Garnmapping). */
   paletteLab: Lab[];
   /** Die zugehörigen Garne, oder lauter null ohne Katalog. */
@@ -86,7 +90,7 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
     } else if (e.data.art === "farben") {
       farbenNeu(e.data);
     } else if (e.data.art === "glaetten") {
-      nurGlaetten(e.data.lambda, e.data.mindestFlaeche);
+      nurGlaetten(e.data.lambda, e.data.flaechenAnteil);
     }
   } catch (fehler) {
     // Die Nutzerin bekommt nie den technischen Text zu sehen, aber für die
@@ -103,36 +107,38 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
 /** Der Teil des Zwischenstands, der an der Palette hängt. */
 type Palettenstand = Pick<
   Zwischenstand,
-  "medianAn" | "paletteLab" | "garne" | "tabelle" | "startRaster" | "farbenVorher" | "garneZusammengelegt"
+  "paletteLab" | "garne" | "tabelle" | "startRaster" | "farbenVorher" | "garneZusammengelegt"
 >;
 
 /**
  * Palette und Abstandsliste bestimmen – alles ab dem k-Means.
  *
- * Das ist der Schritt, den beide Regler an ihren Enden brauchen: der
- * Farbregler, weil sich die Zahl der Cluster ändert, und der Detailregler am
- * linken Anschlag, weil er auf das ungefilterte Raster umschaltet. Das Bild
- * wird dafür nie noch einmal angefasst.
+ * Das braucht nur der Farbregler, weil sich dort die Zahl der Cluster
+ * ändert. Der Detailregler kommt nicht mehr hierher: er ändert weder
+ * Palette noch Abstandsliste und damit auch nicht die Garnliste unter der
+ * Hand der Nutzerin. Das Bild wird für beides nie noch einmal angefasst.
+ *
+ * Die beiden Raster gehen an verschiedene Stellen: das gefilterte ins
+ * k-Means, das rohe in die Abstandsliste (siehe `Zwischenstand`).
  */
 function paletteRechnen(
   breite: number,
   hoehe: number,
-  lab: Float32Array,
-  median: boolean,
+  labGefiltert: Float32Array,
+  labRoh: Float32Array,
   farbanzahl: number,
   garne: Garn[],
 ): Palettenstand {
   fortschritt("arbeit.farbenFassen", 0.4);
-  const cluster = kmeans({ breite, hoehe, lab }, farbanzahl);
+  const cluster = kmeans({ breite, hoehe, lab: labGefiltert }, farbanzahl);
 
   fortschritt("arbeit.garneSuchen", 0.6);
   const zuordnung = aufGarneAbbilden(cluster.zentren, garne);
 
   fortschritt("arbeit.vorbereiten", 0.7);
-  const tabelle = abstandslisteBauen(lab, zuordnung.farben);
+  const tabelle = abstandslisteBauen(labRoh, zuordnung.farben);
 
   return {
-    medianAn: median,
     paletteLab: zuordnung.farben,
     garne: zuordnung.garne,
     tabelle,
@@ -144,8 +150,7 @@ function paletteRechnen(
 }
 
 function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
-  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, mindestFlaeche, median, garne } =
-    auftrag;
+  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, flaechenAnteil, garne } = auftrag;
 
   // --- Schritt 1: Bild als ImageData ---------------------------------------
   fortschritt("arbeit.bildLesen", 0.05);
@@ -161,9 +166,8 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
   const roh: Rasterbild = herunterrechnen(quelle, breiteStiche, hoeheStiche);
 
   // --- Schritt 3: kantenerhaltender Filter ---------------------------------
-  // Beide Fassungen werden aufgehoben. Gerechnet wird gleich mit der, die der
-  // Regler meint; die andere kostet einmal Rechenzeit und erspart später
-  // einen vollen Durchlauf, wenn die Nutzerin ans linke Ende geht.
+  // Beide Fassungen werden aufgehoben: die gefilterte für das k-Means, die
+  // rohe für die Zuordnung Feld für Feld (siehe `Zwischenstand`).
   fortschritt("arbeit.rauschen", 0.3);
   const gefiltert = medianFilter(roh);
 
@@ -175,17 +179,10 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
     hoehe: roh.hoehe,
     labRoh: roh.lab,
     labGefiltert: gefiltert.lab,
-    ...paletteRechnen(
-      roh.breite,
-      roh.hoehe,
-      median ? gefiltert.lab : roh.lab,
-      median,
-      farbanzahl,
-      garne,
-    ),
+    ...paletteRechnen(roh.breite, roh.hoehe, gefiltert.lab, roh.lab, farbanzahl, garne),
   };
 
-  nurGlaetten(lambda, mindestFlaeche);
+  nurGlaetten(lambda, flaechenAnteil);
 }
 
 // ---------------------------------------------------------------------------
@@ -211,21 +208,21 @@ function farbenNeu(auftrag: Extract<AnWorker, { art: "farben" }>) {
     ...paletteRechnen(
       stand.breite,
       stand.hoehe,
-      auftrag.median ? stand.labGefiltert : stand.labRoh,
-      auftrag.median,
+      stand.labGefiltert,
+      stand.labRoh,
       auftrag.farbanzahl,
       auftrag.garne,
     ),
   };
 
-  nurGlaetten(auftrag.lambda, auftrag.mindestFlaeche);
+  nurGlaetten(auftrag.lambda, auftrag.flaechenAnteil);
 }
 
 // ---------------------------------------------------------------------------
 // Nur die Glättung – das läuft bei jedem Zug am Schieberegler
 // ---------------------------------------------------------------------------
 
-function nurGlaetten(lambda: number, mindestFlaeche: number) {
+function nurGlaetten(lambda: number, flaechenAnteil: number) {
   if (!stand) {
     melden({ art: "fehler", text: "arbeit.fehlerKeinMuster" });
     return;
@@ -239,7 +236,7 @@ function nurGlaetten(lambda: number, mindestFlaeche: number) {
     stand.tabelle,
     stand.breite,
     lambda,
-    mindestFlaeche,
+    flaechenAnteil,
   );
 
   // Nach der Glättung neu zählen: welche Farben kommen überhaupt noch vor?
