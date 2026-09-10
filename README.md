@@ -277,6 +277,46 @@ Die Zuordnung geht über den Dateinamen, ohne Rücksicht auf Groß- und
 Kleinschreibung. Das ist die Ordnung, die beim Benennen der Fotos ohnehin
 entsteht; eine zweite, die die App sich ausdenkt, bräuchte niemand.
 
+### Ein neues Foto lässt das alte Projekt los
+
+Damit ein Absturz nichts kostet, schreibt die App laufend einen
+**Arbeitsstand** mit und holt ihn beim Öffnen zurück. Genau das stand einem
+neuen Foto im Weg: Wer „Neues Bild aussuchen" tippte, fand in Schritt 1 das
+zuletzt bearbeitete Bild vor, und wer dann doch ein anderes aussuchte,
+bekam in Schritt 3 weiter das Muster des vorherigen Projekts zu sehen –
+bis er in Schritt 2 noch einmal auf „Muster erstellen" tippte. Es sah aus,
+als käme man von dem alten Projekt nicht los.
+
+Drei Stellen sorgen jetzt dafür, dass ein neues Foto wirklich ein neues
+Foto ist:
+
+- **„Neues Bild aussuchen" fängt leer an.** Der Knopf auf der Startseite
+  führt nach `/schritt/bild?neu=1`; Schritt 1 räumt daraufhin Bild, Muster
+  und Projektzuordnung aus der Anzeige. Gelöscht wird nichts – über „Meine
+  Muster" führt der Weg zu jedem Projekt zurück.
+- **Die Wahl der Nutzerin schlägt den Arbeitsstand.** Er kommt aus der
+  Datenbank und braucht dafür einen Augenblick. Trifft er ein, nachdem
+  inzwischen ein Foto ausgesucht wurde, wird er verworfen statt eingesetzt
+  (`eigeneWahl` in `MusterProvider.tsx`).
+- **Mit dem Bild geht das Muster.** `bildWaehlen` räumt das bisherige Muster
+  weg; was seit dem letzten Sichern von Hand gemalt wurde, wird vorher als
+  Stand gemerkt („Vor dem Bildwechsel gemerkt") und ist über „Alle
+  Versionen" wieder zu haben.
+
+### Schritt 3 rechnet ein fehlendes Muster selbst
+
+Wer ein Foto ausgesucht hat, will es sehen. Findet Schritt 3 ein Bild vor,
+zu dem noch kein Muster gehört, rechnet er es deshalb von selbst und zeigt
+so lange das Foto mit der Fortschrittsanzeige – statt eines fremden Musters
+oder der Meldung „Hier ist noch kein Muster". Verglichen wird dafür die
+Grundkennung des Bildes, also das Foto selbst: einen anderen **Ausschnitt**
+bestätigt die Nutzerin weiterhin in Schritt 2, sonst wären ihre von Hand
+gemalten Stiche schon beim versehentlichen Verschieben des Rahmens weg.
+
+Ein Arbeitsstand darf seither auch aus dem Bild allein bestehen (Maße
+0 × 0). Sonst stünde nach dem Neuladen der Seite wieder das vorherige
+Projekt da, obwohl gerade ein neues Foto ausgesucht wurde.
+
 ## Alle Versionen ansehen
 
 „Einmal habe ich mehr Farben genommen, einmal die Größe geändert – welches

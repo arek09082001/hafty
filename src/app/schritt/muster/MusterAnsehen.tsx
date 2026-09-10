@@ -10,6 +10,7 @@ import { Glaettungsregler } from "@/components/Glaettungsregler";
 import { Farbregler } from "@/components/Farbregler";
 import { Legende } from "@/components/Legende";
 import { Farbstreifen } from "@/components/Farbstreifen";
+import { Rechenfortschritt } from "@/components/Rechenfortschritt";
 import { Motivliste } from "@/components/Motivliste";
 import { Staendeleiste } from "@/components/Staendeleiste";
 import { Vergleich } from "@/components/Vergleich";
@@ -73,12 +74,15 @@ import { zusammenfuehren } from "@/lib/muster/raster";
 
 export function MusterAnsehen() {
   const {
+    bild,
     muster,
     raster,
     einstellungen,
     glaettungSetzen,
     farbanzahlSetzen,
+    erzeugen,
     laeuft,
+    fortschritt,
     felderAendern,
     rueckgaengig,
     wiederholen,
@@ -157,6 +161,41 @@ export function MusterAnsehen() {
   const [vergleichOffen, setVergleichOffen] = useState(false);
 
   const ansicht = useAnsicht(muster?.breite ?? 0, muster?.hoehe ?? 0);
+
+  /**
+   * Gehört das Muster, das gerade da ist, zu dem ausgesuchten Foto?
+   *
+   * Verglichen wird die **Grundkennung**, also das Foto selbst und nicht der
+   * Ausschnitt: einen anderen Ausschnitt bestätigt die Nutzerin weiterhin in
+   * Schritt 2 mit „Muster erstellen", sonst wären ihre von Hand gemalten
+   * Stiche schon beim versehentlichen Verschieben des Rahmens weg.
+   */
+  const ausDiesemBild =
+    bild === null || (muster !== null && muster.bildKennung.split(":")[0] === bild.basisKennung);
+
+  /**
+   * Ein neues Foto bringt sein Muster nicht mit – gerechnet wird es hier.
+   *
+   * Vorher stand in Schritt 3 nach einem Bildwechsel das Muster des
+   * vorherigen Projekts, bis jemand in Schritt 2 auf „Muster erstellen"
+   * tippte. Wer ein neues Foto aussucht, will es hier sehen und nicht das
+   * alte; also wird es gerechnet, sobald diese Seite es zu sehen bekommt.
+   */
+  const gerechnetFuer = useRef<string | null>(null);
+  /** Ist der Versuch schiefgegangen? Dann steht hier kein Wartetext mehr. */
+  const [rechnenGescheitert, setRechnenGescheitert] = useState(false);
+  useEffect(() => {
+    if (!bild || ausDiesemBild || laeuft) return;
+    // Ohne Garnkatalog käme ein Muster ohne Garnnamen heraus. Er liegt fest
+    // im Programm und ist im nächsten Augenblick da.
+    if (alleGarne.length === 0) return;
+    // Nur ein Anlauf je Foto: schlägt das Rechnen fehl, sagt die Meldung
+    // Bescheid – ein zweiter Versuch von selbst scheiterte genauso.
+    if (gerechnetFuer.current === bild.kennung) return;
+    gerechnetFuer.current = bild.kennung;
+    setRechnenGescheitert(false);
+    void erzeugen().then((geklappt) => setRechnenGescheitert(!geklappt));
+  }, [bild, ausDiesemBild, laeuft, alleGarne, erzeugen]);
 
   // Während eines Fingerzugs gesammelte Daten – nichts davon gehört in den
   // React-Zustand, weil es bei jedem Ereignis anfällt.
@@ -774,7 +813,36 @@ export function MusterAnsehen() {
 
   // ---------------------------------------------------------------------
 
-  if (!muster || !anzeigeRaster) {
+  if (!muster || !anzeigeRaster || !ausDiesemBild) {
+    /* Das Foto ist da, das Muster wird gerade daraus gerechnet. Zu sehen ist
+       hier das Foto selbst: es ist das, was die Nutzerin eben ausgesucht hat,
+       und sie sieht sofort, dass sie das richtige erwischt hat. */
+    if (bild && !rechnenGescheitert) {
+      return (
+        <Seite
+          titel={t("editor.titel")}
+          erklaerung={t("editor.wirdErstellt", { name: bild.name })}
+          fuss={
+            <KnopfLink art="neben" href="/schritt/einstellungen">
+              {t("editor.zurueckGroesse")}
+            </KnopfLink>
+          }
+        >
+          <div className="flex flex-col gap-6">
+            <Rechenfortschritt fortschritt={fortschritt} />
+            {/* Kein next/image: die Adresse ist eine Objekt-URL aus dem
+                Browser der Nutzerin. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={bild.vorschauUrl}
+              alt={bild.name}
+              className="mx-auto max-h-[45vh] max-w-full rounded-xl border border-linie"
+            />
+          </div>
+        </Seite>
+      );
+    }
+
     return (
       <Seite
         titel={t("editor.titel")}
