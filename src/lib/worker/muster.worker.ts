@@ -43,11 +43,19 @@ type Zwischenstand = {
   breite: number;
   hoehe: number;
   /**
-   * Das heruntergerechnete und gefilterte Raster in Lab. Es bleibt liegen,
-   * damit der Farbregler ein neues k-Means rechnen kann, ohne das Bild noch
-   * einmal zu lesen. Selbst beim größten Muster sind das keine 2 MB.
+   * Das heruntergerechnete Raster in Lab – in beiden Fassungen.
+   *
+   * `roh` ist, was aus dem Bild herauskam; `gefiltert` dasselbe, nachdem der
+   * Medianfilter einzelne Ausreißer herausgenommen hat. Beide bleiben
+   * liegen, damit sowohl der Farbregler als auch das linke Ende des
+   * Detailreglers ab dem k-Means neu rechnen können, ohne das Bild noch
+   * einmal zu lesen. Selbst beim größten Muster sind das zusammen keine
+   * 4 MB – gegen einen zweiten Durchlauf über das ganze Foto ist das nichts.
    */
-  lab: Float32Array;
+  labRoh: Float32Array;
+  labGefiltert: Float32Array;
+  /** Mit welcher der beiden Fassungen die Palette gerade gerechnet ist. */
+  medianAn: boolean;
   /** Palettenfarben im Lab-Raum (nach dem Garnmapping). */
   paletteLab: Lab[];
   /** Die zugehörigen Garne, oder lauter null ohne Katalog. */
@@ -92,8 +100,52 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
 // Der volle Lauf
 // ---------------------------------------------------------------------------
 
+/** Der Teil des Zwischenstands, der an der Palette hängt. */
+type Palettenstand = Pick<
+  Zwischenstand,
+  "medianAn" | "paletteLab" | "garne" | "tabelle" | "startRaster" | "farbenVorher" | "garneZusammengelegt"
+>;
+
+/**
+ * Palette und Abstandsliste bestimmen – alles ab dem k-Means.
+ *
+ * Das ist der Schritt, den beide Regler an ihren Enden brauchen: der
+ * Farbregler, weil sich die Zahl der Cluster ändert, und der Detailregler am
+ * linken Anschlag, weil er auf das ungefilterte Raster umschaltet. Das Bild
+ * wird dafür nie noch einmal angefasst.
+ */
+function paletteRechnen(
+  breite: number,
+  hoehe: number,
+  lab: Float32Array,
+  median: boolean,
+  farbanzahl: number,
+  garne: Garn[],
+): Palettenstand {
+  fortschritt("arbeit.farbenFassen", 0.4);
+  const cluster = kmeans({ breite, hoehe, lab }, farbanzahl);
+
+  fortschritt("arbeit.garneSuchen", 0.6);
+  const zuordnung = aufGarneAbbilden(cluster.zentren, garne);
+
+  fortschritt("arbeit.vorbereiten", 0.7);
+  const tabelle = abstandslisteBauen(lab, zuordnung.farben);
+
+  return {
+    medianAn: median,
+    paletteLab: zuordnung.farben,
+    garne: zuordnung.garne,
+    tabelle,
+    // Ausgangszuordnung: jedes Feld bekommt die farblich nächste Farbe.
+    startRaster: ohneGlaettungZuordnen(tabelle),
+    farbenVorher: cluster.k,
+    garneZusammengelegt: zuordnung.zusammengelegt,
+  };
+}
+
 function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
-  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, mindestFlaeche, garne } = auftrag;
+  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, mindestFlaeche, median, garne } =
+    auftrag;
 
   // --- Schritt 1: Bild als ImageData ---------------------------------------
   fortschritt("arbeit.bildLesen", 0.05);
@@ -106,39 +158,31 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
 
   // --- Schritt 2: auf das Stichraster herunterrechnen -----------------------
   fortschritt("arbeit.herunterrechnen", 0.15);
-  let raster: Rasterbild = herunterrechnen(quelle, breiteStiche, hoeheStiche);
+  const roh: Rasterbild = herunterrechnen(quelle, breiteStiche, hoeheStiche);
 
   // --- Schritt 3: kantenerhaltender Filter ---------------------------------
+  // Beide Fassungen werden aufgehoben. Gerechnet wird gleich mit der, die der
+  // Regler meint; die andere kostet einmal Rechenzeit und erspart später
+  // einen vollen Durchlauf, wenn die Nutzerin ans linke Ende geht.
   fortschritt("arbeit.rauschen", 0.3);
-  raster = medianFilter(raster);
+  const gefiltert = medianFilter(roh);
 
-  // --- Schritt 5: Farbreduktion --------------------------------------------
+  // --- Schritt 5 und 6: Farbreduktion und Garne ----------------------------
   // (Schritt 4, die Umrechnung nach CIELAB, ist beim Herunterrechnen schon
   //  passiert: das Raster liegt von Anfang an in Lab vor.)
-  fortschritt("arbeit.farbenFassen", 0.4);
-  const cluster = kmeans(raster, farbanzahl);
-
-  // --- Schritt 6: auf reale Garne abbilden ---------------------------------
-  fortschritt("arbeit.garneSuchen", 0.6);
-  const zuordnung = aufGarneAbbilden(cluster.zentren, garne);
-
-  // --- Abstandsliste: die Grundlage für alles Weitere -----------------------
-  fortschritt("arbeit.vorbereiten", 0.7);
-  const tabelle = abstandslisteBauen(raster.lab, zuordnung.farben);
-
-  // Ausgangszuordnung: jedes Feld bekommt die farblich nächste Palettenfarbe.
-  const startRaster = ohneGlaettungZuordnen(tabelle);
-
   stand = {
-    breite: raster.breite,
-    hoehe: raster.hoehe,
-    lab: raster.lab,
-    paletteLab: zuordnung.farben,
-    garne: zuordnung.garne,
-    tabelle,
-    startRaster,
-    farbenVorher: cluster.k,
-    garneZusammengelegt: zuordnung.zusammengelegt,
+    breite: roh.breite,
+    hoehe: roh.hoehe,
+    labRoh: roh.lab,
+    labGefiltert: gefiltert.lab,
+    ...paletteRechnen(
+      roh.breite,
+      roh.hoehe,
+      median ? gefiltert.lab : roh.lab,
+      median,
+      farbanzahl,
+      garne,
+    ),
   };
 
   nurGlaetten(lambda, mindestFlaeche);
@@ -162,26 +206,16 @@ function farbenNeu(auftrag: Extract<AnWorker, { art: "farben" }>) {
     return;
   }
 
-  fortschritt("arbeit.farbenFassen", 0.25);
-  const cluster = kmeans(
-    { breite: stand.breite, hoehe: stand.hoehe, lab: stand.lab },
-    auftrag.farbanzahl,
-  );
-
-  fortschritt("arbeit.garneSuchen", 0.5);
-  const zuordnung = aufGarneAbbilden(cluster.zentren, auftrag.garne);
-
-  fortschritt("arbeit.vorbereiten", 0.7);
-  const tabelle = abstandslisteBauen(stand.lab, zuordnung.farben);
-
   stand = {
     ...stand,
-    paletteLab: zuordnung.farben,
-    garne: zuordnung.garne,
-    tabelle,
-    startRaster: ohneGlaettungZuordnen(tabelle),
-    farbenVorher: cluster.k,
-    garneZusammengelegt: zuordnung.zusammengelegt,
+    ...paletteRechnen(
+      stand.breite,
+      stand.hoehe,
+      auftrag.median ? stand.labGefiltert : stand.labRoh,
+      auftrag.median,
+      auftrag.farbanzahl,
+      auftrag.garne,
+    ),
   };
 
   nurGlaetten(auftrag.lambda, auftrag.mindestFlaeche);
