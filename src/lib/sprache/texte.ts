@@ -349,6 +349,12 @@ export const DE = {
   "staende.nichtsVerloren":
     "Wenn Sie diesen Stand wiederherstellen, geht Ihre neuere Arbeit nicht verloren – sie bleibt als eigener Stand in dieser Leiste stehen.",
   "staende.dauerhaftMerken": "Diesen Stand dauerhaft merken",
+  "staende.loeschen": "Diesen Stand löschen",
+  "staende.loeschenTitel": "Diesen Stand wirklich löschen?",
+  "staende.loeschenText":
+    "Der Stand von {zeit} wird endgültig gelöscht. Ihre Arbeit auf dem Bildschirm bleibt, wie sie ist.",
+  "staende.fehlerLoeschen":
+    "Der Stand konnte nicht gelöscht werden. Bitte versuchen Sie es noch einmal.",
   "staende.nichtMehrMerken": "Nicht mehr merken",
   "staende.vorschauBeschriftung": "Vorschau des Standes von {zeit}",
   "staende.heute": "Heute, {uhr}",
@@ -805,6 +811,12 @@ export const PL: Record<Textschluessel, string> = {
   "staende.nichtsVerloren":
     "Przywrócenie tej wersji nie spowoduje utraty nowszej pracy – zostanie ona jako osobna wersja na tym pasku.",
   "staende.dauerhaftMerken": "Zapamiętaj tę wersję na stałe",
+  "staende.loeschen": "Usuń tę wersję",
+  "staende.loeschenTitel": "Na pewno usunąć tę wersję?",
+  "staende.loeschenText":
+    "Wersja z {zeit} zostanie trwale usunięta. Praca na ekranie pozostaje bez zmian.",
+  "staende.fehlerLoeschen":
+    "Nie udało się usunąć wersji. Proszę spróbować jeszcze raz.",
   "staende.nichtMehrMerken": "Już nie zapamiętuj",
   "staende.vorschauBeschriftung": "Podgląd wersji z: {zeit}",
   "staende.heute": "Dzisiaj, {uhr}",

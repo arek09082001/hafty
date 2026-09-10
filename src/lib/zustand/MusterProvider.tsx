@@ -359,6 +359,16 @@ export function MusterProvider({ children }: { children: ReactNode }) {
 
   const worker = useRef<Worker | null>(null);
   const wartend = useRef<((w: AntwortVomWorker) => void) | null>(null);
+  /**
+   * Hält der Worker gerade den Zwischenstand zu dem Muster auf dem Schirm?
+   *
+   * Der Regler schickt nur „glätte neu" und rechnet im Worker aus dessen
+   * Zwischenstand weiter – das ist schnell, aber dieser Stand lebt allein im
+   * Arbeitsspeicher des Workers. Nach dem Neuladen der Seite kommt das Muster
+   * aus der Datenbank zurück, der Zwischenstand nicht. Dann muss der volle
+   * Lauf aus dem Bild her, sonst bewegt der Regler nichts.
+   */
+  const workerHatStand = useRef(false);
   // `erzeugen` sichert den neuen Stand mit, darf aber nicht von `sichern`
   // abhängen – sonst würde sich jede Sicherung selbst neu erzeugen lassen.
   const sichernRef = useRef<
@@ -370,6 +380,10 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   // --- Worker ---------------------------------------------------------------
   const workerHolen = useCallback(() => {
     if (!worker.current) {
+      // Ein frischer Worker weiß von nichts. Das ist der Normalfall nach dem
+      // Neuladen der Seite: das Muster kommt aus der Datenbank zurück, der
+      // Zwischenstand im Worker aber nicht – er lebt nur im Arbeitsspeicher.
+      workerHatStand.current = false;
       worker.current = new Worker(new URL("../worker/muster.worker.ts", import.meta.url), {
         type: "module",
       });
@@ -387,9 +401,11 @@ export function MusterProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const eigen = worker;
+    const hatStand = workerHatStand;
     return () => {
       eigen.current?.terminate();
       eigen.current = null;
+      hatStand.current = false;
     };
   }, []);
 
@@ -560,97 +576,124 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // --- Der volle Durchlauf --------------------------------------------------
-  const erzeugen = useCallback(async () => {
-    if (!bild) {
-      setFehler("arbeit.fehlerKeinBild");
-      return false;
-    }
-
-    setFehler(null);
-    setLaeuft(true);
-    setFortschritt({ text: "arbeit.bildLesen", anteil: 0.02 });
-
-    try {
-      // createImageBitmap kann direkt einen Ausschnitt lesen – ohne das Bild
-      // vorher über eine Leinwand neu zu zeichnen und dabei zu verlieren.
-      const a = bild.ausschnitt;
-      const bitmap = await createImageBitmap(bild.blob, a.x, a.y, a.breite, a.hoehe);
-
-      const breiteStiche = Math.round(einstellungen.breiteStiche);
-      let hoeheStiche = Math.max(1, Math.round((breiteStiche * bitmap.height) / bitmap.width));
-
-      // Sicherheitsnetz gegen Muster, die den Speicher sprengen würden.
-      if (breiteStiche * hoeheStiche > MAX_FELDER) {
-        hoeheStiche = Math.max(1, Math.floor(MAX_FELDER / breiteStiche));
-      }
-
-      const werte = glaettungswerte(einstellungen.glaettungsstaerke);
-
-      const antwort = await anWorkerSenden(
-        workerHolen(),
-        wartend,
-        {
-          art: "erzeugen",
-          bild: bitmap,
-          breiteStiche,
-          hoeheStiche,
-          farbanzahl: einstellungen.farbanzahl,
-          lambda: werte.lambda,
-          mindestFlaeche: werte.mindestFlaeche,
-          garne,
-        },
-        [bitmap],
-      );
-
-      if (antwort.art === "fehler") {
-        setFehler(antwort.text);
+  /**
+   * Der volle Durchlauf Bild -> Muster.
+   *
+   * Nimmt die Glättungsstärke ausdrücklich entgegen, weil ihn auch der Regler
+   * aufruft: dessen frisch gesetzter Wert steht im Zustand noch nicht.
+   * `sichern` sagt, ob daraus ein gespeicherter Stand werden soll – beim
+   * Regler nicht, der schiebt oft und soll die Ständeleiste nicht zumüllen.
+   *
+   * Die Laufanzeige setzt der Aufrufer. Sonst schaltete ein verketteter Lauf
+   * sie mittendrin wieder aus, und die Nutzerin sähe ein Flackern statt einer
+   * durchgehenden Arbeit.
+   */
+  const vollerLauf = useCallback(
+    async (staerke: number, sichern: boolean): Promise<boolean> => {
+      if (!bild) {
+        setFehler("arbeit.fehlerKeinBild");
         return false;
       }
 
-      // Handbearbeitungen aus einem früheren Durchlauf übernehmen, indem
-      // ihre Farben auf die neue Palette umgeschrieben werden.
-      //
-      // Nur, wenn dasselbe Bild zugrunde liegt und das Raster gleich groß
-      // geblieben ist: bei einem anderen Bild lägen die alten Stiche an
-      // willkürlichen Stellen und die Nutzerin müsste sie mühsam suchen.
-      const passt =
-        muster !== null &&
-        muster.bildKennung === bild.kennung &&
-        muster.breite === antwort.breite &&
-        muster.hoehe === antwort.hoehe;
-      const bearbeitung = passt
-        ? bearbeitungUmschreiben(muster.bearbeitung, muster.palette, antwort.palette)
-        : new Int16Array(antwort.raster.length).fill(-1);
+      setFehler(null);
 
-      const neu: Muster = {
-        breite: antwort.breite,
-        hoehe: antwort.hoehe,
-        basis: antwort.raster,
-        bearbeitung,
-        palette: antwort.palette,
-        kennzahlen: antwort.kennzahlen,
-        farbenVorher: antwort.farbenVorher,
-        farbenNachher: antwort.farbenNachher,
-        garneZusammengelegt: antwort.garneZusammengelegt,
-        bildKennung: bild.kennung,
-      };
-      ausloesen({ art: "erzeugt", muster: neu });
+      try {
+        // createImageBitmap kann direkt einen Ausschnitt lesen – ohne das Bild
+        // vorher über eine Leinwand neu zu zeichnen und dabei zu verlieren.
+        const a = bild.ausschnitt;
+        const bitmap = await createImageBitmap(bild.blob, a.x, a.y, a.breite, a.hoehe);
 
-      // Ein großer Schritt – der Stand wird von selbst gesichert.
-      void sichernRef.current?.(
-        neu,
-        passt ? "staende.farbanzahlGeaendert" : "staende.neuErzeugt",
-        false,
-      );
-      return true;
-    } catch {
-      setFehler("arbeit.fehlerBildLesen");
-      return false;
+        const breiteStiche = Math.round(einstellungen.breiteStiche);
+        let hoeheStiche = Math.max(1, Math.round((breiteStiche * bitmap.height) / bitmap.width));
+
+        // Sicherheitsnetz gegen Muster, die den Speicher sprengen würden.
+        if (breiteStiche * hoeheStiche > MAX_FELDER) {
+          hoeheStiche = Math.max(1, Math.floor(MAX_FELDER / breiteStiche));
+        }
+
+        const werte = glaettungswerte(staerke);
+
+        const antwort = await anWorkerSenden(
+          workerHolen(),
+          wartend,
+          {
+            art: "erzeugen",
+            bild: bitmap,
+            breiteStiche,
+            hoeheStiche,
+            farbanzahl: einstellungen.farbanzahl,
+            lambda: werte.lambda,
+            mindestFlaeche: werte.mindestFlaeche,
+            garne,
+          },
+          [bitmap],
+        );
+
+        if (antwort.art === "fehler") {
+          setFehler(antwort.text);
+          return false;
+        }
+
+        // Ab jetzt kennt der Worker das Muster wieder; der Regler darf den
+        // kurzen Weg nehmen.
+        workerHatStand.current = true;
+
+        // Handbearbeitungen aus einem früheren Durchlauf übernehmen, indem
+        // ihre Farben auf die neue Palette umgeschrieben werden.
+        //
+        // Nur, wenn dasselbe Bild zugrunde liegt und das Raster gleich groß
+        // geblieben ist: bei einem anderen Bild lägen die alten Stiche an
+        // willkürlichen Stellen und die Nutzerin müsste sie mühsam suchen.
+        const passt =
+          muster !== null &&
+          muster.bildKennung === bild.kennung &&
+          muster.breite === antwort.breite &&
+          muster.hoehe === antwort.hoehe;
+        const bearbeitung = passt
+          ? bearbeitungUmschreiben(muster.bearbeitung, muster.palette, antwort.palette)
+          : new Int16Array(antwort.raster.length).fill(-1);
+
+        const neu: Muster = {
+          breite: antwort.breite,
+          hoehe: antwort.hoehe,
+          basis: antwort.raster,
+          bearbeitung,
+          palette: antwort.palette,
+          kennzahlen: antwort.kennzahlen,
+          farbenVorher: antwort.farbenVorher,
+          farbenNachher: antwort.farbenNachher,
+          garneZusammengelegt: antwort.garneZusammengelegt,
+          bildKennung: bild.kennung,
+        };
+        ausloesen({ art: "erzeugt", muster: neu });
+
+        // Ein großer Schritt – der Stand wird von selbst gesichert.
+        if (sichern) {
+          void sichernRef.current?.(
+            neu,
+            passt ? "staende.farbanzahlGeaendert" : "staende.neuErzeugt",
+            false,
+          );
+        }
+        return true;
+      } catch {
+        setFehler("arbeit.fehlerBildLesen");
+        return false;
+      }
+    },
+    [bild, einstellungen, garne, muster, workerHolen],
+  );
+
+  const erzeugen = useCallback(async () => {
+    setLaeuft(true);
+    setFortschritt({ text: "arbeit.bildLesen", anteil: 0.02 });
+    try {
+      return await vollerLauf(einstellungen.glaettungsstaerke, true);
     } finally {
       setLaeuft(false);
       setFortschritt(null);
     }
-  }, [bild, einstellungen, garne, muster, workerHolen]);
+  }, [vollerLauf, einstellungen.glaettungsstaerke]);
 
   // --- Nur die Glättung -----------------------------------------------------
   /**
@@ -678,17 +721,28 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       try {
         let naechste: number | null = staerke;
         while (naechste !== null) {
-          const werte = glaettungswerte(naechste);
-          const antwort = await anWorkerSenden(workerHolen(), wartend, {
-            art: "glaetten",
-            lambda: werte.lambda,
-            mindestFlaeche: werte.mindestFlaeche,
-          });
+          if (workerHatStand.current) {
+            const werte = glaettungswerte(naechste);
+            const antwort = await anWorkerSenden(workerHolen(), wartend, {
+              art: "glaetten",
+              lambda: werte.lambda,
+              mindestFlaeche: werte.mindestFlaeche,
+            });
 
-          if (antwort.art === "fehler") {
-            setFehler(antwort.text);
+            if (antwort.art === "fehler") {
+              setFehler(antwort.text);
+            } else {
+              ausloesen({ art: "geglaettet", antwort });
+            }
           } else {
-            ausloesen({ art: "geglaettet", antwort });
+            // Der Worker kennt das Muster nicht mehr – nach dem Neuladen der
+            // Seite ist das der Normalfall. Dann wird es aus dem Bild neu
+            // gerechnet, das die Datenbank aufbewahrt hat. Das dauert einmal
+            // länger; danach geht der Regler wieder den kurzen Weg.
+            //
+            // Ohne das bewegte der Regler gar nichts und meldete stattdessen,
+            // es sei kein Muster da – während eines auf dem Schirm stand.
+            await vollerLauf(naechste, false);
           }
 
           naechste = glaettungOffen.current;
@@ -700,7 +754,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         setFortschritt(null);
       }
     },
-    [workerHolen],
+    [workerHolen, vollerLauf],
   );
 
   const glaettungSetzen = useCallback(

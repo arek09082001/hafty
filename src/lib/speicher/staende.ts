@@ -204,6 +204,41 @@ export async function standMerken(standId: string, gemerkt: boolean): Promise<bo
 }
 
 /**
+ * Einen Stand von Hand löschen.
+ *
+ * Anders als beim Aufräumen fällt hier auch ein gemerkter Stand weg und
+ * einer, an dem weitere hängen: die Nutzerin hat es ausdrücklich verlangt,
+ * und ein Löschknopf, der manchmal nicht löscht, wäre schlimmer als keiner.
+ *
+ * Damit der Baum nicht auseinanderreißt, erben die Kinder den Elternteil des
+ * gelöschten Standes – so bleibt die Kette lückenlos, nur eben eine Stufe
+ * kürzer.
+ */
+export async function standLoeschen(standId: string): Promise<boolean> {
+  try {
+    const db = await browserdatenbank();
+    const satz = (await db.get(LADEN_STAENDE, standId)) as Abgelegt | undefined;
+    if (!satz) return false;
+
+    const geschwister = (await db.getAllFromIndex(
+      LADEN_STAENDE,
+      "musterId",
+      satz.musterId,
+    )) as Abgelegt[];
+    for (const kind of geschwister) {
+      if (kind.elternId === standId) {
+        await db.put(LADEN_STAENDE, { ...kind, elternId: satz.elternId });
+      }
+    }
+
+    await db.delete(LADEN_STAENDE, standId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Aufräumen: die letzten 20 automatischen Stände bleiben, gemerkte Stände
  * werden nie gelöscht. Auch ein Stand, an dem ein anderer als Elternteil
  * hängt, bleibt stehen – sonst risse der Baum auseinander.
