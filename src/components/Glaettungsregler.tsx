@@ -32,10 +32,24 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  * geht erst kurz nach dem letzten Zug hinaus. Der Regler selbst bleibt dabei
  * immer bedienbar – ihn währenddessen zu sperren risse die Nutzerin mitten
  * aus der Bewegung.
+ *
+ * Darunter steht, ob das Muster daneben schon zur Reglerstellung gehört.
+ * Vorher stand dort nichts: wer den Regler schob und eine halbe Sekunde lang
+ * dasselbe Bild sah, konnte nicht wissen, ob gerechnet wird oder ob der
+ * Regler kaputt ist. Die Zeile ist **immer** da und wechselt nur ihren Text –
+ * ein Kasten, der auftaucht und verschwindet, schöbe den Regler unter dem
+ * Finger weg.
+ *
+ * Sie erscheint mit einer kleinen Verzögerung. Ein Zug am Regler kostet oft
+ * nur zehn Millisekunden; ohne die Verzögerung blitzte „wird gerechnet" bei
+ * jedem Zug kurz auf und wäre nur Unruhe.
  */
 
 /** So lange nach dem letzten Zug wird gewartet, bevor gerechnet wird. */
 const VERZOEGERUNG = 120;
+
+/** So lange muss gerechnet werden, bevor es überhaupt angezeigt wird. */
+const ANZEIGE_AB = 200;
 
 export function Glaettungsregler({
   staerke,
@@ -80,6 +94,15 @@ export function Glaettungsregler({
   /** Solange gerechnet wird, gehört das Muster daneben noch zur alten Stellung. */
   const wartet = laeuft || gezeigt !== staerke;
 
+  // Erst nach `ANZEIGE_AB` wird das Warten überhaupt gezeigt; weg darf es
+  // sofort. Beides über dieselbe Uhr, damit ein Zug, der schneller fertig ist
+  // als die Verzögerung, gar nichts aufblitzen lässt.
+  const [zeigen, setZeigen] = useState(false);
+  useEffect(() => {
+    const uhr = setTimeout(() => setZeigen(wartet), wartet ? ANZEIGE_AB : 0);
+    return () => clearTimeout(uhr);
+  }, [wartet]);
+
   return (
     <div className="flex flex-col gap-3">
       {/* Zwei Zeilen sind fest reserviert. Die Stufennamen sind verschieden
@@ -114,6 +137,19 @@ export function Glaettungsregler({
       <div className="flex items-start justify-between gap-4 text-[0.95rem] text-gedaempft">
         <span className="basis-0 grow">{t("glaettung.stufe0")}</span>
         <span className="basis-0 grow text-right">{t("glaettung.stufe4")}</span>
+      </div>
+
+      {/* Der Stand. Fester Platz, wechselnder Text – siehe oben. */}
+      <div aria-live="polite" className="flex min-h-[1.6rem] items-center gap-2">
+        <span
+          aria-hidden
+          className={`h-3 w-3 shrink-0 rounded-full ${
+            zeigen ? "animate-pulse bg-hauptaktion" : "bg-transparent"
+          }`}
+        />
+        <span className={`text-[0.95rem] ${zeigen ? "text-hauptaktion" : "text-gedaempft"}`}>
+          {zeigen ? t("glaettung.rechnet") : t("glaettung.fertig")}
+        </span>
       </div>
     </div>
   );

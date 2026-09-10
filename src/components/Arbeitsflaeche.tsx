@@ -194,6 +194,7 @@ export function Arbeitsflaeche({
   hoehe,
   raster,
   palette,
+  mitLinien = true,
   mitSymbolen = false,
   auswahl,
   vorschau,
@@ -208,6 +209,9 @@ export function Arbeitsflaeche({
   hoehe: number;
   raster: Uint16Array;
   palette: PalettenEintrag[];
+  /** Das Stichgitter über dem Muster – zum Abzählen unentbehrlich, beim
+      Betrachten im Weg. Deshalb abschaltbar (siehe MusterAnsehen). */
+  mitLinien?: boolean;
   mitSymbolen?: boolean;
   auswahl?: Uint8Array | null;
   vorschau?: Einfuegevorschau | null;
@@ -333,12 +337,13 @@ export function Arbeitsflaeche({
       versatzY: y,
       sichtBreite: sicht.w,
       sichtHoehe: sicht.h,
+      mitLinien,
       mitSymbolen,
       auswahl,
       vorschau,
       mitBlatt: true,
     });
-  }, [breite, hoehe, raster, tabelle, zoom, x, y, sicht, mitSymbolen, auswahl, vorschau]);
+  }, [breite, hoehe, raster, tabelle, zoom, x, y, sicht, mitLinien, mitSymbolen, auswahl, vorschau]);
 
   // --- Zeigerbehandlung -----------------------------------------------------
   const zeiger = useRef(new Map<number, { x: number; y: number }>());

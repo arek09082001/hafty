@@ -80,6 +80,8 @@ export const DE = {
   "einst.zurueckBildAussuchen": "Zurück zum Bild aussuchen",
   "einst.musterErstellen": "Muster erstellen",
   "einst.wirdBerechnet": "Das Muster wird berechnet …",
+  "glaettung.rechnet": "Das Muster wird gerade neu gerechnet …",
+  "glaettung.fertig": "Das Muster passt zum Regler.",
   "einst.breite": "Breite des Musters",
   "einst.breiteHinweis":
     "Wie viele Kreuze soll das Muster in der Breite haben? Die Höhe ergibt sich aus dem Bild von selbst.",
@@ -129,6 +131,8 @@ export const DE = {
   "editor.allesZeigen": "Alles zeigen",
   "editor.symboleAn": "Symbole an",
   "editor.symboleAus": "Symbole aus",
+  "editor.gitterAn": "Gitter an",
+  "editor.gitterAus": "Gitter aus",
   "editor.einSchrittZurueck": "Ein Schritt zurück",
   "editor.rueckgaengig": "Rückgängig",
   "editor.wiederholen": "Wiederholen",
@@ -283,9 +287,6 @@ export const DE = {
   "glaettung.stufe3": "ruhig",
   "glaettung.stufe4": "ruhig und einfach zu sticken",
 
-  // --- Der Farbregler im Editor --------------------------------------------
-  "farben.frage": "Wie viele Farben soll das Muster haben?",
-  "farben.gewuenscht": "{anzahl} Farben",
 
   // --- Legende ------------------------------------------------------------
   // --- Farben in Worten ----------------------------------------------------
@@ -614,6 +615,8 @@ export const PL: Record<Textschluessel, string> = {
   "einst.zurueckBildAussuchen": "Wróć do wyboru zdjęcia",
   "einst.musterErstellen": "Utwórz wzór",
   "einst.wirdBerechnet": "Wzór jest obliczany …",
+  "glaettung.rechnet": "Wzór jest właśnie przeliczany …",
+  "glaettung.fertig": "Wzór odpowiada suwakowi.",
   "einst.breite": "Szerokość wzoru",
   "einst.breiteHinweis":
     "Ile krzyżyków ma mieć wzór na szerokość? Wysokość wynika sama ze zdjęcia.",
@@ -662,6 +665,8 @@ export const PL: Record<Textschluessel, string> = {
   "editor.allesZeigen": "Pokaż całość",
   "editor.symboleAn": "Symbole wł.",
   "editor.symboleAus": "Symbole wył.",
+  "editor.gitterAn": "Kratka wł.",
+  "editor.gitterAus": "Kratka wył.",
   "editor.einSchrittZurueck": "Krok wstecz",
   "editor.rueckgaengig": "Cofnij",
   "editor.wiederholen": "Ponów",
@@ -805,8 +810,6 @@ export const PL: Record<Textschluessel, string> = {
   "glaettung.stufe3": "spokojny",
   "glaettung.stufe4": "spokojny i łatwy do haftowania",
 
-  "farben.frage": "Ile kolorów ma mieć wzór?",
-  "farben.gewuenscht": "kolorów: {anzahl}",
 
   // --- Farben in Worten ----------------------------------------------------
   // Im Polnischen steht die Stufe vor dem Farbwort und beide sind

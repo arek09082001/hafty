@@ -10,10 +10,9 @@
  * Zwischen zwei Aufträgen behält der Worker seine Zwischenergebnisse. Das ist
  * der Grund, warum sich die beiden Regler live anfühlen: Herunterrechnen,
  * Filtern, k-Means und die Abstandsliste laufen einmal, danach kostet eine
- * Änderung des Detailreglers nur noch die vier ICM-Durchläufe und den
- * Aufräumdurchgang – rund 40 ms auch beim größten Muster. Der Farbregler
- * setzt eine Stufe früher an: er rechnet ab dem k-Means neu, das Bild wird
- * auch dafür kein zweites Mal gelesen.
+ * Änderung des Detailreglers nur noch die Fehlerdiffusion, die vier
+ * ICM-Durchläufe und den Aufräumdurchgang – zehn bis hundertfünfzig
+ * Millisekunden auch beim größten Muster.
  */
 
 import {
@@ -27,6 +26,7 @@ import {
 import {
   abstandslisteBauen,
   glaetten,
+  verlaufZuordnen,
   ohneGlaettungZuordnen,
   paletteNeuZaehlen,
   type Abstandsliste,
@@ -87,10 +87,8 @@ eigen.addEventListener("message", (e: MessageEvent<AnWorker>) => {
   try {
     if (e.data.art === "erzeugen") {
       erzeugen(e.data);
-    } else if (e.data.art === "farben") {
-      farbenNeu(e.data);
     } else if (e.data.art === "glaetten") {
-      nurGlaetten(e.data.lambda, e.data.flaechenAnteil);
+      nurGlaetten(e.data.lambda, e.data.flaechenAnteil, e.data.verlaufStaerke);
     }
   } catch (fehler) {
     // Die Nutzerin bekommt nie den technischen Text zu sehen, aber für die
@@ -113,10 +111,9 @@ type Palettenstand = Pick<
 /**
  * Palette und Abstandsliste bestimmen – alles ab dem k-Means.
  *
- * Das braucht nur der Farbregler, weil sich dort die Zahl der Cluster
- * ändert. Der Detailregler kommt nicht mehr hierher: er ändert weder
- * Palette noch Abstandsliste und damit auch nicht die Garnliste unter der
- * Hand der Nutzerin. Das Bild wird für beides nie noch einmal angefasst.
+ * Das braucht nur der volle Lauf. Der Detailregler kommt nicht hierher: er
+ * ändert weder Palette noch Abstandsliste und damit auch nicht die Garnliste
+ * unter der Hand der Nutzerin.
  *
  * Die beiden Raster gehen an verschiedene Stellen: das gefilterte ins
  * k-Means, das rohe in die Abstandsliste (siehe `Zwischenstand`).
@@ -150,7 +147,8 @@ function paletteRechnen(
 }
 
 function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
-  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, flaechenAnteil, garne } = auftrag;
+  const { bild, breiteStiche, hoeheStiche, farbanzahl, lambda, flaechenAnteil, verlaufStaerke, garne } =
+    auftrag;
 
   // --- Schritt 1: Bild als ImageData ---------------------------------------
   fortschritt("arbeit.bildLesen", 0.05);
@@ -182,47 +180,14 @@ function erzeugen(auftrag: Extract<AnWorker, { art: "erzeugen" }>) {
     ...paletteRechnen(roh.breite, roh.hoehe, gefiltert.lab, roh.lab, farbanzahl, garne),
   };
 
-  nurGlaetten(lambda, flaechenAnteil);
-}
-
-// ---------------------------------------------------------------------------
-// Nur die Farbzahl – das läuft bei jedem Zug am Farbregler
-// ---------------------------------------------------------------------------
-
-/**
- * Ein neues k-Means auf demselben heruntergerechneten Raster.
- *
- * Alles, was vor der Farbreduktion liegt – Bild lesen, herunterrechnen,
- * Medianfilter – hängt nicht an der Farbzahl und wird deshalb nicht noch
- * einmal gerechnet. Übrig bleiben k-Means, die Garnzuordnung und die
- * Abstandsliste; dahinter läuft dieselbe Glättung wie sonst auch.
- */
-function farbenNeu(auftrag: Extract<AnWorker, { art: "farben" }>) {
-  if (!stand) {
-    melden({ art: "fehler", text: "arbeit.fehlerKeinMuster" });
-    return;
-  }
-
-  stand = {
-    ...stand,
-    ...paletteRechnen(
-      stand.breite,
-      stand.hoehe,
-      stand.labGefiltert,
-      stand.labRoh,
-      auftrag.farbanzahl,
-      auftrag.garne,
-    ),
-  };
-
-  nurGlaetten(auftrag.lambda, auftrag.flaechenAnteil);
+  nurGlaetten(lambda, flaechenAnteil, verlaufStaerke);
 }
 
 // ---------------------------------------------------------------------------
 // Nur die Glättung – das läuft bei jedem Zug am Schieberegler
 // ---------------------------------------------------------------------------
 
-function nurGlaetten(lambda: number, flaechenAnteil: number) {
+function nurGlaetten(lambda: number, flaechenAnteil: number, verlaufStaerke: number) {
   if (!stand) {
     melden({ art: "fehler", text: "arbeit.fehlerKeinMuster" });
     return;
@@ -231,8 +196,19 @@ function nurGlaetten(lambda: number, flaechenAnteil: number) {
   fortschritt("arbeit.glaetten", 0.85);
 
   const k = stand.paletteLab.length;
+
+  // Ganz links am Regler wird der Farbverlauf nachgeahmt. Das ändert nicht
+  // die Glättung, sondern schon den Ausgangspunkt: statt jedem Feld einfach
+  // sein nächstes Garn zu geben, wird der Fehler dieser Wahl an die Nachbarn
+  // weitergereicht (siehe `verlaufZuordnen`). Rund 15 ms beim größten
+  // Muster – der Regler bleibt also flüssig.
+  const start =
+    verlaufStaerke > 0
+      ? verlaufZuordnen(stand.tabelle, stand.breite, verlaufStaerke)
+      : stand.startRaster;
+
   const { raster, kennzahlen } = glaetten(
-    stand.startRaster,
+    start,
     stand.tabelle,
     stand.breite,
     lambda,

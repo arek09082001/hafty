@@ -18,7 +18,7 @@
  */
 
 import { byteNachLinear, labNachRgb, linearNachLab, rgbNachHex, type Lab } from "@/lib/farbe/lab";
-import { ciede2000 } from "@/lib/farbe/ciede2000";
+import { ciede2000, garnAbstand } from "@/lib/farbe/ciede2000";
 import { LEER, type Garn } from "./typen";
 
 /**
@@ -510,9 +510,13 @@ export function aufGarneAbbilden(zentren: Float32Array, garne: Garn[]): GarnZuor
 
   // Alle Abstände Cluster × Garn einmal ausrechnen. Sie werden gleich
   // mehrfach gebraucht: für die Reihenfolge und für jedes Ausweichen.
+  // Gerechnet wird mit `garnAbstand` und nicht mit CIEDE2000: beim Aussuchen
+  // eines Garns geht es um grosse Unterschiede, und dort schwaecht CIEDE2000
+  // die Helligkeit so weit ab, dass ein zu helles Garn gewinnt. Warum das
+  // gerade im Dunklen sichtbar wird, steht bei `garnAbstand`.
   const abstaende = ziele.map((ziel) => {
     const zeile = new Float64Array(garne.length);
-    for (let g = 0; g < garne.length; g++) zeile[g] = ciede2000(ziel, garne[g]);
+    for (let g = 0; g < garne.length; g++) zeile[g] = garnAbstand(ziel, garne[g]);
     return zeile;
   });
 

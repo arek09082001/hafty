@@ -22,6 +22,12 @@
  * CIEDE2000 problemlos. Innerhalb der Glaettung, wo pro Feld und Farbe ein
  * Abstand gebraucht wird, wird stattdessen mit einer vorberechneten
  * Abstandstabelle gearbeitet (siehe glaettung.ts).
+ *
+ * Eine Einschraenkung hat die Formel: sie ist an **kleinen** Unterschieden
+ * gemessen worden. Wo grosse gebraucht werden – beim Aussuchen eines Garns –
+ * fuehrt eine ihrer Gewichtungen in die Irre. Dafuer steht `garnAbstand` am
+ * Ende dieser Datei; dort ist auch aufgeschrieben, was das im Muster
+ * ausmacht.
  */
 
 import type { Lab } from "./lab";
@@ -33,8 +39,10 @@ const BOGEN = Math.PI / 180;
  * Farbabstand zweier Lab-Farben nach CIEDE2000.
  * Ergebnis 0 = identisch. Werte unter ~1 gelten als fuer das Auge nicht
  * unterscheidbar, ab ~5 sieht man deutlich zwei verschiedene Farben.
+ *
+ * `helligkeitVoll` setzt S_L auf 1 – siehe `garnAbstand` weiter unten.
  */
-export function ciede2000(f1: Lab, f2: Lab): number {
+export function ciede2000(f1: Lab, f2: Lab, helligkeitVoll = false): number {
   const { L: L1, a: a1, b: b1 } = f1;
   const { L: L2, a: a2, b: b2 } = f2;
 
@@ -102,7 +110,7 @@ export function ciede2000(f1: Lab, f2: Lab): number {
   // S_L: mittlere Helligkeiten werden feiner unterschieden als sehr helle
   // oder sehr dunkle.
   const dLm = Lmittel - 50;
-  const S_L = 1 + (0.015 * dLm * dLm) / Math.sqrt(20 + dLm * dLm);
+  const S_L = helligkeitVoll ? 1 : 1 + (0.015 * dLm * dLm) / Math.sqrt(20 + dLm * dLm);
   // S_C und S_H: je bunter, desto groesser darf der Unterschied sein.
   const S_C = 1 + 0.045 * Cmittels;
   const S_H = 1 + 0.015 * Cmittels * T;
@@ -119,6 +127,39 @@ export function ciede2000(f1: Lab, f2: Lab): number {
   const termH = dH / S_H; // k_H = 1
 
   return Math.sqrt(termL * termL + termC * termC + termH * termH + R_T * termC * termH);
+}
+
+/**
+ * Der Abstand, mit dem ein Garn ausgesucht wird.
+ * ---------------------------------------------------------------------------
+ *
+ * Dasselbe wie CIEDE2000, nur ohne die Abschwaechung der Helligkeit (S_L).
+ *
+ * Warum: S_L teilt Helligkeitsunterschiede im Dunklen durch bis zu 1,5. Fuer
+ * kleine Unterschiede stimmt das – dafuer ist die Formel gemessen worden. Ein
+ * Garn auszusuchen ist aber kein kleiner Unterschied: bei 375 Toenen liegt das
+ * naechste im Schnitt 5 dE weg und im Dunklen bis zu 16.
+ *
+ * Und dort kippt die Abwaegung. An einer Waldvorlage wollte das dunkelste
+ * Cluster ein fast schwarzes Gruen (L=7). CIEDE2000 waehlte dafuer ein
+ * Graugruen mit L=24 – farblich naeher, aber siebzehn Helligkeitsstufen zu
+ * hell – und liess das schwarze Garn 1819 liegen, weil dessen Ton ins
+ * Violette geht. Auf dem Stoff sieht man davon nichts: beide sind schwarz.
+ * Zu sehen ist nur, dass der Waldboden grau geworden ist.
+ *
+ * Ausgemessen an derselben Vorlage (180 Stiche, 60 Farben): der dunkelste
+ * Ton im Muster geht von L=23 auf L=7 zurueck, die Saettigung steigt von
+ * 0,367 auf 0,385, die Buntheit von 24,3 auf 25,3. Der Abstand zum Foto
+ * bleibt dabei praktisch gleich (6,38 statt 6,42 dE00) – es wird also nichts
+ * erkauft, sondern nur besser verteilt.
+ *
+ * **Nur fuers Aussuchen.** Welche Palettenfarbe ein einzelnes Feld bekommt,
+ * rechnet weiter mit CIEDE2000: dort geht es um die kleinen Unterschiede,
+ * fuer die die Formel gemacht ist, und mit dieser Fassung wurde das Ergebnis
+ * gemessen schlechter (6,59 statt 6,42 dE00).
+ */
+export function garnAbstand(f1: Lab, f2: Lab): number {
+  return ciede2000(f1, f2, true);
 }
 
 /** atan2 in Grad, auf 0..360 gebracht. */

@@ -7,7 +7,6 @@ import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Dialog } from "@/components/Dialog";
 import { Glaettungsregler } from "@/components/Glaettungsregler";
-import { Farbregler } from "@/components/Farbregler";
 import { Legende } from "@/components/Legende";
 import { Farbstreifen } from "@/components/Farbstreifen";
 import { Rechenfortschritt } from "@/components/Rechenfortschritt";
@@ -79,7 +78,6 @@ export function MusterAnsehen() {
     raster,
     einstellungen,
     glaettungSetzen,
-    farbanzahlSetzen,
     erzeugen,
     laeuft,
     fortschritt,
@@ -146,6 +144,21 @@ export function MusterAnsehen() {
     ausMotiv: boolean;
   } | null>(null);
   const [mitSymbolen, setMitSymbolen] = useState(false);
+  /**
+   * Das Stichgitter.
+   *
+   * Zum Sticken braucht man es: ohne die Linien zählt niemand vierzig
+   * Kästchen ab. Zum Ansehen steht es im Weg. Bei einem Muster mit vielen
+   * kleinen Flecken – und genau das ist die linke Hälfte des Detailreglers –
+   * deckt es bei ganz normalem Zoom fast ein Fünftel der Fläche mit einer
+   * dunklen Linie zu. Das Muster wirkt dadurch matter und grauer, als es
+   * ist; wer sehen will, ob das Foto noch zu erkennen ist, sieht vor allem
+   * das Gitter.
+   *
+   * Also ein Schalter, wie schon bei den Symbolen, und an bleibt die
+   * Voreinstellung. Die Druckvorschau macht es seit jeher genauso.
+   */
+  const [mitLinien, setMitLinien] = useState(true);
   const { melden, alleWeg } = useMeldungen();
 
   const [motive, setMotive] = useState<Motiv[]>([]);
@@ -933,6 +946,7 @@ export function MusterAnsehen() {
           hoehe={muster.hoehe}
           raster={anzeigeRaster}
           palette={muster.palette}
+          mitLinien={mitLinien}
           mitSymbolen={mitSymbolen}
           auswahl={auswahl?.maske ?? null}
           vorschau={
@@ -970,6 +984,9 @@ export function MusterAnsehen() {
               <Sichtknopf onClick={ansicht.ganzZeigen}>{t("editor.allesZeigen")}</Sichtknopf>
               <Sichtknopf onClick={() => setMitSymbolen((a) => !a)} gedrueckt={mitSymbolen}>
                 {mitSymbolen ? t("editor.symboleAus") : t("editor.symboleAn")}
+              </Sichtknopf>
+              <Sichtknopf onClick={() => setMitLinien((a) => !a)} gedrueckt={!mitLinien}>
+                {mitLinien ? t("editor.gitterAus") : t("editor.gitterAn")}
               </Sichtknopf>
             </div>
           </div>
@@ -1321,16 +1338,6 @@ export function MusterAnsehen() {
                         staerke={einstellungen.glaettungsstaerke}
                         laeuft={laeuft}
                         onAendern={glaettungSetzen}
-                      />
-                    </Abschnitt>
-                    {/* Direkt unter der Glättung: beide Regler entscheiden
-                        darüber, wie fein das Muster wird, und man stellt sie
-                        im Wechsel ein, bis es stimmt. */}
-                    <Abschnitt titel={t("farben.frage")}>
-                      <Farbregler
-                        farbanzahl={einstellungen.farbanzahl}
-                        laeuft={laeuft}
-                        onAendern={farbanzahlSetzen}
                       />
                     </Abschnitt>
                   </>
