@@ -16,12 +16,38 @@
  *   - Seitenaufrufe: erst das Netz, sonst der Zwischenspeicher. So kommt
  *     eine neue Fassung an, sobald Verbindung besteht, und ohne Verbindung
  *     kommt trotzdem die Seite.
- *   - /_next/static/…: immer aus dem Zwischenspeicher. Diese Adressen tragen
- *     einen Prüfwert im Namen, ihr Inhalt ändert sich also nie.
- *   - Alles andere: Zwischenspeicher, sonst Netz.
+ *   - /_next/static/… und die festen Beigaben (Schriften, Symbole): immer aus
+ *     dem Zwischenspeicher. Diese Adressen tragen einen Prüfwert im Namen
+ *     oder ändern sich nie.
+ *   - **Alles andere: erst das Netz**, der Zwischenspeicher nur als Rückfall.
+ *
+ * Der letzte Punkt war einmal andersherum, und das war ein Fehler. „Alles
+ * andere" ist nämlich nicht nur Beiwerk: darunter fallen auch die Nachladungen
+ * des Seitenrouters (`?_rsc=…`) – also Seiteninhalt. Der landete damit
+ * unbefristet im Zwischenspeicher und wurde von da an bevorzugt ausgeliefert.
+ * Wer eine solche Antwort einmal erwischt hatte, sah die alte Fassung auch
+ * dann noch, wenn längst eine neue ausgeliefert war, und kam ohne „Websitedaten
+ * löschen" nicht mehr heraus. Aufrufe an `/api/…` gehen den Zwischenspeicher
+ * ohnehin nichts an.
  */
 
-const LAGER = "stickmuster-v1";
+/**
+ * Der Name des Zwischenspeichers – mit Nummer.
+ *
+ * Beim Aktivieren wird alles gelöscht, was anders heißt. Die Nummer
+ * hochzuzählen ist deshalb der Weg, einen verkorksten Zwischenspeicher bei
+ * allen Geräten wegzuräumen, ohne dass jemand etwas tun muss.
+ */
+const LAGER = "stickmuster-v2";
+
+/** Was sich nie ändert und darum aus dem Zwischenspeicher kommen darf. */
+function unveraenderlich(pfad) {
+  return (
+    pfad.startsWith("/_next/static/") ||
+    pfad.startsWith("/schriften/") ||
+    BEIWERK.includes(pfad)
+  );
+}
 
 /** Die Startseite, die vier Schritte und die Garnseite – alle Seiten der App. */
 const SEITEN = [
@@ -119,8 +145,12 @@ self.addEventListener("fetch", (ereignis) => {
   // Fremde Adressen gehen uns nichts an.
   if (adresse.origin !== self.location.origin) return;
 
+  // Die eigene Schnittstelle: nie zwischenspeichern. Dort hängt der Zugang
+  // zum gemeinsamen Konto dran, und der läuft ab.
+  if (adresse.pathname.startsWith("/api/")) return;
+
   // Unveränderliche Bausteine: was einmal da ist, bleibt gültig.
-  if (adresse.pathname.startsWith("/_next/static/")) {
+  if (unveraenderlich(adresse.pathname)) {
     ereignis.respondWith(
       caches.match(anfrage).then(
         (gefunden) =>
@@ -155,17 +185,21 @@ self.addEventListener("fetch", (ereignis) => {
     return;
   }
 
-  // Alles Übrige: Zwischenspeicher, sonst Netz.
+  // Alles Übrige – darunter die Nachladungen des Seitenrouters: erst das
+  // Netz, der Zwischenspeicher nur, wenn keine Verbindung besteht.
   ereignis.respondWith(
-    caches.match(anfrage).then(
-      (gefunden) =>
-        gefunden ??
-        fetch(anfrage).then(async (antwort) => {
-          if (antwort.ok && antwort.type === "basic") {
-            (await caches.open(LAGER)).put(anfrage, antwort.clone());
-          }
-          return antwort;
-        }),
-    ),
+    (async () => {
+      try {
+        const antwort = await fetch(anfrage);
+        if (antwort.ok && antwort.type === "basic") {
+          (await caches.open(LAGER)).put(anfrage, antwort.clone());
+        }
+        return antwort;
+      } catch {
+        const gefunden = await caches.match(anfrage);
+        if (gefunden) return gefunden;
+        throw new Error("offline");
+      }
+    })(),
   );
 });

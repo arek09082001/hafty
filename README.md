@@ -18,9 +18,10 @@ hoch, pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
 
 **Es gibt keine Anmeldung.** Die App ist für eine einzige Person gedacht, die
 ihre Muster wiederfinden will, ohne sich etwas merken zu müssen: Seite
-aufrufen und loslegen. Auch mit Sicherung bleibt das so – das Gerät meldet
-sich im Hintergrund anonym an. Was das für die Sicherheit bedeutet, steht
-weiter unten unter „Keine Anmeldung, kein Passwort".
+aufrufen und loslegen. Auch mit Sicherung bleibt das so – alle Geräte teilen
+sich ein Konto, und den Zugang dazu holt sich das Gerät im Hintergrund. Was
+das für die Sicherheit bedeutet, steht weiter unten unter „Keine Anmeldung,
+kein Passwort".
 
 ## Zwei Sprachen
 
@@ -410,15 +411,19 @@ Dateispeicher – das Quellfoto (genau einmal, es ändert sich nie), das
 zusammengedrückte Raster und das Vorschaubild. Ein Muster mit 160 000 Feldern
 wiegt dabei ein paar Kilobyte, das Foto ist das Schwere daran.
 
-Eingerichtet ist es mit drei Handgriffen:
+Eingerichtet ist es mit vier Handgriffen:
 
 ```bash
 # 1. Tabellen und Regeln anlegen
 #    supabase/migrations/0001_muster_sichern.sql im Projekt ausführen
-# 2. In Supabase: Authentication -> Sign In / Providers -> Anonymous erlauben
+# 2. In Supabase: Authentication -> Users -> "Add user" : ein einziges Konto
+#    mit E-Mail und Passwort anlegen, "Auto Confirm User" anhaken
 # 3. .env.local anlegen (Vorlage: .env.example)
 NEXT_PUBLIC_SUPABASE_URL=https://…supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=…
+# 4. Dasselbe Konto – ohne NEXT_PUBLIC_, das bleibt auf dem Server
+SUPABASE_KONTO_MAIL=…
+SUPABASE_KONTO_PASSWORT=…
 ```
 
 ### Erst das Projekt, dann seine Stände
@@ -450,9 +455,9 @@ Zweimal ist es dasselbe Loch in der Einrichtung:
 
 | Antwort | Was fehlt |
 | --- | --- |
-| `POST /auth/v1/signup` → 422 | „Anonymous sign-ins" ist nicht erlaubt |
+| `POST /api/konto` → 501 | `SUPABASE_KONTO_MAIL`/`…_PASSWORT` fehlen auf dem Server – die Sicherung ist dann still aus |
+| `POST /api/konto` → 502, `Invalid login credentials` | das Konto gibt es nicht, das Passwort stimmt nicht, oder die E-Mail ist unbestätigt („Auto Confirm User") |
 | `/rest/v1/…` → 403, `permission denied for table` | die `grant`-Zeilen der Migration sind nicht gelaufen |
-| `POST /rest/v1/staende` → 409, `duplicate key` | die Zeilen in der Ferne gehören einem früheren anonymen Benutzer dieses Geräts (siehe „Keine Anmeldung, kein Passwort") |
 
 Angesprochen wird Supabase über seine HTTP-Schnittstelle, ohne zusätzliches
 Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Anmelden,
@@ -469,24 +474,35 @@ Ohne eingerichtete Sicherung gibt es dafür auch nichts einzurichten: alle
 Daten liegen im Browser des Geräts, und was dort liegt, bekommt ohnehin nur,
 wer das Gerät hat.
 
-Mit Sicherung bleibt die Oberfläche dieselbe. Beim ersten Mal meldet sich das
-Gerät im Hintergrund **anonym** an – Supabase legt dafür einen Benutzer ohne
-Namen und ohne Passwort an –, und der Zugang liegt danach im Browser. Alle
-Zeilen und Dateien gehören diesem Benutzer, und die Regeln in der Datenbank
-lassen nur ihn heran (`supabase/migrations/0001_muster_sichern.sql`). Der
-Schlüssel im Programm ist der öffentliche; für sich genommen erlaubt er
-nichts.
+Mit Sicherung bleibt die Oberfläche dieselbe. Alle Geräte teilen sich **ein
+einziges Konto**; den Zugang dazu holt sich das Gerät im Hintergrund von
+`/api/konto` und legt ihn im Browser ab. Deshalb steht auf dem Telefon
+dasselbe wie auf dem Tablet: es ist derselbe Benutzer.
 
-Zwei Dinge gehören dazugesagt:
+Das Passwort steht dabei in **keiner** `NEXT_PUBLIC_`-Variablen. Die stehen im
+Programmtext und lassen sich in jedem Browser nachlesen; dieses bleibt auf dem
+Server (`src/app/api/konto/route.ts`), und der Browser bekommt nur den
+fertigen, ablaufenden Zugang.
 
-- Wer den Browserspeicher leert, verliert **den Zugang**, nicht die Daten:
-  Das Gerät meldet sich danach als neuer anonymer Benutzer an und sieht die
-  alte Sicherung nicht mehr. Deshalb ist die Sicherung ein zweites Exemplar
-  und kein Archiv, an das man sich von überall anmelden könnte.
-  Bleiben dabei die Muster auf dem Gerät stehen und geht nur der Zugang
-  verloren, lehnt der Dienst ihre alten Kennungen ab (`409 duplicate key`) –
-  sie gehören dem alten Benutzer. Die App bleibt davon arbeitsfähig: der
-  Eintrag bleibt vorgemerkt, alles Neue geht weiter hinauf.
+Vorher meldete sich jedes Gerät **einzeln anonym** an. Die Sicherung war damit
+zwar da, aber jedes Gerät sicherte in seine eigene Ecke, und auf dem zweiten
+Gerät stand nichts. Wer von dort kommt: der alte Zugang liegt unter einem
+anderen Schlüssel im Browserspeicher (`stickmuster-ferne-sitzung`) und wird
+nicht mehr angefasst – die Muster, die unter ihm in der Ferne liegen, holt
+niemand mehr. Auf dem Gerät selbst stehen sie weiter und gehen beim nächsten
+Sichern in das gemeinsame Konto.
+
+Drei Dinge gehören dazugesagt:
+
+- **Wer die Adresse der Seite kennt, kann diesen Zugang ebenfalls anfordern**
+  und die Muster sehen und ändern. Das ist der bewusst gewählte Tausch – kein
+  Anmeldebildschirm gegen keine Geheimhaltung. Wer beides will, braucht eine
+  richtige Anmeldung; die Regeln in der Datenbank
+  (`supabase/migrations/0001_muster_sichern.sql`) trügen sie ohne Änderung
+  mit, es fehlte nur die Oberfläche dafür.
+- Der Browserspeicher darf geleert werden: das Gerät holt sich den Zugang
+  danach einfach neu und findet alles wieder. Das war mit der anonymen
+  Anmeldung anders – da war mit dem Zugang auch die Sicherung weg.
 - Ein fertiges Muster gehört trotzdem ausgedruckt. Papier überlebt jedes
   Konto.
 

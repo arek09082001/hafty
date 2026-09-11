@@ -196,6 +196,14 @@ async function einmalHochladen(): Promise<void> {
     }
   }
 
+  // Hat sich unterwegs herausgestellt, dass gar nichts eingerichtet ist, war
+  // das kein Fehler: die App arbeitet dann allein auf dem Gerät, und das
+  // Zeichen in der Kopfzeile soll dazu schweigen.
+  if (!ferneEingerichtet()) {
+    melden({ art: "aus", meldung: null });
+    return;
+  }
+
   const offenDanach = await offeneAnzahl();
   if (gestolpert) {
     melden({ art: "fehler", offen: offenDanach, meldung: gestolpert });
@@ -434,32 +442,46 @@ export async function ausDerFerneHolen(): Promise<number> {
 
     for (const zeile of projekte) {
       const hier = (await db.get(LADEN_PROJEKTE, zeile.id)) as Projektsatz | undefined;
-      // Ist das Projekt hier schon, wird nichts angerührt – auch seine
-      // Stände nicht. Sonst holte das Aufräumen (die letzten 20 automatischen
-      // Stände bleiben) sie bei jedem Start wieder zurück, und die Sicherung
-      // schriebe dem Gerät vor, was es zu haben hat.
-      if (hier) continue;
 
-      const bild = zeile.hat_bild ? await dateiHolen(bildPfad(zugang.benutzer, zeile.id)) : null;
-      await projektSatzSchreiben({
-        id: zeile.id,
-        name: zeile.name ?? "",
-        angelegtAm: zeile.angelegt_am,
-        zuletztAm: zeile.zuletzt_am,
-        bild,
-        bildVorschau: bild ? await bildVorschauBauen(bild) : null,
-        bildMasse: zeile.bild_masse,
-        bildAusschnitt: zeile.bild_ausschnitt,
-        bildKennung: zeile.bild_kennung ?? "",
-        einstellungen: einstellungenLesen(zeile.einstellungen),
-        // Es kam gerade von dort – noch einmal hinaufschicken wäre unnötig.
-        bildGesichert: true,
-      });
-      geholt++;
+      if (!hier) {
+        const bild = zeile.hat_bild ? await dateiHolen(bildPfad(zugang.benutzer, zeile.id)) : null;
+        await projektSatzSchreiben({
+          id: zeile.id,
+          name: zeile.name ?? "",
+          angelegtAm: zeile.angelegt_am,
+          zuletztAm: zeile.zuletzt_am,
+          bild,
+          bildVorschau: bild ? await bildVorschauBauen(bild) : null,
+          bildMasse: zeile.bild_masse,
+          bildAusschnitt: zeile.bild_ausschnitt,
+          bildKennung: zeile.bild_kennung ?? "",
+          einstellungen: einstellungenLesen(zeile.einstellungen),
+          // Es kam gerade von dort – noch einmal hinaufschicken wäre unnötig.
+          bildGesichert: true,
+        });
+        geholt++;
+      }
 
+      /**
+       * Welche Stände geholt werden.
+       *
+       * Ist das Projekt hier **neu**, kommt alles mit – das Gerät kennt es ja
+       * noch gar nicht.
+       *
+       * Ist es hier **schon da**, nur die **gemerkten**. Grund: das Aufräumen
+       * behält von den automatischen Ständen nur die letzten 20 (siehe
+       * staende.ts). Holte man alle, kämen die weggeräumten bei jedem Start
+       * wieder zurück und die Sicherung schriebe dem Gerät vor, was es zu
+       * haben hat. Gemerkte Stände werden dagegen **nie** von selbst gelöscht;
+       * fehlt hier einer, dann wurde er auf einem anderen Gerät angelegt – und
+       * genau der soll herüberkommen. Wird ein gemerkter Stand von Hand
+       * gelöscht, verschwindet auch seine Zeile in der Ferne; er kommt also
+       * nicht zurück.
+       */
+      const filter = hier ? "&gemerkt=is.true" : "";
       const staende = await zeilenLesen<FerneStandzeile>(
         "staende",
-        `select=*&projekt_id=eq.${zeile.id}&order=angelegt_am.desc`,
+        `select=*&projekt_id=eq.${zeile.id}${filter}&order=angelegt_am.desc`,
       );
       for (const s of staende) {
         const vorhanden = await db.get(LADEN_STAENDE, s.id);
@@ -489,6 +511,10 @@ export async function ausDerFerneHolen(): Promise<number> {
     melden({ art: "gesichert", offen: await offeneAnzahl(), meldung: null, zuletzt: Date.now() });
     return geholt;
   } catch (fehler) {
+    if (!ferneEingerichtet()) {
+      melden({ art: "aus", meldung: null });
+      return 0;
+    }
     melden({
       art: fehler instanceof FerneFehler && fehler.art === "netz" ? "ohneNetz" : "fehler",
       meldung: fehler instanceof Error ? fehler.message : String(fehler),
