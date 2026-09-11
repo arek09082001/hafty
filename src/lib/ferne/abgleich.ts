@@ -25,6 +25,7 @@ import {
   abhaken,
   offeneAnzahl,
   offeneVormerkungen,
+  vormerken,
   type Vormerkung,
 } from "@/lib/speicher/abgleichliste";
 import {
@@ -38,6 +39,13 @@ import {
   standSatzSchreiben,
   type Standsatz,
 } from "@/lib/speicher/staende";
+import {
+  motivKennungen,
+  motivSatzHolen,
+  motivSatzSchreiben,
+  motivVorhanden,
+  type Motivsatz,
+} from "@/lib/speicher/motive";
 import { einstellungenLesen, type Einstellungen, type PalettenEintrag } from "@/lib/muster/typen";
 import { browserdatenbank, LADEN_PROJEKTE, LADEN_STAENDE } from "@/lib/speicher/browserspeicher";
 import type { Textschluessel } from "@/lib/sprache/texte";
@@ -159,7 +167,16 @@ async function einmalHochladen(): Promise<void> {
   // Projekte zuerst: ein Stand ohne sein Projekt hätte in der Ferne keinen
   // Platz, an den er gehört. Löschungen zuletzt – sonst räumt eine von ihnen
   // auf, während für dasselbe Projekt noch etwas hochgeht.
-  const rang = { projekt: 0, stand: 1, standLoeschung: 2, loeschung: 3 } as const;
+  // Motive hängen an keinem Projekt und können dazwischen; die Löschungen
+  // bleiben hinten.
+  const rang = {
+    projekt: 0,
+    stand: 1,
+    motiv: 2,
+    motivLoeschung: 3,
+    standLoeschung: 4,
+    loeschung: 5,
+  } as const;
   const sortiert = [...offen].sort((a, b) => rang[a.art] - rang[b.art]);
 
   /** Welche Projektzeilen in diesem Lauf schon hinaufgegangen sind. */
@@ -235,6 +252,14 @@ async function einesHochladen(
     await standEntfernen(vormerkung.kennung);
     return "erledigt";
   }
+  if (vormerkung.art === "motiv") {
+    await motivHochladen(vormerkung.kennung);
+    return "erledigt";
+  }
+  if (vormerkung.art === "motivLoeschung") {
+    await motivEntfernen(vormerkung.kennung);
+    return "erledigt";
+  }
   return standHochladen(vormerkung.kennung, schonOben);
 }
 
@@ -279,6 +304,56 @@ async function projektEntfernen(id: string): Promise<void> {
 
   await zeilenLoeschen("staende", `projekt_id=eq.${id}`);
   await zeilenLoeschen("projekte", `id=eq.${id}`);
+}
+
+/**
+ * Wo die Dateien eines Motivs liegen.
+ *
+ * Motive gehören keinem Projekt – sie gehören der Nutzerin und lassen sich in
+ * jedes Muster einsetzen. Sie stehen deshalb in einem eigenen Ordner und
+ * nicht unter einem Projekt, aus dessen Löschung sie sonst verschwänden.
+ */
+function motivRasterPfad(id: string) {
+  return `motive/${id}.rle.gz`;
+}
+function motivVorschauPfad(id: string) {
+  return `motive/${id}.png`;
+}
+
+/** Ein Motiv in die Ferne bringen: Zeile, gepackter Ausschnitt, Vorschau. */
+async function motivHochladen(id: string): Promise<void> {
+  const satz = await motivSatzHolen(id);
+  // Gelöscht, während die Vormerkung wartete: dann gibt es nichts zu tun.
+  if (!satz) return;
+
+  await zeilenSchreiben("motive", [
+    {
+      id: satz.id,
+      name: satz.name,
+      breite: satz.w,
+      hoehe: satz.h,
+      palette: satz.palette,
+      fassung: satz.fassung ?? 1,
+      hat_vorschau: satz.vorschau !== null,
+      angelegt_am: satz.angelegtAm,
+    },
+  ]);
+
+  await dateiHochladen(
+    motivRasterPfad(satz.id),
+    new Blob([satz.daten as BlobPart], { type: "application/gzip" }),
+  );
+  if (satz.vorschau) await dateiHochladen(motivVorschauPfad(satz.id), satz.vorschau);
+}
+
+/** Ein gelöschtes Motiv auch in der Ferne wegräumen. */
+async function motivEntfernen(id: string): Promise<void> {
+  try {
+    await dateienLoeschen([motivRasterPfad(id), motivVorschauPfad(id)]);
+  } catch {
+    // Bleiben die Dateien liegen, findet sie ohne ihre Zeile niemand mehr.
+  }
+  await zeilenLoeschen("motive", `id=eq.${id}`);
 }
 
 /** Wo die Dateien eines Projekts in der Ferne liegen. */
@@ -408,6 +483,86 @@ type FerneStandzeile = {
   hoehe: number | null;
 };
 
+type FerneMotivzeile = {
+  id: string;
+  name: string | null;
+  breite: number | null;
+  hoehe: number | null;
+  palette: PalettenEintrag[] | null;
+  fassung: number | null;
+  hat_vorschau: boolean | null;
+  angelegt_am: string;
+};
+
+/**
+ * Der Nachtrag für die Motive von früher.
+ * ---------------------------------------------------------------------------
+ *
+ * Motive gingen bis zu dieser Fassung gar nicht in die Ferne; für alles, was
+ * vorher entstanden ist, gibt es deshalb keine Vormerkung. Ohne diesen
+ * Nachtrag bliebe eine über Monate gewachsene Sammlung für immer auf einem
+ * einzigen Gerät – und wäre mit ihm weg.
+ *
+ * Er läuft **einmal je Gerät**. Danach gilt wieder die gewöhnliche Ordnung:
+ * vorgemerkt wird beim Speichern, gelöscht wird auch in der Ferne. Liefe er
+ * bei jedem Start, brächte er ein Motiv wieder hoch, das auf einem anderen
+ * Gerät gerade gelöscht wurde.
+ */
+const NACHTRAG_MERKER = "hafty.motive-nachgetragen";
+
+async function motiveNachtragen(): Promise<void> {
+  try {
+    if (typeof localStorage === "undefined") return;
+    if (localStorage.getItem(NACHTRAG_MERKER) === "1") return;
+    for (const id of await motivKennungen()) await vormerken("motiv", id);
+    localStorage.setItem(NACHTRAG_MERKER, "1");
+  } catch {
+    // Ohne den Nachtrag gehen nur die Motive hinauf, die ab jetzt entstehen.
+    // Das ist kein Grund, den ganzen Abgleich anzuhalten.
+  }
+}
+
+/**
+ * Die Motive holen, die hier fehlen.
+ *
+ * Anders als bei den Ständen wird hier nichts aussortiert: Motive werden nie
+ * von selbst aufgeräumt, es gibt wenige davon, und sie sind klein. Fehlt hier
+ * eines, wurde es auf einem anderen Gerät angelegt – und genau dafür ist die
+ * Sicherung da. Ein von Hand gelöschtes Motiv kommt nicht zurück: seine Zeile
+ * in der Ferne verschwindet mit ihm.
+ */
+async function motiveHolen(): Promise<number> {
+  const zeilen = await zeilenLesen<FerneMotivzeile>(
+    "motive",
+    "select=*&order=angelegt_am.desc&limit=500",
+  );
+  let geholt = 0;
+
+  await motiveNachtragen();
+
+  for (const zeile of zeilen) {
+    if (await motivVorhanden(zeile.id)) continue;
+    const daten = await dateiHolen(motivRasterPfad(zeile.id));
+    // Ohne den Ausschnitt selbst wäre das Motiv nur ein Name.
+    if (!daten) continue;
+    const vorschau = zeile.hat_vorschau ? await dateiHolen(motivVorschauPfad(zeile.id)) : null;
+    const satz: Motivsatz = {
+      id: zeile.id,
+      name: zeile.name ?? "",
+      w: zeile.breite ?? 0,
+      h: zeile.hoehe ?? 0,
+      palette: zeile.palette ?? [],
+      daten: new Uint8Array(await daten.arrayBuffer()),
+      vorschau,
+      angelegtAm: zeile.angelegt_am,
+      fassung: zeile.fassung ?? 1,
+    };
+    await motivSatzSchreiben(satz);
+    geholt++;
+  }
+  return geholt;
+}
+
 /**
  * Alles holen, was in der Ferne liegt und auf diesem Gerät fehlt.
  *
@@ -495,6 +650,10 @@ export async function ausDerFerneHolen(): Promise<number> {
         geholt++;
       }
     }
+
+    // Die Motive zum Schluss: sie hängen an keinem Projekt und sollen auch
+    // dann ankommen, wenn es hier noch gar kein Muster gibt.
+    geholt += await motiveHolen();
 
     melden({ art: "gesichert", offen: await offeneAnzahl(), meldung: null, zuletzt: Date.now() });
     return geholt;
