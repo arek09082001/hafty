@@ -362,6 +362,7 @@ export const TEXTE = {
   "staende.datum": "{datum}, {uhr}",
   "staende.vonHandGemerkt": "Zapamiętana ręcznie",
   "staende.neuErzeugt": "Utworzona na nowo",
+  "staende.leereKanwa": "Pusta kanwa",
   "staende.farbanzahlGeaendert": "Zmieniona liczba kolorów",
   "staende.vorBildwechsel": "Zapamiętana przed zmianą zdjęcia",
   "staende.motivEingesetzt": "Wstawiony motyw",
@@ -529,6 +530,67 @@ export const TEXTE = {
   "staende.vergleichen": "Zobacz wszystkie wersje",
   "bild.schonBekannt":
     "To zdjęcie już tu było: nowa wersja dołączy do „{name}”. Wcześniejsze wersje zostają i można je porównać.",
+
+  // --- Pusta kanwa, zarządzanie, nowa wersja -------------------------------
+  "allgemein.neueFassung": "Jest nowa wersja aplikacji – odświeżam …",
+
+  "einst.zahlBereich": "Można też wpisać liczbę: od {min} do {max}.",
+
+  "kopf.verwalten": "Zarządzaj",
+
+  "start.leereKanwa": "Zacznij od pustej kanwy",
+  "start.alleVerwalten": "Zarządzaj wszystkimi wzorami",
+
+  "kanwa.titel": "Pusta kanwa",
+  "kanwa.erklaerung":
+    "Wzór bez zdjęcia. Proszę wybrać, ile kratek ma mieć kanwa – a potem układać na niej własne motywy i kolory.",
+  "kanwa.name": "Nazwa wzoru",
+  "kanwa.namePlatzhalter": "np. Alfabet, Bordiura, Róże",
+  "kanwa.nameHinweis": "Pod tą nazwą wzór będzie widoczny na liście „Moje wzory”.",
+  "kanwa.ohneNamen": "Pusta kanwa",
+  "kanwa.breite": "Szerokość kanwy",
+  "kanwa.hoehe": "Wysokość kanwy",
+  "kanwa.anlegen": "Utwórz pustą kanwę",
+  "kanwa.wirdAngelegt": "Tworzenie …",
+  "kanwa.zurueck": "Wróć do moich wzorów",
+  "kanwa.fehler": "Nie udało się utworzyć pustej kanwy. Proszę spróbować jeszcze raz.",
+  "kanwa.hinweis":
+    "Na początku kanwa jest pusta – to czysty materiał. W następnym kroku proszę dodać kolor („Moje nici” → „Dodaj kolor”) albo wstawić zapisany motyw („Zapisane” → „Moje motywy”).",
+
+  "editor.farbeDazunehmen": "Dodaj kolor",
+  "editor.farbeDazuTitel": "Dodaj kolor do wzoru",
+  "editor.farbeDazuText":
+    "Proszę dotknąć nitki. Ten kolor dołączy do listy i od razu będzie nim można malować.",
+  "editor.schonInDerListe": "Już na liście",
+  "editor.farbeDazugenommen": "Dodano kolor: {marke} {code} · {name}",
+  "editor.farbeVoll": "Wzór ma już najwięcej kolorów, ile się da. Nowy kolor się nie zmieści.",
+  "editor.farbenAusMotiv": "Kolory motywu dołączyły do listy: {anzahl}.",
+  "editor.ohneFotoTitel": "Wzór bez zdjęcia",
+  "editor.ohneFotoText":
+    "Ten wzór powstał na pustej kanwie, więc nie ma zdjęcia do wygładzania. Proszę malować i wstawiać motywy.",
+
+  "verwalten.titel": "Zarządzaj wzorami",
+  "verwalten.erklaerung":
+    "Tu są wszystkie zapisane wzory i motywy: można je otworzyć, nazwać po swojemu albo usunąć.",
+  "verwalten.zurueck": "Wróć do moich wzorów",
+  "verwalten.suche": "Szukaj wzoru",
+  "verwalten.suchePlatzhalter": "Nazwa wzoru",
+  "verwalten.alleMuster": "Wszystkie wzory ({anzahl})",
+  "verwalten.alleMotive": "Moje motywy ({anzahl})",
+  "verwalten.motiveErklaerung":
+    "Motywy należą do Pani, nie do jednego wzoru: raz zapisane, można je wstawić do każdego wzoru – także na pustą kanwę.",
+  "verwalten.nichtsGefunden": "Nic nie znaleziono dla „{suche}”.",
+  "verwalten.umbenennen": "Zmień nazwę",
+  "verwalten.umbenennenTitel": "Nowa nazwa",
+  "verwalten.umbenennenText": "Proszę wpisać nazwę, po której łatwo Pani rozpozna tę pracę.",
+  "verwalten.namenSpeichern": "Zapisz nazwę",
+  "verwalten.neuerName": "Nowa nazwa",
+  "verwalten.umbenannt": "Nowa nazwa: {name}",
+  "verwalten.fehlerUmbenennen": "Nie udało się zmienić nazwy. Proszę spróbować jeszcze raz.",
+  "verwalten.fehlerOeffnen": "Nie udało się otworzyć tego wzoru. Proszę spróbować jeszcze raz.",
+  "verwalten.motivLoeschenTitel": "Usunąć motyw „{name}”?",
+  "verwalten.motivLoeschenText":
+    "Motyw zniknie z listy motywów. Wzory, w których już go wyhaftowano, zostają bez zmian.",
 } as const;
 
 export type Textschluessel = keyof typeof TEXTE;

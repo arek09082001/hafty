@@ -199,6 +199,31 @@ export async function projektMerken(argumente: {
   }
 }
 
+/**
+ * Ein Projekt umbenennen.
+ *
+ * Der Name ist der Dateiname des Fotos, und der sagt nach ein paar Wochen
+ * oft nichts mehr: „IMG_20240817.jpg“ ist kein Muster, „Róże dla Ani“ schon.
+ * Deshalb lässt er sich in der Verwaltung ändern.
+ *
+ * Achtung, eine Nebenwirkung: über den Namen findet dasselbe Foto sein
+ * Projekt wieder (siehe `projektNachName`). Wer umbenennt, bekommt beim
+ * nächsten Aussuchen desselben Fotos also ein neues Projekt – das ist
+ * richtig so, denn er hat die Zuordnung gerade selbst neu bestimmt.
+ */
+export async function projektUmbenennen(id: string, name: string): Promise<boolean> {
+  try {
+    const db = await browserdatenbank();
+    const satz = (await db.get(LADEN_PROJEKTE, id)) as Projektsatz | undefined;
+    if (!satz) return false;
+    await db.put(LADEN_PROJEKTE, { ...satz, name: name.trim() });
+    await vormerken("projekt", id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Einen Projektsatz unverändert ablegen – dafür ist der Abgleich da. */
 export async function projektSatzSchreiben(satz: Projektsatz): Promise<void> {
   const db = await browserdatenbank();

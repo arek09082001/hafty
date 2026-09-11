@@ -399,6 +399,14 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   const [standZaehler, setStandZaehler] = useState(0);
   /** Name des Projekts, zu dem das gewählte Bild gehört – sonst null. */
   const [zugeordnet, setZugeordnet] = useState<string | null>(null);
+  /**
+   * Der Name eines Musters **ohne Foto** – der leeren Kanwa.
+   *
+   * Sonst kommt der Name aus dem Dateinamen des Bildes. Eine leere Kanwa hat
+   * keinen, und „Muster“ hieße dann jede von ihnen: auf der Übersicht wären
+   * fünf gleich benannte Einträge nicht mehr auseinanderzuhalten.
+   */
+  const [eigenerName, setEigenerName] = useState<string | null>(null);
 
   const worker = useRef<Worker | null>(null);
   const wartend = useRef<((w: AntwortVomWorker) => void) | null>(null);
@@ -558,6 +566,9 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         setEinstellungen(einstellungenLesen(stand.einstellungen));
         setMusterId(stand.musterId);
         setVersionId(stand.versionId);
+        // Ohne Bild trägt der Arbeitsstand den Namen selbst – eine leere
+        // Kanwa oder ein Projekt, das nur aus Handarbeit besteht.
+        if (!stand.bild) setEigenerName(stand.bildName || null);
         if (stand.bild && stand.bildMasse) {
           setBild({
             kennung: stand.bildKennung,
@@ -600,7 +611,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       void arbeitsstandSichern({
         musterId,
         versionId,
-        name: bild?.name ?? "Muster",
+        name: bild?.name ?? eigenerName ?? "Muster",
         breite: muster?.breite ?? 0,
         hoehe: muster?.hoehe ?? 0,
         basis: muster?.basis ?? new Uint16Array(0),
@@ -608,7 +619,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         palette: muster?.palette ?? [],
         einstellungen,
         bild: bild?.blob ?? null,
-        bildName: bild?.name ?? "",
+        bildName: bild?.name ?? eigenerName ?? "",
         bildMasse: bild?.masse ?? null,
         bildAusschnitt: bild?.ausschnitt ?? null,
         bildKennung: muster?.bildKennung ?? bild?.kennung ?? "",
@@ -616,7 +627,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       });
     }, 800);
     return () => window.clearTimeout(zeitgeber);
-  }, [muster, einstellungen, bild, wiederhergestellt, musterId, versionId]);
+  }, [muster, einstellungen, bild, wiederhergestellt, musterId, versionId, eigenerName]);
 
   // --- Bild auswählen -------------------------------------------------------
   const bildWaehlen = useCallback(
@@ -624,6 +635,8 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       // Ab hier gilt das neue Foto – auch dann, wenn der Arbeitsstand aus der
       // Datenbank erst gleich eintrifft.
       eigeneWahl.current = true;
+      // Ab jetzt trägt das Foto den Namen.
+      setEigenerName(null);
 
       const bitmap = await createImageBitmap(quelle.blob);
       const masse = { breite: bitmap.width, hoehe: bitmap.height };
@@ -720,6 +733,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
   const neuAnfangen = useCallback(() => {
     eigeneWahl.current = true;
     bildEntfernen();
+    setEigenerName(null);
     setMusterId(null);
     setVersionId(null);
     setZugeordnet(null);
@@ -959,7 +973,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       const ergebnis = await standSichern({
         musterId,
         elternId: versionId,
-        name: bild?.name ?? "Muster",
+        name: bild?.name ?? eigenerName ?? "Muster",
         beschriftung,
         gemerkt,
         breite: zuSichern.breite,
@@ -980,7 +994,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       // Reihenfolge auf der Startseite.
       await projektMerken({
         id: ergebnis.musterId,
-        name: bild?.name ?? "",
+        name: bild?.name ?? eigenerName ?? "",
         bild: bild?.blob ?? null,
         bildMasse: bild?.masse ?? null,
         bildAusschnitt: bild?.ausschnitt ?? null,
@@ -993,12 +1007,33 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       void abgleichAnstossen();
       return true;
     },
-    [musterId, versionId, bild, einstellungen],
+    [musterId, versionId, bild, eigenerName, einstellungen],
   );
 
   useEffect(() => {
     sichernRef.current = sichern;
   }, [sichern]);
+
+  /**
+   * Eine leere Kanwa bekommt sofort ihren Eintrag in der Übersicht.
+   * -------------------------------------------------------------------------
+   *
+   * Ein Muster aus einem Foto wird beim Erzeugen gesichert und steht damit auf
+   * der Startseite. Eine leere Kanwa wird nicht erzeugt, sondern angelegt – sie
+   * hätte bis zum ersten großen Schritt kein Projekt und wäre nirgends zu
+   * finden: wer die App zumachte, bevor er ein Motiv einsetzte, fand sie nicht
+   * wieder.
+   *
+   * Deshalb wird sie einmal gesichert, sobald sie da ist. Erkennbar ist sie
+   * daran, dass es ein Muster, aber kein Bild und noch kein Projekt gibt.
+   */
+  const kanwaGesichert = useRef(false);
+  useEffect(() => {
+    if (!wiederhergestellt || bild !== null || musterId !== null) return;
+    if (!muster || kanwaGesichert.current) return;
+    kanwaGesichert.current = true;
+    void sichernRef.current?.(muster, "staende.leereKanwa", false);
+  }, [wiederhergestellt, bild, musterId, muster]);
 
   const standAnlegen = useCallback(
     async (beschriftung: Textschluessel, gemerkt = false) => {

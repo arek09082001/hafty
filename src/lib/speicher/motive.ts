@@ -220,6 +220,19 @@ export async function motivHolen(motiv: Motiv): Promise<Ausschnitt | null> {
   }
 }
 
+/** Ein Motiv umbenennen. */
+export async function motivUmbenennen(motiv: Motiv, name: string): Promise<boolean> {
+  try {
+    const db = await browserdatenbank();
+    const satz = (await db.get(LADEN_MOTIVE, motiv.id)) as Abgelegt | undefined;
+    if (!satz) return false;
+    await db.put(LADEN_MOTIVE, { ...satz, name: name.trim() || satz.name });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Ein Motiv löschen. */
 export async function motivLoeschen(motiv: Motiv): Promise<boolean> {
   try {

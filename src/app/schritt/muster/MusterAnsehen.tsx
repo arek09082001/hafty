@@ -53,6 +53,7 @@ import {
   type Ausschnitt,
   type Auswahl,
 } from "@/lib/muster/raster";
+import { ausschnittUebernehmen, farbeAnhaengen } from "@/lib/muster/palette";
 import {
   STANDARD_AEHNLICHKEIT,
   auswahlVereinen,
@@ -184,6 +185,8 @@ export function MusterAnsehen() {
 
   /** Für welchen Palettenindex gerade ein anderes Garn gesucht wird. */
   const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
+  /** Steht das Fenster offen, mit dem eine Farbe dazugenommen wird? */
+  const [farbeDazuOffen, setFarbeDazuOffen] = useState(false);
   /** Ob gerade zwei Stände nebeneinander liegen. */
   const [vergleichOffen, setVergleichOffen] = useState(false);
 
@@ -362,7 +365,11 @@ export function MusterAnsehen() {
    * in einem Feld geschrieben wird.
    */
   const einFensterOffen =
-    vergleichOffen || garnwechsel !== null || motivNameOffen || motivZumLoeschen !== null;
+    vergleichOffen ||
+    garnwechsel !== null ||
+    farbeDazuOffen ||
+    motivNameOffen ||
+    motivZumLoeschen !== null;
 
   useEffect(() => {
     const taste = (e: KeyboardEvent) => {
@@ -499,6 +506,9 @@ export function MusterAnsehen() {
         }
 
         case "malen": {
+          // Ohne eine einzige Farbe – die leere Kanwa, bevor etwas gewählt
+          // wurde – gäbe der Pinsel eine Nummer auf, die es nicht gibt.
+          if (muster.palette.length === 0) return;
           const bisher = e.beginn ? new Map<number, number>() : new Map(malSpur ?? []);
           const vorheriges = spur.current[spur.current.length - 1];
           const felder =
@@ -527,6 +537,7 @@ export function MusterAnsehen() {
 
         case "fuellen": {
           if (!e.beginn) return;
+          if (muster.palette.length === 0) return;
           const flaecheAuswahl = gleicheFlaecheAuswaehlen(raster, breite, e.x, e.y);
           if (flaecheAuswahl.anzahl === 0) return;
           const { indizes, werte } = auswahlFuellen(flaecheAuswahl, farbeSicher);
@@ -734,13 +745,73 @@ export function MusterAnsehen() {
     }
   };
 
+  /**
+   * Ein Motiv einsetzen – mitsamt seinen Farben.
+   *
+   * Im Raster steht je Feld nur die *Nummer* einer Farbe, und dieselbe Nummer
+   * bedeutet in einem anderen Muster einen anderen Ton. Deshalb werden die
+   * Farben des Motivs erst in die Palette dieses Musters übernommen und die
+   * Feldnummern darauf umgeschrieben; sonst käme die Rose grün heraus – und
+   * auf einer leeren Kanwa, deren Palette noch keine einzige Farbe hat,
+   * überhaupt nicht.
+   */
   const motivEinsetzen = async (motiv: Motiv) => {
+    if (!muster) return;
     const stueck = await motivHolen(motiv);
     if (!stueck) {
       melden(t("motive.fehlerHolen"), "fehler");
       return;
     }
-    einfuegenStarten(stueck, true);
+    const uebernommen = ausschnittUebernehmen(muster.palette, stueck);
+    if (uebernommen.palette !== muster.palette) {
+      paletteErsetzen(uebernommen.palette);
+      const dazu = uebernommen.palette.length - muster.palette.length;
+      if (dazu > 0) melden(t("editor.farbenAusMotiv", { anzahl: zahl(dazu) }));
+    }
+    einfuegenStarten(uebernommen.stueck, true);
+  };
+
+  /**
+   * Eine Farbe dazunehmen, die im Muster noch gar nicht vorkommt.
+   *
+   * Gebraucht wird das auf der leeren Kanwa – dort fängt die Palette bei null
+   * an –, aber auch sonst: wer einen Stern in einer Farbe sticken will, die
+   * das Foto nicht hergab, holt sie sich hier aus dem Garnkatalog.
+   */
+  const farbeDazunehmen = (garn: GarnMitVorrat) => {
+    if (!muster) return;
+    const angaben = {
+      id: garn.id,
+      marke: garn.marke,
+      code: garn.code,
+      name: garn.name,
+      hex: garn.hex,
+      L: garn.L,
+      a: garn.a,
+      b: garn.b,
+    };
+    const ergebnis = farbeAnhaengen(muster.palette, {
+      hex: garn.hex,
+      L: garn.L,
+      a: garn.a,
+      b: garn.b,
+      garn: angaben,
+    });
+    setFarbeDazuOffen(false);
+    if (!ergebnis) {
+      melden(t("editor.farbeVoll"), "fehler");
+      return;
+    }
+    if (ergebnis.palette !== muster.palette) paletteErsetzen(ergebnis.palette);
+    setFarbe(ergebnis.index);
+    melden(
+      t("editor.farbeDazugenommen", {
+        marke: garn.marke,
+        code: garn.code,
+        name: garnname(garn.name, garn.hex, t),
+      }),
+      "erfolg",
+    );
   };
 
   /**
@@ -1314,6 +1385,19 @@ export function MusterAnsehen() {
                       stoffzaehlung={einstellungen.stoffzaehlung}
                     />
 
+                    {/* Eine Farbe, die es im Muster noch nicht gibt. Auf der
+                        leeren Kanwa ist das der erste Schritt überhaupt. */}
+                    {alleGarne.length > 0 ? (
+                      <Knopf
+                        art={paletteJetzt.length === 0 ? "haupt" : "neben"}
+                        klein
+                        className="mt-3 w-full"
+                        onClick={() => setFarbeDazuOffen(true)}
+                      >
+                        {t("editor.farbeDazunehmen")}
+                      </Knopf>
+                    ) : null}
+
                     {/* Ein Knopf statt eines je Zeile: gewechselt wird das Garn
                         der Farbe, die gerade gewählt ist. Er sagt auch gleich,
                         um welche das geht. */}
@@ -1362,13 +1446,23 @@ export function MusterAnsehen() {
                     <Abschnitt titel={t("editor.groesseTitel")}>
                       <p className="text-[1.05rem]">{masse}</p>
                     </Abschnitt>
-                    <Abschnitt titel={t("glaettung.frage")}>
-                      <Glaettungsregler
-                        staerke={einstellungen.glaettungsstaerke}
-                        laeuft={laeuft}
-                        onAendern={glaettungSetzen}
-                      />
-                    </Abschnitt>
+                    {/* Der Regler rechnet das Muster aus dem Foto neu. Hinter
+                        einer leeren Kanwa steht keines – dort gibt es nichts
+                        zu glätten, und ein Regler, der nichts tut, wäre eine
+                        Falle. */}
+                    {bild ? (
+                      <Abschnitt titel={t("glaettung.frage")}>
+                        <Glaettungsregler
+                          staerke={einstellungen.glaettungsstaerke}
+                          laeuft={laeuft}
+                          onAendern={glaettungSetzen}
+                        />
+                      </Abschnitt>
+                    ) : (
+                      <Abschnitt titel={t("editor.ohneFotoTitel")}>
+                        <p className="text-[1.05rem] text-gedaempft">{t("editor.ohneFotoText")}</p>
+                      </Abschnitt>
+                    )}
                   </>
                 ) : null}
 
@@ -1407,6 +1501,23 @@ export function MusterAnsehen() {
         onWiederherstellen={standWiederherstellen}
         onGeloescht={versionVergessen}
       />
+
+      <Dialog
+        offen={farbeDazuOffen}
+        titel={t("editor.farbeDazuTitel")}
+        text={t("editor.farbeDazuText")}
+        bestaetigenText={t("allgemein.fensterSchliessen")}
+        nurSchliessen
+        onBestaetigen={() => setFarbeDazuOffen(false)}
+        onAbbrechen={() => setFarbeDazuOffen(false)}
+      >
+        <Garnwahl
+          garne={alleGarne}
+          markiert={(g) => muster.palette.some((e) => e.garn?.id === g.id)}
+          markierungText={t("editor.schonInDerListe")}
+          onWaehlen={farbeDazunehmen}
+        />
+      </Dialog>
 
       <Dialog
         offen={garnwechsel !== null}

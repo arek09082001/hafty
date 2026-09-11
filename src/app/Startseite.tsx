@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Kopfzeile } from "@/components/Kopfzeile";
@@ -88,6 +89,12 @@ export function Startseite() {
           fuss={
             <>
               <span className="text-[1.05rem] text-gedaempft">{t("start.fussHinweis")}</span>
+              {/* Ein Muster muss nicht aus einem Foto entstehen: wer ein
+                  Alphabet oder eine Bordüre sticken will, fängt mit leerem
+                  Stoff an und setzt seine Motive selbst. */}
+              <KnopfLink art="neben" href="/kanwa">
+                {t("start.leereKanwa")}
+              </KnopfLink>
               {/* „neu=1": Schritt 1 fängt leer an. Ohne die Marke stünde
                   dort das zuletzt bearbeitete Bild – der Arbeitsstand wird
                   beim Öffnen ja zurückgeholt –, und wer ein neues Foto
@@ -104,7 +111,15 @@ export function Startseite() {
             <Hinweis>{t("start.nochNichts")}</Hinweis>
           ) : (
             <section className="flex flex-col gap-4">
-              <h2 className="text-[1.3rem] font-bold">{t("start.zuletzt")}</h2>
+              <div className="flex flex-wrap items-baseline justify-between gap-3">
+                <h2 className="text-[1.3rem] font-bold">{t("start.zuletzt")}</h2>
+                {/* Hier stehen nur die zuletzt angefassten Muster. Wer
+                    aufräumen, suchen oder umbenennen will, geht weiter in die
+                    Verwaltung. */}
+                <Link href="/wzory" className="text-[1.05rem] font-semibold underline">
+                  {t("start.alleVerwalten")}
+                </Link>
+              </div>
               <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {projekte.map((projekt) => (
                   <li
