@@ -19,6 +19,7 @@
 import { openDB, type IDBPDatabase } from "idb";
 import { rasterPacken, rasterEntpacken } from "./rle";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
+import type { Platzierung } from "@/lib/muster/platzierung";
 
 const DATENBANK = "stickmuster";
 const AUSGABE = 3;
@@ -52,6 +53,14 @@ export type Arbeitsstand = {
   bildAusschnitt: { x: number; y: number; breite: number; hoehe: number } | null;
   /** Kennung des Bildes – daran hängt, ob Handbearbeitungen weitergelten. */
   bildKennung: string;
+  /**
+   * Wo eingesetzte Motive liegen.
+   *
+   * Sie gehören zum Arbeitsstand wie das Raster selbst: ohne sie wäre ein
+   * Motiv nach dem Neuladen der Seite nur noch eine Handvoll gefärbter Felder
+   * und ließe sich nicht mehr anfassen.
+   */
+  platzierungen?: Platzierung[];
   gespeichertAm: number;
 };
 
@@ -113,6 +122,7 @@ export async function arbeitsstandSichern(stand: Arbeitsstand): Promise<void> {
       bildMasse: stand.bildMasse,
       bildAusschnitt: stand.bildAusschnitt,
       bildKennung: stand.bildKennung,
+      platzierungen: stand.platzierungen ?? [],
       gespeichertAm: Date.now(),
       raster: rasterPacken({
         breite: stand.breite,
@@ -150,6 +160,7 @@ export async function arbeitsstandLaden(): Promise<Arbeitsstand | null> {
       bildMasse: abgelegt.bildMasse ?? null,
       bildAusschnitt: abgelegt.bildAusschnitt ?? null,
       bildKennung: abgelegt.bildKennung ?? crypto.randomUUID(),
+      platzierungen: abgelegt.platzierungen ?? [],
       gespeichertAm: abgelegt.gespeichertAm,
     };
   } catch {

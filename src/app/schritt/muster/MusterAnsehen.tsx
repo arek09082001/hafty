@@ -34,6 +34,7 @@ import {
   allesWiederSticken,
   ausschnittEinsetzen,
   ausschnittHerausloesen,
+  auswahlAusMaske,
   auswahlFuellen,
   auswahlNichtSticken,
   drehenGrad,
@@ -54,6 +55,14 @@ import {
   type Auswahl,
 } from "@/lib/muster/raster";
 import { ausschnittUebernehmen, farbeAnhaengen } from "@/lib/muster/palette";
+import {
+  platzierungAlsAusschnitt,
+  platzierungAnlegen,
+  platzierungAufheben,
+  platzierungBeiFeld,
+  platzierungMaske,
+  unberuehrt,
+} from "@/lib/muster/platzierung";
 import {
   STANDARD_AEHNLICHKEIT,
   auswahlVereinen,
@@ -97,6 +106,7 @@ export function MusterAnsehen() {
     versionVergessen,
     alleGarne,
     paletteErsetzen,
+    platzierungen,
   } = useMuster();
 
   const { t, zahl, landeskennung } = useSprache();
@@ -147,26 +157,18 @@ export function MusterAnsehen() {
     y: number;
     /** Motive lösen beim Einsetzen eine Sicherung aus, Kopien nicht. */
     ausMotiv: boolean;
+    /** Der Name des Motivs – er steht später an der Platzierung. */
+    name: string | null;
   } | null>(null);
   /**
-   * Das zuletzt eingesetzte Stück – damit es sich noch einmal aufnehmen und
-   * woanders hinlegen lässt.
+   * Welches eingesetzte Motiv gerade angefasst ist.
    *
-   * „Wstaw tutaj" schreibt das Stück ins Raster, und danach war es dort
-   * festgewachsen: wer einen Stich danebenlag, musste rückgängig machen und
-   * das Motiv von vorn aus der Liste holen. Gemerkt wird die unskalierte,
-   * ungedrehte Quelle samt Winkel, Stufe und Stelle – dasselbe, was die
-   * Vorschau hält, damit ein wieder aufgenommenes Stück genauso liegt wie
-   * eben noch.
+   * Ein eingesetztes Stück bleibt als solches bekannt (siehe
+   * `lib/muster/platzierung.ts`). Ein Tipp mit dem Motivwerkzeug trifft es,
+   * und dann steht rechts, was sich damit tun lässt: noch einmal verschieben,
+   * drehen, größer machen – oder wieder wegnehmen.
    */
-  const [letztesStueck, setLetztesStueck] = useState<{
-    quelle: Ausschnitt;
-    stufe: number;
-    winkel: number;
-    x: number;
-    y: number;
-    ausMotiv: boolean;
-  } | null>(null);
+  const [gewaehltePlatzierung, setGewaehltePlatzierung] = useState<string | null>(null);
   const [mitSymbolen, setMitSymbolen] = useState(false);
   /**
    * Das Stichgitter.
@@ -367,6 +369,7 @@ export function MusterAnsehen() {
   /** Nichts mehr ausgewählt – auch die gemerkten Flächen sind dann hinfällig. */
   const auswahlAufheben = useCallback(() => {
     setAuswahl(null);
+    setGewaehltePlatzierung(null);
     tippsVergessen();
   }, [tippsVergessen]);
 
@@ -460,6 +463,31 @@ export function MusterAnsehen() {
 
         case "motiv": {
           if (!e.beginn) return;
+          const getippt = e.y * breite + e.x;
+
+          /**
+           * Zuerst: liegt hier ein **eingesetztes** Motiv?
+           *
+           * Dann ist es das, was die Nutzerin meint. Sie hat es selbst dorthin
+           * gelegt, es ist als Ganzes bekannt, und ein Tipp darauf soll es
+           * wieder anfassbar machen – nicht eine Farbfläche auswählen, die
+           * zufällig darunterliegt. Was nicht eingesetzt wurde, wird wie
+           * bisher über die Farbe ausgewählt.
+           */
+          const eingesetzt = platzierungBeiFeld(platzierungen, getippt, muster.bearbeitung);
+          if (eingesetzt) {
+            setGewaehltePlatzierung(eingesetzt.id);
+            setAuswahl(
+              auswahlAusMaske(
+                platzierungMaske(eingesetzt, muster.bearbeitung, breite * hoehe),
+                breite,
+              ),
+            );
+            tippsVergessen();
+            return;
+          }
+          setGewaehltePlatzierung(null);
+
           // Jeder Tipp nimmt ein Element dazu. Wer auf ein schon
           // ausgewähltes tippt, nimmt es wieder heraus – dasselbe Tun in
           // beide Richtungen, ohne Schalter, den man erst finden muss.
@@ -476,6 +504,7 @@ export function MusterAnsehen() {
 
         case "flaeche": {
           if (!e.beginn) return;
+          setGewaehltePlatzierung(null);
           // Ein anderes Auswahlwerkzeug setzt die Auswahl neu. Was die
           // Motivsuche sich gemerkt hat, gehört dann nicht mehr zu dem, was
           // auf der Leinwand umrandet ist.
@@ -486,6 +515,7 @@ export function MusterAnsehen() {
 
         case "rechteck": {
           if (e.beginn) {
+            setGewaehltePlatzierung(null);
             rechteckStart.current = { x: e.x, y: e.y };
             if (tipps.length > 0) tippsVergessen();
           }
@@ -498,6 +528,7 @@ export function MusterAnsehen() {
 
         case "freihand": {
           if (e.beginn) {
+            setGewaehltePlatzierung(null);
             spur.current = [];
             if (tipps.length > 0) tippsVergessen();
           }
@@ -581,6 +612,7 @@ export function MusterAnsehen() {
       tippsVergessen,
       aehnlichkeit,
       motivWaehlen,
+      platzierungen,
     ],
   );
 
@@ -637,13 +669,14 @@ export function MusterAnsehen() {
     melden(t("editor.kopiertMeldung", { anzahl: zahl(auswahl.anzahl) }), "erfolg");
   };
 
-  const einfuegenStarten = (stueck: Ausschnitt, ausMotiv = false) => {
+  const einfuegenStarten = (stueck: Ausschnitt, ausMotiv = false, name: string | null = null) => {
     if (!muster) return;
     setVorschau({
       quelle: stueck,
       stufe: STUECK_STUFE_NORMAL,
       winkel: 0,
       ausMotiv,
+      name,
       x: Math.max(0, Math.floor((muster.breite - stueck.w) / 2)),
       y: Math.max(0, Math.floor((muster.hoehe - stueck.h) / 2)),
     });
@@ -661,58 +694,102 @@ export function MusterAnsehen() {
       vorschau.x,
       vorschau.y,
     );
-    if (indizes.length > 0) felderAendern("schrittname.stueckEingesetzt", indizes, werte);
-    // Das Stück bleibt gemerkt: solange nichts anderes dazwischenkommt, lässt
-    // es sich noch einmal aufnehmen und woanders hinlegen.
-    setLetztesStueck(
-      indizes.length > 0
-        ? {
-            quelle: vorschau.quelle,
-            stufe: vorschau.stufe,
-            winkel: vorschau.winkel,
-            x: vorschau.x,
-            y: vorschau.y,
-            ausMotiv: vorschau.ausMotiv,
-          }
-        : null,
-    );
+
+    if (indizes.length > 0) {
+      /**
+       * Das Stück wird nicht nur ins Raster geschrieben, sondern **gemerkt**:
+       * wo es liegt, was dort vorher stand und aus welcher Vorlage es kam.
+       * Damit bleibt es ein Motiv und wird nicht zu einer Handvoll gefärbter
+       * Felder – ein Tipp darauf nimmt es später wieder auf.
+       */
+      const platzierung = platzierungAnlegen(
+        indizes,
+        indizes.map((feld) => muster.bearbeitung[feld]),
+        werte,
+        muster.breite,
+        {
+          ausMotiv: vorschau.ausMotiv,
+          name: vorschau.name,
+          quelle: vorschau.quelle,
+          stufe: vorschau.stufe,
+          winkel: vorschau.winkel,
+        },
+      );
+      felderAendern("schrittname.stueckEingesetzt", indizes, werte, { an: platzierung });
+      setGewaehltePlatzierung(platzierung.id);
+    }
+
     // Ein eingesetztes Motiv ist ein großer Schritt und wird gesichert.
     const warMotiv = vorschau.ausMotiv;
     setVorschau(null);
+    setAuswahl(null);
     alleWeg();
     if (warMotiv && indizes.length > 0) {
       window.setTimeout(() => void standAnlegen("staende.motivEingesetzt"), 0);
     }
   };
 
-  /**
-   * Darf das zuletzt eingesetzte Stück noch einmal angefasst werden?
-   *
-   * Nur, solange das Einsetzen der **letzte** Schritt ist. Danach liegt
-   * womöglich Handarbeit darüber, und das Aufnehmen würde sie mitnehmen –
-   * es hebt ja genau den Schritt auf, mit dem das Stück hereinkam.
-   */
-  const kannStueckNochSchieben =
-    letztesStueck !== null &&
-    vorschau === null &&
-    letzterSchrittTitel === "schrittname.stueckEingesetzt";
+  /** Das eingesetzte Motiv, das gerade angefasst ist – falls es noch da ist. */
+  const platzierungJetzt = useMemo(() => {
+    if (!gewaehltePlatzierung || !muster) return null;
+    return platzierungen.find((p) => p.id === gewaehltePlatzierung) ?? null;
+  }, [gewaehltePlatzierung, platzierungen, muster]);
 
   /**
-   * Das eingesetzte Stück wieder aufnehmen.
+   * Ein eingesetztes Motiv wieder aufnehmen.
    *
-   * Es wird nicht kopiert, sondern der Schritt zurückgenommen: darunter kommt
-   * genau das wieder zum Vorschein, was vorher da war. Danach liegt das Stück
-   * wie frisch eingefügt auf dem Muster und lässt sich mit dem Finger an die
-   * richtige Stelle ziehen.
+   * Zurückgegeben wird nur, was dem Motiv heute noch gehört: wo darübergemalt
+   * wurde oder ein zweites Motiv liegt, hat die spätere Arbeit das Sagen. An
+   * den eigenen Feldern kommt zum Vorschein, was vor dem Einsetzen da war.
+   *
+   * Ist das Motiv unberührt, wird seine **Vorlage** wieder aufgenommen und
+   * nicht das, was auf dem Muster steht: nur so bleibt es beim Vergrößern und
+   * Drehen so scharf wie beim ersten Mal.
    */
-  const stueckWiederAufnehmen = () => {
-    if (!letztesStueck || !kannStueckNochSchieben) return;
-    rueckgaengig();
-    setVorschau(letztesStueck);
-    setLetztesStueck(null);
+  const platzierungAufnehmen = () => {
+    if (!muster || !raster || !platzierungJetzt) return;
+    const p = platzierungJetzt;
+
+    const ganz = unberuehrt(p, muster.bearbeitung);
+    const stueck = ganz
+      ? p.quelle
+      : platzierungAlsAusschnitt(p, raster, muster.bearbeitung, muster.breite, muster.palette);
+    if (!stueck) {
+      melden(t("editor.motivWegGemalt"), "fehler");
+      return;
+    }
+
+    const { indizes, werte } = platzierungAufheben(p, muster.bearbeitung);
+    felderAendern("schrittname.stueckAufgenommen", indizes, werte, { ab: p });
+
+    setVorschau({
+      quelle: stueck,
+      // Eine unberührte Vorlage kommt mit ihrer Stufe und ihrem Winkel
+      // zurück; was vom Muster gelesen wurde, liegt schon so, wie es liegt.
+      stufe: ganz ? p.stufe : STUECK_STUFE_NORMAL,
+      winkel: ganz ? p.winkel : 0,
+      x: p.x0,
+      y: p.y0,
+      ausMotiv: p.ausMotiv,
+      name: p.name,
+    });
+    setGewaehltePlatzierung(null);
     setAuswahl(null);
     tippsVergessen();
     melden(t("editor.einsetzenMeldung"));
+  };
+
+  /** Ein eingesetztes Motiv wieder wegnehmen – darunter kommt das Alte zurück. */
+  const platzierungEntfernen = () => {
+    if (!muster || !platzierungJetzt) return;
+    const p = platzierungJetzt;
+    const { indizes, werte } = platzierungAufheben(p, muster.bearbeitung);
+    if (indizes.length === 0) return;
+    felderAendern("schrittname.motivWeggenommen", indizes, werte, { ab: p });
+    setGewaehltePlatzierung(null);
+    setAuswahl(null);
+    tippsVergessen();
+    melden(t("editor.motivWeggenommen"), "erfolg");
   };
 
   /**
@@ -888,7 +965,7 @@ export function MusterAnsehen() {
       const dazu = uebernommen.palette.length - muster.palette.length;
       if (dazu > 0) melden(t("editor.farbenAusMotiv", { anzahl: zahl(dazu) }));
     }
-    einfuegenStarten(uebernommen.stueck, true);
+    einfuegenStarten(uebernommen.stueck, true, motiv.name);
   };
 
   /**
@@ -960,8 +1037,9 @@ export function MusterAnsehen() {
       garneZusammengelegt: 0,
       // Ein wiederhergestellter Stand gehört weiter zum selben Bild.
       bildKennung: muster.bildKennung,
-    });
+    }, inhalt.platzierungen);
     setAuswahl(null);
+    setGewaehltePlatzierung(null);
     tippsVergessen();
     melden(t("editor.standWiederher"), "erfolg");
   };
@@ -1437,7 +1515,35 @@ export function MusterAnsehen() {
                       </Abschnitt>
                     ) : null}
 
+                    {/* Ein eingesetztes Motiv bleibt ein Motiv: angetippt,
+                        steht hier, was sich damit tun lässt. */}
+                    {platzierungJetzt ? (
+                      <Abschnitt
+                        titel={
+                          platzierungJetzt.name
+                            ? t("editor.motivAngefasstMitNamen", { name: platzierungJetzt.name })
+                            : t("editor.motivAngefasstTitel")
+                        }
+                        hinweis={t("editor.motivAngefasstHinweis")}
+                      >
+                        <div className="grid grid-cols-2 gap-2">
+                          <Knopf art="haupt" klein onClick={platzierungAufnehmen}>
+                            {t("editor.motivAnfassen")}
+                          </Knopf>
+                          <Knopf art="neben" klein onClick={platzierungEntfernen}>
+                            {t("editor.motivWegnehmen")}
+                          </Knopf>
+                        </div>
+                      </Abschnitt>
+                    ) : null}
+
                     {waehltAus(werkzeug) ? (
+                      <>
+                      {werkzeug === "motiv" && platzierungen.length > 0 && !platzierungJetzt ? (
+                        <p className="mb-3 border-l-[6px] border-linie bg-hinweis px-4 py-3 text-[1rem]">
+                          {t("editor.motivTippHinweis")}
+                        </p>
+                      ) : null}
                       <Auswahlbereich
                         werkzeug={werkzeug}
                         auswahl={auswahl}
@@ -1455,6 +1561,7 @@ export function MusterAnsehen() {
                         }}
                         onAufheben={auswahlAufheben}
                       />
+                      </>
                     ) : null}
 
                     {/* Sobald etwas freigestellt ist, muss der Weg zurück
@@ -1468,20 +1575,6 @@ export function MusterAnsehen() {
                       >
                         <Knopf art="neben" onClick={wiederAllesSticken} className="w-full">
                           {t("editor.wiederAllesSticken")}
-                        </Knopf>
-                      </Abschnitt>
-                    ) : null}
-
-                    {/* Ein eingesetztes Stück ist nicht festgewachsen:
-                        solange nichts anderes dazwischengekommen ist, lässt
-                        es sich noch einmal aufnehmen und woanders hinlegen. */}
-                    {kannStueckNochSchieben ? (
-                      <Abschnitt
-                        titel={t("editor.stueckNochSchiebenTitel")}
-                        hinweis={t("editor.stueckNochSchiebenHinweis")}
-                      >
-                        <Knopf art="neben" onClick={stueckWiederAufnehmen} className="w-full">
-                          {t("editor.stueckNochSchieben")}
                         </Knopf>
                       </Abschnitt>
                     ) : null}
