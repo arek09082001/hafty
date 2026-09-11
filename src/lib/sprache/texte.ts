@@ -566,6 +566,11 @@ export const TEXTE = {
   "editor.farbeDazugenommen": "Dodano kolor: {marke} {code} · {name}",
   "editor.farbeVoll": "Wzór ma już najwięcej kolorów, ile się da. Nowy kolor się nie zmieści.",
   "editor.farbenAusMotiv": "Kolory motywu dołączyły do listy: {anzahl}.",
+  "editor.stueckNochSchiebenTitel": "Wstawiony motyw",
+  "editor.stueckNochSchieben": "Przesuń go jeszcze raz",
+  "editor.stueckNochSchiebenHinweis":
+    "Ostatnio wstawiony motyw można jeszcze podnieść i położyć w innym miejscu – to, co było pod spodem, wróci.",
+
   "editor.ohneFotoTitel": "Wzór bez zdjęcia",
   "editor.ohneFotoText":
     "Ten wzór powstał na pustej kanwie, więc nie ma zdjęcia do wygładzania. Proszę malować i wstawiać motywy.",
