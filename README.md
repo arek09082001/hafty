@@ -617,15 +617,40 @@ Drei Dinge mussten stimmen, bis daraus Kreuze wurden statt Streifen:
   dunkel nach innen hell. Mit dreien sah er aus wie ein flaches Band mit
   aufgemalten Streifen, und das Muster wirkte wie ein Schottenkaro.
 
-Gezeichnet wird je Farbe ein Pfad für die unteren und einer für die oberen
-Fäden, und erst danach gestrichen – bei zwanzigtausend sichtbaren Kästchen
-wären einzelne Striche zu langsam. Gemessen an einem Muster mit 400 Stichen
-Breite kostet das Schieben dasselbe wie im Plan: 16,7 ms je Bild in beiden
-Ansichten, das schlechteste Bild 22 statt 18 ms.
+### Nah gezeichnet, fern verkleinert
 
-Unter sechs Bildpunkten je Stich bleibt es beim Kästchenbild. Das ist keine
-Notlösung: aus der Entfernung sieht eine Stickerei tatsächlich aus wie ihre
-Farbflächen, und einzelne Fäden dort hinzumalen ergäbe nur Grau.
+Man soll die Stickerei **von weitem** sehen und nicht erst beim Hineinzoomen.
+Bei einem Muster, das ganz auf den Bildschirm passt, fallen auf einen Stich
+aber nur zwei oder drei Bildpunkte – zu wenig für zwei Fäden und ein Loch.
+Der erste Anlauf zeigte deshalb unterhalb von sechs Punkten je Stich wieder
+den Kästchenplan, und genau das war der Fehler: die Ansicht tat nur beim
+Hineinzoomen etwas.
+
+Deshalb zwei Wege zum selben Bild:
+
+- **Nah** wird frisch gezeichnet, nur für die sichtbaren Felder – je Farbe ein
+  Pfad für die unteren und einer für die oberen Fäden, gestrichen erst danach.
+  So ist jeder Faden scharf, egal wie weit hineingezoomt wird.
+- **Fern** liegt ein einmal gebautes Stickbild, verkleinert. Das Verkleinern
+  besorgt der Browser und mittelt dabei – genau das, was auch das Auge tut,
+  wenn es aus zwei Metern hinschaut. Die Struktur bleibt als Körnung erhalten,
+  statt zu einer Fläche zu werden.
+
+Umgeschaltet wird genau bei der Feinheit des Stickbildes (acht Punkte je
+Stich, bei großen Mustern weniger). So wird es nur verkleinert und nie
+vergrößert.
+
+Gebaut wird das Stickbild nicht Stich für Stich, sondern aus **Stempeln**: je
+Garnfarbe einmal ein Kästchen zeichnen, den Block danach nur noch kopieren.
+Das ist nicht kosmetisch. Bei 400 Stichen Breite sind über zweihunderttausend
+Kästchen zu füllen; einzeln gezeichnet blockierte das Umschalten den Browser
+**sieben Sekunden**, kopiert sind es **85 ms**. Verloren geht dabei nur, dass
+die Fäden benachbarter Stiche einander leicht überlappen – bei acht
+Bildpunkten je Stich sieht das niemand, und beim Hineinzoomen wird ohnehin
+frisch gezeichnet.
+
+Das Schieben kostet in beiden Ansichten dasselbe: 16,7 ms je Bild, das
+schlechteste Bild 24 statt 18 ms.
 
 ## Die Werkzeuge und die Bedienspalte
 

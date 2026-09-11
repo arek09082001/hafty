@@ -12,6 +12,7 @@ import {
 import {
   farbtabelle,
   kleinbildZeichnen,
+  stichbildZeichnen,
   musterZeichnen,
   type Einfuegevorschau,
 } from "@/lib/muster/leinwand";
@@ -227,6 +228,13 @@ export function Arbeitsflaeche({
 }) {
   const leinwand = useRef<HTMLCanvasElement>(null);
   const klein = useRef<HTMLCanvasElement | null>(null);
+  /**
+   * Die ganze Stickerei, einmal gezeichnet. Nur nötig, solange die
+   * Stickansicht an ist – bei einem großen Muster kostet sie ein paar
+   * Millionen Bildpunkte, und die will niemand bezahlen, der den Plan ansieht.
+   */
+  const stichbild = useRef<HTMLCanvasElement | null>(null);
+  const letzteStichlage = useRef<unknown[]>([]);
   const [sicht, setSicht] = useState({ w: 0, h: 0 });
   const [raumTaste, setRaumTaste] = useState(false);
   const [zieht, setZieht] = useState(false);
@@ -329,6 +337,16 @@ export function Arbeitsflaeche({
       letzteLage.current = lage;
     }
 
+    // Dasselbe für die Stickerei – und ebenfalls nicht beim Schieben und
+    // Zoomen, sondern nur, wenn sich am Muster etwas geändert hat.
+    if (mitStichen) {
+      if (!stichbild.current) stichbild.current = document.createElement("canvas");
+      if (lage.some((wert, i) => letzteStichlage.current[i] !== wert)) {
+        stichbildZeichnen(stichbild.current, breite, hoehe, raster, tabelle, vorschau);
+        letzteStichlage.current = lage;
+      }
+    }
+
     musterZeichnen(canvas, klein.current, {
       breite,
       hoehe,
@@ -342,6 +360,7 @@ export function Arbeitsflaeche({
       mitLinien,
       mitSymbolen,
       mitStichen,
+      stichbild: mitStichen ? stichbild.current : null,
       auswahl,
       vorschau,
       mitBlatt: true,
