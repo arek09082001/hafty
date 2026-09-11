@@ -557,6 +557,64 @@ export type GlaettungsErgebnis = {
  *                        Siehe `mindestflaecheFinden`.
  * @param durchlaeufe  3 bis 5 – mehr bringt praktisch nichts mehr
  */
+/**
+ * Ab diesem Farbsprung im Originalbild gilt eine Kante als **Kontur**.
+ *
+ * Gemessen als schlichter Lab-Abstand zum Nachbarn, nicht als CIEDE2000: hier
+ * geht es nicht um feine Farbunterschiede, sondern um die grobe Frage „liegt
+ * hier eine Grenze im Bild?" – und dafür genügt der geometrische Abstand,
+ * der eine Million Mal billiger zu haben ist.
+ *
+ * 16 trennt sauber: der Übergang von Lippe zu Lippenspalt liegt weit
+ * darüber, die Schattierung innerhalb einer Wange weit darunter.
+ */
+const KONTUR_AB = 16;
+
+/**
+ * Wie stark die Glättung an einer Kontur nachlässt.
+ *
+ * Die Strafe für einen abweichenden Nachbarn ist dort, wo im Bild ohnehin
+ * eine Grenze verläuft, nicht gerechtfertigt: Nachbarn **sollen** sich da
+ * unterscheiden. Ohne diese Ermäßigung frisst die Glättung genau die feinen
+ * dunklen Striche weg, an denen ein Gesicht hängt – den Spalt zwischen den
+ * Lippen, die Wimpernreihe, die Falte am Augenlid. Mit ihr bleiben sie
+ * stehen, während die Glättung in den Flächen unverändert arbeitet.
+ */
+const KONTUR_MILDE = 0.45;
+
+/**
+ * Wie stark sich ein Feld im **Originalbild** von seinen vier Nachbarn
+ * unterscheidet – der größte Abstand zählt.
+ *
+ * Gerechnet wird auf der Vorlage und nicht auf dem schon zugeordneten Raster:
+ * die Zuordnung ist das, was hier gerade verhandelt wird, die Vorlage ist die
+ * Tatsache.
+ */
+function konturenFinden(quellLab: Float32Array, breite: number, hoehe: number): Float32Array {
+  const felder = breite * hoehe;
+  const staerke = new Float32Array(felder);
+
+  const abstand = (a: number, b: number) => {
+    const dl = quellLab[a * 3] - quellLab[b * 3];
+    const da = quellLab[a * 3 + 1] - quellLab[b * 3 + 1];
+    const db = quellLab[a * 3 + 2] - quellLab[b * 3 + 2];
+    return Math.sqrt(dl * dl + da * da + db * db);
+  };
+
+  for (let y = 0; y < hoehe; y++) {
+    for (let x = 0; x < breite; x++) {
+      const i = y * breite + x;
+      let groesster = 0;
+      if (x > 0) groesster = Math.max(groesster, abstand(i, i - 1));
+      if (x < breite - 1) groesster = Math.max(groesster, abstand(i, i + 1));
+      if (y > 0) groesster = Math.max(groesster, abstand(i, i - breite));
+      if (y < hoehe - 1) groesster = Math.max(groesster, abstand(i, i + breite));
+      staerke[i] = groesster;
+    }
+  }
+  return staerke;
+}
+
 export function glaetten(
   start: Uint16Array,
   liste: Abstandsliste,
@@ -579,6 +637,8 @@ export function glaetten(
     // als die Rechnung selbst.
     const nachbarZaehler = new Int32Array(k);
     const nachbarFarben = new Int32Array(8);
+    // Einmal für alle Durchläufe: wo verlaufen im Original Konturen?
+    const konturen = konturenFinden(liste.quellLab, breite, hoehe);
 
     for (let durchlauf = 0; durchlauf < durchlaeufe; durchlauf++) {
       let veraendert = 0;
@@ -604,6 +664,11 @@ export function glaetten(
             }
           }
 
+          // An einer Kontur ist die Strafe ermäßigt: dort **sollen** sich
+          // Nachbarn unterscheiden, und ohne die Ermäßigung verschwinden
+          // genau die feinen Striche, an denen ein Gesicht hängt.
+          const lam = konturen[i] >= KONTUR_AB ? lambda * KONTUR_MILDE : lambda;
+
           // Kosten je Farbe: Farbabstand plus Strafe für jeden Nachbarn,
           // der anders aussehen würde. Bei gleichen Kosten gewinnt der
           // kleinere Index – das hält das Ergebnis eindeutig.
@@ -614,7 +679,7 @@ export function glaetten(
           // sie bekommen die Strafe ermäßigt.
           for (let n = 0; n < verschiedene; n++) {
             const c = nachbarFarben[n];
-            const kosten = abstandVon(liste, i, c) + lambda * (nachbarn - nachbarZaehler[c]);
+            const kosten = abstandVon(liste, i, c) + lam * (nachbarn - nachbarZaehler[c]);
             if (kosten < besteKosten || (kosten === besteKosten && c < besteFarbe)) {
               besteKosten = kosten;
               besteFarbe = c;
@@ -629,7 +694,7 @@ export function glaetten(
           for (let m = 0; m < je; m++) {
             const c = liste.farben[basis + m];
             if (nachbarZaehler[c] > 0) continue;
-            const kosten = liste.abstaende[basis + m] + lambda * nachbarn;
+            const kosten = liste.abstaende[basis + m] + lam * nachbarn;
             if (kosten < besteKosten || (kosten === besteKosten && c < besteFarbe)) {
               besteKosten = kosten;
               besteFarbe = c;
@@ -670,7 +735,12 @@ export function glaetten(
     // … danach die gröberen Flecken. Wie groß „klein" ist, steht nicht im
     // Regler, sondern wird am Muster selbst abgelesen.
     const mindestGroesse = mindestflaecheFinden(raster, breite, flaechenAnteil);
-    if (mindestGroesse > 1) kleineFlaechenAufloesen(raster, breite, mindestGroesse);
+    // Mit der Palette in der Hand kann der Durchgang unterscheiden, ob eine
+    // kleine Fläche ein verirrter Fleck ist oder ein Strich, der ins Bild
+    // gehört – der Spalt zwischen zwei Lippen zum Beispiel.
+    if (mindestGroesse > 1) {
+      kleineFlaechenAufloesen(raster, breite, mindestGroesse, 6, liste.palette);
+    }
   }
 
   return { raster, kennzahlen: kennzahlenBerechnen(raster, breite) };
@@ -800,10 +870,20 @@ export function aufraeumen(raster: Uint16Array, breite: number, k: number): numb
 export function flaechenFinden(
   raster: Uint16Array,
   breite: number,
-): { flaeche: Int32Array; groessen: Int32Array } {
+): {
+  flaeche: Int32Array;
+  groessen: Int32Array;
+  /** Die Farbe jeder Fläche. */
+  farben: Uint16Array;
+  /** Je Fläche das umschließende Rechteck: x0, y0, x1, y1. */
+  kaesten: Int32Array;
+} {
   const hoehe = raster.length / breite;
   const flaeche = new Int32Array(raster.length).fill(-1);
   const groessen: number[] = [];
+  const farben: number[] = [];
+  // Je Fläche vier Zahlen; gesammelt wird beim Fluten, das kostet nichts.
+  const kaesten: number[] = [];
   // Ein eigener Stapel statt Rekursion – bei 160.000 Feldern würde der
   // Aufrufstapel des Browsers sonst überlaufen.
   const stapel = new Int32Array(raster.length);
@@ -815,6 +895,10 @@ export function flaechenFinden(
     const nummer = groessen.length;
     let groesse = 0;
     let spitze = 0;
+    let kx0 = breite;
+    let ky0 = hoehe;
+    let kx1 = -1;
+    let ky1 = -1;
 
     stapel[spitze++] = start;
     flaeche[start] = nummer;
@@ -824,6 +908,10 @@ export function flaechenFinden(
       groesse++;
       const x = i % breite;
       const y = (i / breite) | 0;
+      if (x < kx0) kx0 = x;
+      if (y < ky0) ky0 = y;
+      if (x > kx1) kx1 = x;
+      if (y > ky1) ky1 = y;
 
       for (let dy = -1; dy <= 1; dy++) {
         const yy = y + dy;
@@ -841,9 +929,16 @@ export function flaechenFinden(
     }
 
     groessen.push(groesse);
+    farben.push(farbe);
+    kaesten.push(kx0, ky0, kx1, ky1);
   }
 
-  return { flaeche, groessen: Int32Array.from(groessen) };
+  return {
+    flaeche,
+    groessen: Int32Array.from(groessen),
+    farben: Uint16Array.from(farben),
+    kaesten: Int32Array.from(kaesten),
+  };
 }
 
 /**
@@ -877,11 +972,75 @@ export function flaechenFinden(
  * kleinsten Flecken in ihren Nachbarn auf, und wenn die Grenze dann steigt,
  * sind die Nachbarn wirklich größer geworden.
  */
+/**
+ * Wie dünn eine Fläche höchstens sein darf, um als **Linie** zu gelten.
+ *
+ * Gerechnet wird Fläche geteilt durch die längere Seite ihres Rechtecks. Ein
+ * Strich von zwanzig Feldern Länge und einem Feld Breite kommt auf 1,0; ein
+ * runder Fleck derselben Größe auf 4,5. Bei 2,2 liegt die Grenze, damit auch
+ * ein zwei Felder breiter, leicht schräger Strich noch dazugehört.
+ */
+const LINIE_DICKE = 2.2;
+
+/** Und so lang muss sie sein – darunter ist es ein Fleck und kein Strich. */
+const LINIE_LAENGE = 4;
+
+/**
+ * Ab diesem Farbabstand ist eine Linie **gewollt** und wird nicht aufgelöst.
+ *
+ * ΔE 10 ist ein Unterschied, den jeder sieht: der dunkle Spalt zwischen zwei
+ * Lippen, die Wimpernreihe, die Fuge zwischen zwei Hauswänden. Was darunter
+ * liegt, ist eine Schattierung – die darf in ihrer Umgebung aufgehen, ohne
+ * dass dem Bild etwas fehlt.
+ */
+const LINIE_KONTRAST = 10;
+
+/**
+ * Ab diesem Farbabstand bleibt auch eine **kompakte** kleine Fläche stehen.
+ *
+ * Nicht nur Striche gehen verloren: an einem Gesicht mit achtzig Stichen
+ * Breite sind die Lippen zweihundert Felder groß, und wenn ein Fünftel des
+ * Musters aufgelöst werden darf, gehören sie dazu. Gemessen an einer
+ * gezeichneten Vorlage war bei Stellung 55 vom Gesicht nichts übrig als
+ * Haut – kein Mund, kein Auge.
+ *
+ * Und das ist nicht, was der Regler soll. Er soll das Sticken ruhiger machen,
+ * also die Sprenkel wegnehmen, die kaum anders aussehen als ihre Umgebung.
+ * Was sich deutlich abhebt, ist keine Unruhe, sondern das Bild. ΔE 22 ist
+ * dafür die Grenze: Lippen gegen Haut liegen weit darüber, zwei Schattierungen
+ * derselben Wange weit darunter.
+ */
+const KONTRAST_STARK = 22;
+
+/** Darunter ist es ein einzelner Sprenkel und geht auch bei viel Kontrast. */
+const KONTRAST_AB_GROESSE = 6;
+
+/**
+ * Ist diese Fläche ein dünner Strich?
+ *
+ * Der Spalt zwischen zwei Lippen ist im Muster vielleicht fünfzehn Felder
+ * groß – nach reiner Größe also „kleiner Fleck", und genau so verschwand er
+ * bisher: aufgelöst in die Lippenfarbe, und das Gesicht verlor seinen Mund.
+ * Nach Form und Kontrast ist er dagegen unverkennbar etwas anderes als ein
+ * verirrter Stich im Hintergrund.
+ */
+function istLinie(groesse: number, x0: number, y0: number, x1: number, y1: number): boolean {
+  const laenge = Math.max(x1 - x0, y1 - y0) + 1;
+  if (laenge < LINIE_LAENGE) return false;
+  return groesse / laenge <= LINIE_DICKE;
+}
+
 export function kleineFlaechenAufloesen(
   raster: Uint16Array,
   breite: number,
   mindestGroesse: number,
   maxDurchlaeufe = 6,
+  /**
+   * Die Palette in Lab. Ist sie da, bleiben dünne, kontrastreiche Striche
+   * stehen (siehe `istLinie`). Ohne sie löst der Durchgang auf wie bisher –
+   * für Aufrufe, die keine Palette zur Hand haben.
+   */
+  palette?: Lab[],
 ): number {
   if (mindestGroesse <= 1) return 0;
   const hoehe = raster.length / breite;
@@ -895,7 +1054,7 @@ export function kleineFlaechenAufloesen(
         ? mindestGroesse
         : Math.max(2, Math.round(mindestGroesse ** ((durchlauf + 1) / maxDurchlaeufe)));
 
-    const { flaeche, groessen } = flaechenFinden(raster, breite);
+    const { flaeche, groessen, farben, kaesten } = flaechenFinden(raster, breite);
 
     // Für jede zu kleine Fläche zählen, an welche Farbe sie am längsten
     // grenzt. Gezählt wird in einer Zuordnung und nicht in einem Feld über
@@ -904,6 +1063,9 @@ export function kleineFlaechenAufloesen(
     // Vielfaches an Speicher.
     const zuKlein = new Map<number, Map<number, number>>();
     for (let f = 0; f < groessen.length; f++) {
+      // Ob ein dünner Strich bleibt, entscheidet weiter unten sein Kontrast
+      // zu der Farbe, in der er aufgehen soll – gezählt werden seine
+      // Nachbarn deshalb trotzdem.
       if (groessen[f] < grenze) zuKlein.set(f, new Map());
     }
     if (zuKlein.size === 0) continue;
@@ -942,7 +1104,32 @@ export function kleineFlaechenAufloesen(
           beste = c;
         }
       }
-      if (beste >= 0) ersatz.set(f, beste);
+      if (beste < 0) continue;
+
+      /**
+       * Der Strich bleibt, wenn er sich von seiner Umgebung deutlich
+       * abhebt. Gemessen wird zwischen seiner eigenen Garnfarbe und der, in
+       * der er aufgehen soll: ein dunkler Spalt in hellen Lippen liegt weit
+       * darüber, eine Schattierung in derselben Farbfamilie darunter.
+       */
+      const eigene = palette?.[farben[f]];
+      const ersatzfarbe = palette?.[beste];
+      if (eigene && ersatzfarbe) {
+        const kontrast = ciede2000(eigene, ersatzfarbe);
+        const linie = istLinie(
+          groessen[f],
+          kaesten[f * 4],
+          kaesten[f * 4 + 1],
+          kaesten[f * 4 + 2],
+          kaesten[f * 4 + 3],
+        );
+        // Ein Strich braucht weniger Kontrast, um bleiben zu dürfen: er ist
+        // schon durch seine Form als Linie im Bild kenntlich.
+        if (linie && kontrast >= LINIE_KONTRAST) continue;
+        if (groessen[f] >= KONTRAST_AB_GROESSE && kontrast >= KONTRAST_STARK) continue;
+      }
+
+      ersatz.set(f, beste);
     }
     // Nichts zu tun heißt hier nur „bei dieser Grenze nicht" – der nächste
     // Durchlauf hat eine größere und findet vielleicht doch etwas.

@@ -1269,16 +1269,10 @@ export function MusterAnsehen() {
               <Sichtknopf onClick={() => setMitStichen((a) => !a)} gedrueckt={mitStichen}>
                 {mitStichen ? t("editor.sticheAus") : t("editor.sticheAn")}
               </Sichtknopf>
-              {/* Die Symbole gehören zum Plan: über der Stickerei hätten sie
-                  nichts zu sagen, der Knopf bleibt dort stumpf. Das Gitter
-                  dagegen wird auch über der Stickansicht gezeichnet – es ist
-                  das, wonach abgezählt wird –, also bleibt sein Schalter
-                  überall bedienbar. */}
-              <Sichtknopf
-                onClick={() => setMitSymbolen((a) => !a)}
-                gedrueckt={mitSymbolen}
-                disabled={mitStichen}
-              >
+              {/* Gitter und Symbole werden auch über der Stickansicht
+                  gezeichnet – beides ist das, wonach abgezählt wird. Ihre
+                  Schalter bleiben deshalb überall bedienbar. */}
+              <Sichtknopf onClick={() => setMitSymbolen((a) => !a)} gedrueckt={mitSymbolen}>
                 {mitSymbolen ? t("editor.symboleAus") : t("editor.symboleAn")}
               </Sichtknopf>
               <Sichtknopf
