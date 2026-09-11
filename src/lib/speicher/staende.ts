@@ -25,6 +25,7 @@ import { masseLesen, rasterPacken, rasterEntpacken } from "./rle";
 import { browserdatenbank, entpacken, packen, LADEN_STAENDE } from "./browserspeicher";
 import { vormerken } from "./abgleichliste";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
+import type { Platzierung } from "@/lib/muster/platzierung";
 import { LANDESKENNUNG } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
@@ -58,6 +59,8 @@ export type StandInhalt = {
   basis: Uint16Array;
   bearbeitung: Int16Array;
   palette: PalettenEintrag[];
+  /** Wo eingesetzte Motive liegen – bei älteren Ständen leer. */
+  platzierungen: Platzierung[];
 };
 
 /** So liegt ein Stand in der Datenbank. */
@@ -76,6 +79,14 @@ export type Standsatz = {
   /** Die Maße in Stichen, damit sie in der Liste stehen können. */
   breite?: number;
   hoehe?: number;
+  /**
+   * Wo in diesem Stand eingesetzte Motive liegen.
+   *
+   * Ohne sie wäre ein Motiv nach dem Wiederherstellen nur noch eine Handvoll
+   * gefärbter Felder und ließe sich nicht mehr anfassen. Ältere Stände kennen
+   * die Angabe nicht – dann ist sie einfach leer.
+   */
+  platzierungen?: Platzierung[];
 };
 
 /**
@@ -135,6 +146,7 @@ export async function standSichern(argumente: {
   palette: PalettenEintrag[];
   einstellungen: Einstellungen;
   quellbild: Blob | null;
+  platzierungen?: Platzierung[];
 }): Promise<{ musterId: string; standId: string } | null> {
   try {
     const db = await browserdatenbank();
@@ -166,6 +178,7 @@ export async function standSichern(argumente: {
       einstellungen: argumente.einstellungen,
       breite: argumente.breite,
       hoehe: argumente.hoehe,
+      platzierungen: argumente.platzierungen ?? [],
     };
 
     await db.put(LADEN_STAENDE, satz);
@@ -278,7 +291,7 @@ export async function standHolen(stand: Stand): Promise<StandInhalt | null> {
     const satz = (await db.get(LADEN_STAENDE, stand.id)) as Standsatz | undefined;
     if (!satz) return null;
     const entpackt = rasterEntpacken(await entpacken(satz.raster));
-    return { ...entpackt, palette: satz.palette };
+    return { ...entpackt, palette: satz.palette, platzierungen: satz.platzierungen ?? [] };
   } catch {
     return null;
   }

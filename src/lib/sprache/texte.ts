@@ -569,10 +569,19 @@ export const TEXTE = {
   "editor.farbeDazugenommen": "Dodano kolor: {marke} {code} · {name}",
   "editor.farbeVoll": "Wzór ma już najwięcej kolorów, ile się da. Nowy kolor się nie zmieści.",
   "editor.farbenAusMotiv": "Kolory motywu dołączyły do listy: {anzahl}.",
-  "editor.stueckNochSchiebenTitel": "Wstawiony motyw",
-  "editor.stueckNochSchieben": "Przesuń go jeszcze raz",
-  "editor.stueckNochSchiebenHinweis":
-    "Ostatnio wstawiony motyw można jeszcze podnieść i położyć w innym miejscu – to, co było pod spodem, wróci.",
+  "editor.motivAngefasstTitel": "Wstawiony motyw",
+  "editor.motivAngefasstMitNamen": "Wstawiony motyw: {name}",
+  "editor.motivAngefasstHinweis":
+    "Ten motyw został tu wstawiony i nadal jest całością. Można go przesunąć, obrócić i zmienić rozmiar albo zdjąć – pod spodem wróci to, co tam było.",
+  "editor.motivAnfassen": "Przesuń albo obróć",
+  "editor.motivWegnehmen": "Zdejmij stąd",
+  "editor.motivWeggenommen": "Motyw zdjęty. Pod spodem wróciło to, co tam było.",
+  "editor.motivWegGemalt":
+    "Po tym motywie nic już nie zostało – wszystko zostało zamalowane albo przykryte.",
+  "editor.motivTippHinweis":
+    "Wstawione motywy zostają całością: proszę dotknąć motywu narzędziem „Motyw”, żeby znów go chwycić.",
+  "schrittname.stueckAufgenommen": "Podniesiony motyw",
+  "schrittname.motivWeggenommen": "Zdjęty motyw",
 
   "editor.ohneFotoTitel": "Wzór bez zdjęcia",
   "editor.ohneFotoText":

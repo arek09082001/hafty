@@ -24,6 +24,7 @@ import {
   type PalettenEintrag,
 } from "@/lib/muster/typen";
 import { bearbeitungUmschreiben, zusammenfuehren } from "@/lib/muster/raster";
+import type { Platzierung } from "@/lib/muster/platzierung";
 import { kennzahlenBerechnen } from "@/lib/muster/glaettung";
 import { arbeitsstandLaden, arbeitsstandSichern } from "@/lib/speicher/browserspeicher";
 import { standSichern, type Stand } from "@/lib/speicher/staende";
@@ -46,6 +47,15 @@ export type Schritt = {
   indizes: Int32Array;
   alt: Int16Array;
   neu: Int16Array;
+  /**
+   * Mit diesem Schritt kam ein Stück herein – oder wurde eines aufgenommen.
+   *
+   * Damit läuft die Liste der eingesetzten Motive mit dem Rückgängigmachen
+   * mit: wer das Einsetzen zurücknimmt, hat danach auch kein eingesetztes
+   * Motiv mehr, und wer es wiederholt, bekommt es zurück.
+   */
+  platzierungAn?: Platzierung;
+  platzierungAb?: Platzierung;
 };
 
 /** Gefordert sind mindestens 50 Schritte; wir halten deutlich mehr vor. */
@@ -106,6 +116,8 @@ type Zustand = {
   muster: Muster | null;
   rueckgaengigStapel: Schritt[];
   wiederholenStapel: Schritt[];
+  /** Wo Stücke eingesetzt wurden – das älteste zuerst, das oberste zuletzt. */
+  platzierungen: Platzierung[];
 };
 
 type Aktion =
@@ -114,10 +126,17 @@ type Aktion =
   /** Antwort des Reglers: das Muster wird aus dem gerade geltenden gebaut. */
   | { art: "geglaettet"; antwort: Geglaettet }
   /** Einen kompletten Stand einsetzen (gespeicherter Stand, Wiederherstellung). */
-  | { art: "ersetzen"; muster: Muster }
+  | { art: "ersetzen"; muster: Muster; platzierungen?: Platzierung[] }
   /** Alles wegräumen: ein neues Foto bringt sein eigenes Muster mit. */
   | { art: "leeren" }
-  | { art: "felderAendern"; titel: Textschluessel; indizes: number[]; werte: number[] }
+  | {
+      art: "felderAendern";
+      titel: Textschluessel;
+      indizes: number[];
+      werte: number[];
+      platzierungAn?: Platzierung;
+      platzierungAb?: Platzierung;
+    }
   | { art: "bearbeitungErsetzen"; titel: Textschluessel; neue: Int16Array }
   | { art: "paletteErsetzen"; palette: PalettenEintrag[] }
   | { art: "rueckgaengig" }
@@ -132,6 +151,28 @@ function schrittAnwenden(muster: Muster, indizes: Int32Array, werte: Int16Array)
     bearbeitung,
     kennzahlen: kennzahlenBerechnen(zusammenfuehren(muster.basis, bearbeitung), muster.breite),
   };
+}
+
+/**
+ * Die Liste der eingesetzten Motive einem Schritt nachführen.
+ *
+ * Vorwärts (ausführen, wiederholen) kommt hinzu, was der Schritt hereingelegt
+ * hat, und fällt weg, was er aufgenommen hat. Rückwärts (rückgängig) genau
+ * andersherum. So kann die Liste nicht auseinanderlaufen: sie hängt an
+ * denselben Schritten wie das Muster selbst.
+ */
+function platzierungenNach(
+  liste: Platzierung[],
+  schritt: Schritt,
+  richtung: "vorwaerts" | "rueckwaerts",
+): Platzierung[] {
+  const dazu = richtung === "vorwaerts" ? schritt.platzierungAn : schritt.platzierungAb;
+  const weg = richtung === "vorwaerts" ? schritt.platzierungAb : schritt.platzierungAn;
+  if (!dazu && !weg) return liste;
+  let neu = liste;
+  if (weg) neu = neu.filter((p) => p.id !== weg.id);
+  if (dazu && !neu.some((p) => p.id === dazu.id)) neu = [...neu, dazu];
+  return neu;
 }
 
 function aufStapel(stapel: Schritt[], schritt: Schritt): Schritt[] {
@@ -188,19 +229,33 @@ function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
         // danach sinnlos oder sogar falsch.
         rueckgaengigStapel: [],
         wiederholenStapel: [],
+        // Die Felder werden dabei neu gerechnet; wo ein Motiv lag, weiß
+        // danach niemand mehr.
+        platzierungen: [],
       };
     }
 
     case "erzeugt":
       // Die Indizes der Palette sind andere als vorher, deshalb wäre ein alter
       // Rückgängig-Schritt nach dem Neuerzeugen sinnlos oder sogar falsch.
-      return { muster: aktion.muster, rueckgaengigStapel: [], wiederholenStapel: [] };
+      return {
+        muster: aktion.muster,
+        rueckgaengigStapel: [],
+        wiederholenStapel: [],
+        platzierungen: [],
+      };
 
     case "ersetzen":
-      return { muster: aktion.muster, rueckgaengigStapel: [], wiederholenStapel: [] };
+      return {
+        muster: aktion.muster,
+        rueckgaengigStapel: [],
+        wiederholenStapel: [],
+        // Ein gespeicherter Stand bringt mit, wo seine Motive liegen.
+        platzierungen: aktion.platzierungen ?? [],
+      };
 
     case "leeren":
-      return { muster: null, rueckgaengigStapel: [], wiederholenStapel: [] };
+      return { muster: null, rueckgaengigStapel: [], wiederholenStapel: [], platzierungen: [] };
 
     case "paletteErsetzen": {
       if (!zustand.muster) return zustand;
@@ -230,12 +285,15 @@ function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
         indizes: Int32Array.from(indizes),
         alt: Int16Array.from(alt),
         neu: Int16Array.from(neu),
+        platzierungAn: aktion.platzierungAn,
+        platzierungAb: aktion.platzierungAb,
       };
 
       return {
         muster: schrittAnwenden(muster, schritt.indizes, schritt.neu),
         rueckgaengigStapel: aufStapel(zustand.rueckgaengigStapel, schritt),
         wiederholenStapel: [],
+        platzierungen: platzierungenNach(zustand.platzierungen, schritt, "vorwaerts"),
       };
     }
 
@@ -265,6 +323,7 @@ function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
         muster: schrittAnwenden(muster, schritt.indizes, schritt.neu),
         rueckgaengigStapel: aufStapel(zustand.rueckgaengigStapel, schritt),
         wiederholenStapel: [],
+        platzierungen: zustand.platzierungen,
       };
     }
 
@@ -276,6 +335,7 @@ function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
         muster: schrittAnwenden(muster, schritt.indizes, schritt.alt),
         rueckgaengigStapel: zustand.rueckgaengigStapel.slice(0, -1),
         wiederholenStapel: aufStapel(zustand.wiederholenStapel, schritt),
+        platzierungen: platzierungenNach(zustand.platzierungen, schritt, "rueckwaerts"),
       };
     }
 
@@ -287,6 +347,7 @@ function reduzieren(zustand: Zustand, aktion: Aktion): Zustand {
         muster: schrittAnwenden(muster, schritt.indizes, schritt.neu),
         rueckgaengigStapel: aufStapel(zustand.rueckgaengigStapel, schritt),
         wiederholenStapel: zustand.wiederholenStapel.slice(0, -1),
+        platzierungen: platzierungenNach(zustand.platzierungen, schritt, "vorwaerts"),
       };
     }
   }
@@ -339,10 +400,23 @@ type MusterKontext = {
   glaettungSetzen: (staerke: number) => void;
   /** Die Farbzahl neu wählen, ohne das Bild noch einmal zu lesen. */
 
-  felderAendern: (titel: Textschluessel, indizes: number[], werte: number[]) => void;
+  /**
+   * Felder ändern. Kam damit ein Stück herein (oder wurde eines aufgenommen),
+   * läuft das in `platzierung` mit – so hängt die Liste der eingesetzten
+   * Motive an denselben Schritten wie das Muster selbst.
+   */
+  felderAendern: (
+    titel: Textschluessel,
+    indizes: number[],
+    werte: number[],
+    platzierung?: { an?: Platzierung; ab?: Platzierung },
+  ) => void;
   bearbeitungErsetzen: (titel: Textschluessel, neue: Int16Array) => void;
   paletteErsetzen: (palette: PalettenEintrag[]) => void;
   musterErsetzen: (m: Muster) => void;
+
+  /** Wo in diesem Muster Stücke eingesetzt wurden. */
+  platzierungen: Platzierung[];
 
   /** Das Muster in der Datenbank, sobald es einen gespeicherten Stand gibt. */
   musterId: string | null;
@@ -356,7 +430,7 @@ type MusterKontext = {
    */
   standAnlegen: (beschriftung: Textschluessel, gemerkt?: boolean) => Promise<boolean>;
   /** Nach dem Wiederherstellen: auf diesen Stand als Elternteil umschalten. */
-  standUebernehmen: (stand: Stand, muster: Muster) => void;
+  standUebernehmen: (stand: Stand, muster: Muster, platzierungen?: Platzierung[]) => void;
   /**
    * Ein Stand wurde gelöscht. War es der, auf dem gearbeitet wird, hängt der
    * nächste sonst an einem Elternteil, den es nicht mehr gibt.
@@ -384,6 +458,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     muster: null,
     rueckgaengigStapel: [],
     wiederholenStapel: [],
+    platzierungen: [],
   });
   const [bild, setBild] = useState<Bildquelle | null>(null);
   const [einstellungen, setEinstellungen] = useState<Einstellungen>(STANDARD_EINSTELLUNGEN);
@@ -546,6 +621,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         if (stand.breite > 0 && stand.hoehe > 0) {
           ausloesen({
             art: "ersetzen",
+            platzierungen: stand.platzierungen ?? [],
             muster: {
               breite: stand.breite,
               hoehe: stand.hoehe,
@@ -623,11 +699,21 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         bildMasse: bild?.masse ?? null,
         bildAusschnitt: bild?.ausschnitt ?? null,
         bildKennung: muster?.bildKennung ?? bild?.kennung ?? "",
+        platzierungen: zustand.platzierungen,
         gespeichertAm: Date.now(),
       });
     }, 800);
     return () => window.clearTimeout(zeitgeber);
-  }, [muster, einstellungen, bild, wiederhergestellt, musterId, versionId, eigenerName]);
+  }, [
+    muster,
+    einstellungen,
+    bild,
+    wiederhergestellt,
+    musterId,
+    versionId,
+    eigenerName,
+    zustand.platzierungen,
+  ]);
 
   // --- Bild auswählen -------------------------------------------------------
   const bildWaehlen = useCallback(
@@ -984,6 +1070,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
         palette: zuSichern.palette,
         einstellungen,
         quellbild: musterId ? null : (bild?.blob ?? null),
+        platzierungen: zustand.platzierungen,
       });
       if (!ergebnis) return false;
       setMusterId(ergebnis.musterId);
@@ -1007,7 +1094,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       void abgleichAnstossen();
       return true;
     },
-    [musterId, versionId, bild, eigenerName, einstellungen],
+    [musterId, versionId, bild, eigenerName, einstellungen, zustand.platzierungen],
   );
 
   useEffect(() => {
@@ -1048,11 +1135,14 @@ export function MusterProvider({ children }: { children: ReactNode }) {
    * nächsten Standes – so entsteht der Baum, statt dass die Nutzerin den
    * neueren Stand verliert.
    */
-  const standUebernehmen = useCallback((stand: Stand, neuesMuster: Muster) => {
-    setMusterId(stand.musterId);
-    setVersionId(stand.id);
-    ausloesen({ art: "ersetzen", muster: neuesMuster });
-  }, []);
+  const standUebernehmen = useCallback(
+    (stand: Stand, neuesMuster: Muster, platzierungen?: Platzierung[]) => {
+      setMusterId(stand.musterId);
+      setVersionId(stand.id);
+      ausloesen({ art: "ersetzen", muster: neuesMuster, platzierungen });
+    },
+    [],
+  );
 
   const wert = useMemo<MusterKontext>(
     () => ({
@@ -1075,12 +1165,20 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       fehlerSetzen: setFehler,
       erzeugen,
       glaettungSetzen,
-      felderAendern: (titel, indizes, werte) =>
-        ausloesen({ art: "felderAendern", titel, indizes, werte }),
+      felderAendern: (titel, indizes, werte, platzierung) =>
+        ausloesen({
+          art: "felderAendern",
+          titel,
+          indizes,
+          werte,
+          platzierungAn: platzierung?.an,
+          platzierungAb: platzierung?.ab,
+        }),
       bearbeitungErsetzen: (titel, neue) =>
         ausloesen({ art: "bearbeitungErsetzen", titel, neue }),
       paletteErsetzen: (palette) => ausloesen({ art: "paletteErsetzen", palette }),
       musterErsetzen: (m) => ausloesen({ art: "ersetzen", muster: m }),
+      platzierungen: zustand.platzierungen,
       musterId,
       versionId,
       standZaehler,
@@ -1124,6 +1222,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       standUebernehmen,
       zustand.rueckgaengigStapel,
       zustand.wiederholenStapel,
+      zustand.platzierungen,
     ],
   );
 
