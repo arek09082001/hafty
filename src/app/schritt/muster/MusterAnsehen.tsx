@@ -148,6 +148,25 @@ export function MusterAnsehen() {
     /** Motive lösen beim Einsetzen eine Sicherung aus, Kopien nicht. */
     ausMotiv: boolean;
   } | null>(null);
+  /**
+   * Das zuletzt eingesetzte Stück – damit es sich noch einmal aufnehmen und
+   * woanders hinlegen lässt.
+   *
+   * „Wstaw tutaj" schreibt das Stück ins Raster, und danach war es dort
+   * festgewachsen: wer einen Stich danebenlag, musste rückgängig machen und
+   * das Motiv von vorn aus der Liste holen. Gemerkt wird die unskalierte,
+   * ungedrehte Quelle samt Winkel, Stufe und Stelle – dasselbe, was die
+   * Vorschau hält, damit ein wieder aufgenommenes Stück genauso liegt wie
+   * eben noch.
+   */
+  const [letztesStueck, setLetztesStueck] = useState<{
+    quelle: Ausschnitt;
+    stufe: number;
+    winkel: number;
+    x: number;
+    y: number;
+    ausMotiv: boolean;
+  } | null>(null);
   const [mitSymbolen, setMitSymbolen] = useState(false);
   /**
    * Das Stichgitter.
@@ -643,6 +662,20 @@ export function MusterAnsehen() {
       vorschau.y,
     );
     if (indizes.length > 0) felderAendern("schrittname.stueckEingesetzt", indizes, werte);
+    // Das Stück bleibt gemerkt: solange nichts anderes dazwischenkommt, lässt
+    // es sich noch einmal aufnehmen und woanders hinlegen.
+    setLetztesStueck(
+      indizes.length > 0
+        ? {
+            quelle: vorschau.quelle,
+            stufe: vorschau.stufe,
+            winkel: vorschau.winkel,
+            x: vorschau.x,
+            y: vorschau.y,
+            ausMotiv: vorschau.ausMotiv,
+          }
+        : null,
+    );
     // Ein eingesetztes Motiv ist ein großer Schritt und wird gesichert.
     const warMotiv = vorschau.ausMotiv;
     setVorschau(null);
@@ -650,6 +683,36 @@ export function MusterAnsehen() {
     if (warMotiv && indizes.length > 0) {
       window.setTimeout(() => void standAnlegen("staende.motivEingesetzt"), 0);
     }
+  };
+
+  /**
+   * Darf das zuletzt eingesetzte Stück noch einmal angefasst werden?
+   *
+   * Nur, solange das Einsetzen der **letzte** Schritt ist. Danach liegt
+   * womöglich Handarbeit darüber, und das Aufnehmen würde sie mitnehmen –
+   * es hebt ja genau den Schritt auf, mit dem das Stück hereinkam.
+   */
+  const kannStueckNochSchieben =
+    letztesStueck !== null &&
+    vorschau === null &&
+    letzterSchrittTitel === "schrittname.stueckEingesetzt";
+
+  /**
+   * Das eingesetzte Stück wieder aufnehmen.
+   *
+   * Es wird nicht kopiert, sondern der Schritt zurückgenommen: darunter kommt
+   * genau das wieder zum Vorschein, was vorher da war. Danach liegt das Stück
+   * wie frisch eingefügt auf dem Muster und lässt sich mit dem Finger an die
+   * richtige Stelle ziehen.
+   */
+  const stueckWiederAufnehmen = () => {
+    if (!letztesStueck || !kannStueckNochSchieben) return;
+    rueckgaengig();
+    setVorschau(letztesStueck);
+    setLetztesStueck(null);
+    setAuswahl(null);
+    tippsVergessen();
+    melden(t("editor.einsetzenMeldung"));
   };
 
   /**
@@ -1128,9 +1191,11 @@ export function MusterAnsehen() {
               <Sichtknopf onClick={() => setMitStichen((a) => !a)} gedrueckt={mitStichen}>
                 {mitStichen ? t("editor.sticheAus") : t("editor.sticheAn")}
               </Sichtknopf>
-              {/* In der Stickansicht gibt es weder Symbole noch Gitter zu
-                  sehen – die gehören zum Plan. Die Knöpfe bleiben stehen,
-                  damit die Reihe nicht springt, sind aber stumpf. */}
+              {/* Die Symbole gehören zum Plan: über der Stickerei hätten sie
+                  nichts zu sagen, der Knopf bleibt dort stumpf. Das Gitter
+                  dagegen wird auch über der Stickansicht gezeichnet – es ist
+                  das, wonach abgezählt wird –, also bleibt sein Schalter
+                  überall bedienbar. */}
               <Sichtknopf
                 onClick={() => setMitSymbolen((a) => !a)}
                 gedrueckt={mitSymbolen}
@@ -1141,7 +1206,6 @@ export function MusterAnsehen() {
               <Sichtknopf
                 onClick={() => setMitLinien((a) => !a)}
                 gedrueckt={!mitLinien}
-                disabled={mitStichen}
               >
                 {mitLinien ? t("editor.gitterAus") : t("editor.gitterAn")}
               </Sichtknopf>
@@ -1404,6 +1468,20 @@ export function MusterAnsehen() {
                       >
                         <Knopf art="neben" onClick={wiederAllesSticken} className="w-full">
                           {t("editor.wiederAllesSticken")}
+                        </Knopf>
+                      </Abschnitt>
+                    ) : null}
+
+                    {/* Ein eingesetztes Stück ist nicht festgewachsen:
+                        solange nichts anderes dazwischengekommen ist, lässt
+                        es sich noch einmal aufnehmen und woanders hinlegen. */}
+                    {kannStueckNochSchieben ? (
+                      <Abschnitt
+                        titel={t("editor.stueckNochSchiebenTitel")}
+                        hinweis={t("editor.stueckNochSchiebenHinweis")}
+                      >
+                        <Knopf art="neben" onClick={stueckWiederAufnehmen} className="w-full">
+                          {t("editor.stueckNochSchieben")}
                         </Knopf>
                       </Abschnitt>
                     ) : null}

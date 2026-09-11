@@ -667,43 +667,64 @@ export function musterZeichnen(
   const alsStickerei = nahGezeichnet || fernGelegt;
 
   // --- Rasterlinien -------------------------------------------------------
-  // Erst ab 5 Bildpunkten je Stich; darunter würde das Raster das Bild
-  // zudecken. Jede zehnte Linie ist dicker – so kann die Nutzerin auf dem
-  // Bildschirm genauso zählen wie später auf dem Papier.
-  if ((o.mitLinien ?? true) && !alsStickerei && zoom >= 5) {
-    stift.lineWidth = 1;
-    stift.strokeStyle = "rgba(0,0,0,0.16)";
-    stift.beginPath();
-    for (let x = Math.max(1, x0); x <= x1 && x < breite; x++) {
-      if (x % 10 === 0) continue;
-      const px = Math.round(x * zoom) + 0.5;
-      stift.moveTo(px, y0 * zoom);
-      stift.lineTo(px, y1 * zoom);
+  /**
+   * Ist das Gitter eingeschaltet, ist es auch zu sehen – immer.
+   * -------------------------------------------------------------------------
+   *
+   * Vorher hing es an zwei stillen Bedingungen: mindestens fünf Bildpunkte je
+   * Stich, und nicht in der Stickansicht. Wer herauszoomte, um das ganze
+   * Muster zu sehen, sah das Gitter verschwinden, obwohl der Schalter auf
+   * „ein" stand – und suchte den Fehler bei sich.
+   *
+   * Die fünf Bildpunkte haben ihren Grund, aber nur für die **feinen** Linien:
+   * bei drei Punkten je Stich läge zwischen zwei Linien fast nichts mehr, und
+   * das Muster verschwände unter dem Gitter. Die **Zehnerlinien** haben das
+   * Zehnfache an Abstand; sie bleiben bis weit hinaus lesbar und sind ohnehin
+   * das, wonach abgezählt wird. Also: feine Linien ab fünf Punkten, die
+   * Zehnerlinien, solange sie nicht ineinanderlaufen – und beides auch über
+   * der Stickansicht, denn abgeschaltet wird das Gitter mit seinem Schalter
+   * und nicht durch die Hintertür.
+   */
+  if (o.mitLinien ?? true) {
+    if (zoom >= 5) {
+      stift.lineWidth = 1;
+      stift.strokeStyle = alsStickerei ? "rgba(0,0,0,0.22)" : "rgba(0,0,0,0.16)";
+      stift.beginPath();
+      for (let x = Math.max(1, x0); x <= x1 && x < breite; x++) {
+        if (x % 10 === 0) continue;
+        const px = Math.round(x * zoom) + 0.5;
+        stift.moveTo(px, y0 * zoom);
+        stift.lineTo(px, y1 * zoom);
+      }
+      for (let y = Math.max(1, y0); y <= y1 && y < hoehe; y++) {
+        if (y % 10 === 0) continue;
+        const py = Math.round(y * zoom) + 0.5;
+        stift.moveTo(x0 * zoom, py);
+        stift.lineTo(x1 * zoom, py);
+      }
+      stift.stroke();
     }
-    for (let y = Math.max(1, y0); y <= y1 && y < hoehe; y++) {
-      if (y % 10 === 0) continue;
-      const py = Math.round(y * zoom) + 0.5;
-      stift.moveTo(x0 * zoom, py);
-      stift.lineTo(x1 * zoom, py);
-    }
-    stift.stroke();
 
-    stift.lineWidth = 2;
-    stift.strokeStyle = "rgba(0,0,0,0.6)";
-    stift.beginPath();
-    for (let x = Math.ceil(x0 / 10) * 10; x <= x1 && x < breite; x += 10) {
-      if (x === 0) continue;
-      const px = Math.round(x * zoom);
-      stift.moveTo(px, y0 * zoom);
-      stift.lineTo(px, y1 * zoom);
+    // Sechs Bildpunkte Abstand sind die Grenze, unterhalb derer auch die
+    // Zehnerlinien zu einer Fläche zusammenlaufen.
+    if (zoom * 10 >= 6) {
+      stift.lineWidth = zoom >= 5 ? 2 : 1;
+      stift.strokeStyle = "rgba(0,0,0,0.6)";
+      stift.beginPath();
+      for (let x = Math.ceil(x0 / 10) * 10; x <= x1 && x < breite; x += 10) {
+        if (x === 0) continue;
+        const px = Math.round(x * zoom) + (stift.lineWidth === 1 ? 0.5 : 0);
+        stift.moveTo(px, y0 * zoom);
+        stift.lineTo(px, y1 * zoom);
+      }
+      for (let y = Math.ceil(y0 / 10) * 10; y <= y1 && y < hoehe; y += 10) {
+        if (y === 0) continue;
+        const py = Math.round(y * zoom) + (stift.lineWidth === 1 ? 0.5 : 0);
+        stift.moveTo(x0 * zoom, py);
+        stift.lineTo(x1 * zoom, py);
+      }
+      stift.stroke();
     }
-    for (let y = Math.ceil(y0 / 10) * 10; y <= y1 && y < hoehe; y += 10) {
-      if (y === 0) continue;
-      const py = Math.round(y * zoom);
-      stift.moveTo(x0 * zoom, py);
-      stift.lineTo(x1 * zoom, py);
-    }
-    stift.stroke();
   }
 
   // --- Symbole ------------------------------------------------------------
