@@ -39,10 +39,38 @@ export function Dialog({
 }) {
   const { t } = useSprache();
   const ersterKnopf = useRef<HTMLButtonElement>(null);
+  const fenster = useRef<HTMLDivElement>(null);
+
+  /**
+   * Der Fokus wird **einmal** gesetzt: beim Aufgehen des Fensters.
+   *
+   * Vorher hing das am selben Effekt wie die Escape-Taste, und der hing an
+   * `onAbbrechen`. Das ist fast überall eine Pfeilfunktion, die bei jedem
+   * Zeichnen neu entsteht – der Effekt lief also bei **jedem Tastendruck**
+   * noch einmal und holte den Fokus zurück auf den Knopf. Wer im Fenster
+   * „Motiv merken" einen Namen eintippte, verlor nach dem ersten Buchstaben
+   * die Schreibmarke.
+   *
+   * Und er geht ins Eingabefeld, wenn es eines gibt: in einem Fenster, das
+   * nach einem Namen fragt, will man schreiben und nicht bestätigen.
+   */
+  useEffect(() => {
+    if (!offen) return;
+    const feld = fenster.current?.querySelector<HTMLElement>(
+      "input:not([type=hidden]), textarea, select",
+    );
+    if (feld) {
+      feld.focus();
+      // Ein vorhandener Name steht ganz da: wer ihn ersetzen will, tippt
+      // einfach los; wer ihn ändern will, tippt einmal ans Ende.
+      if (feld instanceof HTMLInputElement || feld instanceof HTMLTextAreaElement) feld.select();
+      return;
+    }
+    ersterKnopf.current?.focus();
+  }, [offen]);
 
   useEffect(() => {
     if (!offen) return;
-    ersterKnopf.current?.focus();
     const taste = (e: KeyboardEvent) => {
       if (e.key === "Escape") onAbbrechen();
     };
@@ -55,6 +83,7 @@ export function Dialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div
+        ref={fenster}
         role="dialog"
         aria-modal="true"
         aria-label={titel}
