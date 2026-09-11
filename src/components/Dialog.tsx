@@ -38,11 +38,29 @@ export function Dialog({
   nurSchliessen?: boolean;
 }) {
   const { t } = useSprache();
+  const fenster = useRef<HTMLDivElement>(null);
   const ersterKnopf = useRef<HTMLButtonElement>(null);
+
+  /**
+   * Der Fokus wird **nur beim Öffnen** gesetzt.
+   *
+   * Vorher hing er mit am Abbrechen-Rückruf, und den schreiben die
+   * aufrufenden Stellen als `() => ...` hin – bei jedem Neuzeichnen ein
+   * neuer. Wer also den Namen eines Motivs eintippte, löste mit jedem
+   * Buchstaben ein Neuzeichnen aus, und der Fokus sprang aus dem Feld auf
+   * den Knopf. Nach einem Buchstaben war Schluss.
+   *
+   * Steht ein Eingabefeld im Fenster, bekommt es den Fokus und nicht der
+   * Knopf: wer nach einem Namen gefragt wird, soll gleich schreiben können.
+   */
+  useEffect(() => {
+    if (!offen) return;
+    const feld = fenster.current?.querySelector<HTMLElement>("input, textarea, select");
+    (feld ?? ersterKnopf.current)?.focus();
+  }, [offen]);
 
   useEffect(() => {
     if (!offen) return;
-    ersterKnopf.current?.focus();
     const taste = (e: KeyboardEvent) => {
       if (e.key === "Escape") onAbbrechen();
     };
@@ -55,6 +73,7 @@ export function Dialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div
+        ref={fenster}
         role="dialog"
         aria-modal="true"
         aria-label={titel}

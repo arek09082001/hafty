@@ -12,6 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  LEER,
   MAX_FELDER,
   STANDARD_EINSTELLUNGEN,
   einstellungenLesen,
@@ -92,6 +93,19 @@ export type Bildquelle = {
    */
   ausschnitt: Ausschnitt;
 };
+
+/**
+ * Womit die Bildkennung einer leeren Stickfläche anfängt.
+ *
+ * Sie steht in jedem gespeicherten Stand mit drin, also weiß die App auch
+ * nach dem Neuladen noch, dass hinter diesem Muster kein Foto steckt.
+ */
+export const LEERE_FLAECHE = "leer:";
+
+/** Steckt hinter diesem Muster ein Foto – oder ist es eine leere Fläche? */
+export function istLeereFlaeche(muster: Muster | null): boolean {
+  return muster?.bildKennung.startsWith(LEERE_FLAECHE) ?? false;
+}
 
 /** Bildkennung aus Grundkennung und Ausschnitt – gleiches Rechteck, gleiche Kennung. */
 function kennungBilden(basis: string, a: Ausschnitt): string {
@@ -291,6 +305,13 @@ type MusterKontext = {
   bildWaehlen: (quelle: { name: string; blob: Blob }) => Promise<void>;
   ausschnittSetzen: (neu: Ausschnitt) => void;
   bildEntfernen: () => void;
+  /**
+   * Eine leere Stickfläche anfangen – ohne Foto, ohne Rechnen.
+   *
+   * Darauf werden Motive gesetzt. Schritt 2 hat dann nichts zu tun: es gibt
+   * kein Bild, das auf ein Raster gerechnet werden müsste.
+   */
+  leereFlaecheAnlegen: (breite: number, hoehe: number) => void;
 
   einstellungen: Einstellungen;
   einstellungenSetzen: (e: Partial<Einstellungen>) => void;
@@ -627,6 +648,48 @@ export function MusterProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  /**
+   * Eine leere Stickfläche anfangen.
+   *
+   * Jedes Feld steht auf „hier wird nicht gestickt", die Palette ist leer;
+   * Farben kommen erst mit den Motiven dazu, die daraufgesetzt werden. Das
+   * Bild wird abgeräumt, und das Projekt fängt von vorn an – sonst hinge die
+   * leere Fläche als Fassung an dem Foto, mit dem zuletzt gearbeitet wurde.
+   *
+   * Die Kennung fängt mit „leer:" an. Daran erkennt der Editor später, dass
+   * es hier kein Bild und keine Farbrechnung gibt, und sie steht in jedem
+   * gespeicherten Stand mit drin – nach dem Neuladen weiß er es also wieder.
+   */
+  const leereFlaecheAnlegen = useCallback((breite: number, hoehe: number) => {
+    const felder = Math.max(1, breite) * Math.max(1, hoehe);
+    const basis = new Uint16Array(felder).fill(LEER);
+    const bearbeitung = new Int16Array(felder).fill(-1);
+
+    setBild((vorher) => {
+      if (vorher) URL.revokeObjectURL(vorher.vorschauUrl);
+      return null;
+    });
+    setMusterId(null);
+    setVersionId(null);
+    setZugeordnet(null);
+
+    ausloesen({
+      art: "ersetzen",
+      muster: {
+        breite,
+        hoehe,
+        basis,
+        bearbeitung,
+        palette: [],
+        kennzahlen: kennzahlenBerechnen(zusammenfuehren(basis, bearbeitung), breite),
+        farbenVorher: 0,
+        farbenNachher: 0,
+        garneZusammengelegt: 0,
+        bildKennung: `${LEERE_FLAECHE}${crypto.randomUUID()}`,
+      },
+    });
+  }, []);
+
   // --- Der volle Durchlauf --------------------------------------------------
   const erzeugen = useCallback(async () => {
     if (!bild) {
@@ -949,6 +1012,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bildWaehlen,
       ausschnittSetzen,
       bildEntfernen,
+      leereFlaecheAnlegen,
       einstellungen,
       einstellungenSetzen: (teil) => setEinstellungen((e) => ({ ...e, ...teil })),
       zugeordnetesProjekt: zugeordnet,
@@ -993,6 +1057,7 @@ export function MusterProvider({ children }: { children: ReactNode }) {
       bildWaehlen,
       ausschnittSetzen,
       bildEntfernen,
+      leereFlaecheAnlegen,
       einstellungen,
       zugeordnet,
       alleGarne,

@@ -1,11 +1,14 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Zuschnitt } from "@/components/Zuschnitt";
+import { Zahlenwahl } from "@/components/Zahlenwahl";
 import { istGanzesBild } from "@/lib/muster/ausschnitt";
+import { MAX_BREITE, MAX_FELDER, MIN_BREITE } from "@/lib/muster/typen";
 import { useMuster } from "@/lib/zustand/MusterProvider";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { useMeldungen } from "@/components/Meldungen";
@@ -14,10 +17,24 @@ import { useMeldungen } from "@/components/Meldungen";
 const MAX_BYTES = 25 * 1024 * 1024;
 
 export function BildAussuchen() {
-  const { bild, bildWaehlen, ausschnittSetzen, zugeordnetesProjekt } = useMuster();
-  const { t } = useSprache();
+  const { bild, bildWaehlen, ausschnittSetzen, zugeordnetesProjekt, leereFlaecheAnlegen } =
+    useMuster();
+  const { t, zahl } = useSprache();
   const { melden } = useMeldungen();
+  const router = useRouter();
   const dateiFeld = useRef<HTMLInputElement>(null);
+
+  /** Maße der leeren Fläche, bis sie angelegt wird. */
+  const [flaecheBreite, setFlaecheBreite] = useState(100);
+  const [flaecheHoehe, setFlaecheHoehe] = useState(100);
+  const zuGross = flaecheBreite * flaecheHoehe > MAX_FELDER;
+
+  function flaecheAnfangen() {
+    if (zuGross) return;
+    leereFlaecheAnlegen(flaecheBreite, flaecheHoehe);
+    // Schritt 2 hat hier nichts zu tun – es gibt kein Bild zu rechnen.
+    router.push("/schritt/muster");
+  }
 
   /**
    * Den Dateiauswahl-Dialog des Geräts aufmachen – und zwar sofort, mit
@@ -143,6 +160,48 @@ export function BildAussuchen() {
           <p className="max-w-[60ch] text-[1.05rem] text-gedaempft">{t("bild.eigenesFotoText")}</p>
           <Knopf art={bild ? "neben" : "haupt"} gross onClick={explorerOeffnen}>
             {t("bild.fotoWaehlen")}
+          </Knopf>
+        </section>
+
+        {/* Der zweite Weg: ohne Foto anfangen und die Fläche mit gemerkten
+            Motiven bestücken. Er steht offen daneben und nicht hinter einem
+            Knopf – wer ihn nicht sucht, liest über ihn hinweg, und wer ihn
+            braucht, findet ihn ohne Umweg. */}
+        <section className="flex flex-col gap-4 border-t border-linie pt-7">
+          <h2 className="text-[1.3rem] font-bold">{t("leer.titel")}</h2>
+          <p className="max-w-[60ch] text-[1.05rem] text-gedaempft">{t("leer.text")}</p>
+
+          <div className="flex flex-wrap gap-8">
+            <Zahlenwahl
+              id="leer-breite"
+              beschriftung={t("leer.breite")}
+              wert={flaecheBreite}
+              min={MIN_BREITE}
+              max={MAX_BREITE}
+              schritt={10}
+              einheit={t("allgemein.stiche")}
+              onAendern={setFlaecheBreite}
+            />
+            <Zahlenwahl
+              id="leer-hoehe"
+              beschriftung={t("leer.hoehe")}
+              wert={flaecheHoehe}
+              min={MIN_BREITE}
+              max={MAX_BREITE}
+              schritt={10}
+              einheit={t("allgemein.stiche")}
+              onAendern={setFlaecheHoehe}
+            />
+          </div>
+
+          {zuGross ? (
+            <Hinweis art="fehler">
+              {t("leer.zuGross", { felder: zahl(MAX_FELDER) })}
+            </Hinweis>
+          ) : null}
+
+          <Knopf art="neben" gross onClick={flaecheAnfangen} disabled={zuGross}>
+            {t("leer.anfangen")}
           </Knopf>
         </section>
       </div>

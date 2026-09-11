@@ -28,6 +28,12 @@ export function Kopfzeile() {
           >
             {t("kopf.meineGarne")}
           </Link>
+          <Link
+            href="/motive"
+            className="flex min-h-[56px] items-center rounded-xl px-4 text-[1rem] font-semibold underline hover:bg-hinweis"
+          >
+            {t("kopf.meineMotive")}
+          </Link>
           <Sprachwahl />
         </div>
       </div>

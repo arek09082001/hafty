@@ -230,3 +230,24 @@ export async function motivLoeschen(motiv: Motiv): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Ein Motiv umbenennen.
+ *
+ * Der Name ist das Einzige, was sich an einem gemerkten Motiv nachträglich
+ * ändern lässt – und das Einzige, wonach man es später sucht. „Motiv" heißt
+ * am Anfang schnell die Hälfte davon.
+ */
+export async function motivUmbenennen(motivId: string, name: string): Promise<boolean> {
+  const sauber = name.trim();
+  if (sauber === "") return false;
+  try {
+    const db = await browserdatenbank();
+    const satz = (await db.get(LADEN_MOTIVE, motivId)) as Abgelegt | undefined;
+    if (!satz) return false;
+    await db.put(LADEN_MOTIVE, { ...satz, name: sauber });
+    return true;
+  } catch {
+    return false;
+  }
+}

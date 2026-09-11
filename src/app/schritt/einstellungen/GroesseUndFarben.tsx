@@ -6,7 +6,7 @@ import { Seite } from "@/components/Seite";
 import { Knopf, KnopfLink } from "@/components/Knopf";
 import { Hinweis } from "@/components/Hinweis";
 import { Zahlenwahl } from "@/components/Zahlenwahl";
-import { useMuster } from "@/lib/zustand/MusterProvider";
+import { istLeereFlaeche, useMuster } from "@/lib/zustand/MusterProvider";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { useMeldungen } from "@/components/Meldungen";
 import {
@@ -22,24 +22,43 @@ import {
 } from "@/lib/muster/typen";
 
 export function GroesseUndFarben() {
-  const { bild, einstellungen, einstellungenSetzen, erzeugen, laeuft, fortschritt, alleGarne } =
-    useMuster();
+  const {
+    bild,
+    muster,
+    einstellungen,
+    einstellungenSetzen,
+    erzeugen,
+    laeuft,
+    fortschritt,
+    alleGarne,
+  } = useMuster();
+  const aufLeererFlaeche = istLeereFlaeche(muster);
   const { t, zahl, landeskennung } = useSprache();
   const { melden } = useMeldungen();
   const router = useRouter();
 
   if (!bild) {
+    // Zwei verschiedene Lagen, und beide dürfen nicht als Fehler dastehen:
+    // wer noch gar nicht angefangen hat, braucht den Weg zum Bild – wer auf
+    // einer leeren Fläche arbeitet, hat hier schlicht nichts zu tun und will
+    // zurück an seine Arbeit.
     return (
       <Seite
         titel={t("einst.titel")}
-        erklaerung={t("einst.fehltBild")}
+        erklaerung={aufLeererFlaeche ? t("einst.leereFlaeche") : t("einst.fehltBild")}
         fuss={
-          <KnopfLink art="haupt" gross href="/schritt/bild">
-            {t("einst.zurueckBildAussuchen")}
+          <KnopfLink
+            art="haupt"
+            gross
+            href={aufLeererFlaeche ? "/schritt/muster" : "/schritt/bild"}
+          >
+            {aufLeererFlaeche ? t("einst.zurueckFlaeche") : t("einst.zurueckBildAussuchen")}
           </KnopfLink>
         }
       >
-        <Hinweis>{t("einst.fehltBildText")}</Hinweis>
+        <Hinweis>
+          {aufLeererFlaeche ? t("einst.leereFlaecheText") : t("einst.fehltBildText")}
+        </Hinweis>
       </Seite>
     );
   }

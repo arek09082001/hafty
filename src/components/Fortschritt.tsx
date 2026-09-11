@@ -153,6 +153,12 @@ export function Fortschritt() {
           >
             {t("kopf.meineGarne")}
           </Link>
+          <Link
+            href="/motive"
+            className="flex min-h-[44px] items-center rounded-xl px-3 text-[0.9rem] font-semibold underline hover:bg-hinweis"
+          >
+            {t("kopf.meineMotive")}
+          </Link>
           <Sprachwahl klein />
         </div>
       </div>
