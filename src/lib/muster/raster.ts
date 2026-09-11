@@ -613,3 +613,51 @@ export function auswahlFuellen(auswahl: Auswahl, farbe: number): { indizes: numb
   }
   return { indizes, werte };
 }
+
+/**
+ * Einen Ausschnitt auf die Palette eines anderen Musters umschreiben.
+ * ---------------------------------------------------------------------------
+ *
+ * Ein Motiv trägt seine eigenen Farben mit sich. Eingesetzt wurde bisher
+ * aber nur das nackte Raster: die Zahlen darin sind Plätze in der Palette
+ * **des Musters, aus dem es stammt**. In einem anderen Muster steht an
+ * Platz 3 eine andere Farbe – das Motiv kam bunt durcheinander heraus. Auf
+ * einer leeren Fläche, die noch gar keine Palette hat, käme überhaupt nichts.
+ *
+ * Deshalb wird hier zusammengelegt: jede Farbe des Motivs bekommt den Platz
+ * der gleichen Farbe im Ziel, oder einen neuen Platz am Ende. „Gleich" heißt
+ * dasselbe Garn – und ohne Garnkatalog derselbe Farbwert. Zwei Töne, die nur
+ * beinahe gleich sind, werden **nicht** zusammengelegt: beim Sticken sind das
+ * zwei Rollen, und die Nutzerin hat sie bewusst so gewählt.
+ */
+export function ausschnittAufPalette(
+  ausschnitt: Ausschnitt,
+  zielPalette: PalettenEintrag[],
+): { ausschnitt: Ausschnitt; palette: PalettenEintrag[] } {
+  const palette = [...zielPalette];
+  /** Alter Platz im Motiv -> neuer Platz im Ziel. */
+  const umschreiben = new Map<number, number>();
+
+  const gleich = (a: PalettenEintrag, b: PalettenEintrag) =>
+    a.garn && b.garn ? a.garn.id === b.garn.id : !a.garn && !b.garn && a.hex === b.hex;
+
+  for (const eintrag of ausschnitt.palette) {
+    const schon = palette.find((z) => gleich(z, eintrag));
+    if (schon) {
+      umschreiben.set(eintrag.index, schon.index);
+      continue;
+    }
+    // Ein neuer Platz am Ende. Die Symbole werden danach ohnehin neu
+    // verteilt, hier steht erst einmal das mitgebrachte.
+    const neuerIndex = palette.length === 0 ? 0 : Math.max(...palette.map((z) => z.index)) + 1;
+    palette.push({ ...eintrag, index: neuerIndex, stiche: 0 });
+    umschreiben.set(eintrag.index, neuerIndex);
+  }
+
+  const daten = Uint16Array.from(ausschnitt.daten, (wert) => umschreiben.get(wert) ?? wert);
+
+  return {
+    ausschnitt: { ...ausschnitt, daten, palette: ausschnitt.palette },
+    palette,
+  };
+}

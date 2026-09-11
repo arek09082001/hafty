@@ -21,6 +21,7 @@ export const DE = {
   // --- Kopfzeile ---------------------------------------------------------
   "kopf.appName": "Stickmuster",
   "kopf.meineGarne": "Meine Garne",
+  "kopf.meineMotive": "Meine Motive",
   "kopf.sprache": "Sprache",
 
   // --- Fortschritt -------------------------------------------------------
@@ -75,7 +76,11 @@ export const DE = {
     "Wie breit soll das Muster werden, auf welchem Stoff sticken Sie und wie viele Farben darf es haben? Die fertige Größe sehen Sie unten sofort in Zentimetern.",
   "einst.fehltBild": "Für diesen Schritt fehlt noch das Bild.",
   "einst.fehltBildText":
-    "Sie haben noch kein Bild ausgesucht. Gehen Sie einen Schritt zurück und wählen Sie ein Foto oder ein Beispielbild aus.",
+    "Sie haben noch kein Bild ausgesucht. Gehen Sie einen Schritt zurück und wählen Sie ein Foto von Ihrem Gerät aus.",
+  "einst.leereFlaeche": "Hier gibt es nichts einzustellen.",
+  "einst.leereFlaecheText":
+    "Sie arbeiten auf einer leeren Fläche. Größe und Farben werden aus einem Foto gerechnet – hier gibt es keins, und die Farben kommen mit den Motiven, die Sie daraufsetzen.",
+  "einst.zurueckFlaeche": "Zurück zur Fläche",
   "einst.zurueckBild": "Zurück zum Bild",
   "einst.zurueckBildAussuchen": "Zurück zum Bild aussuchen",
   "einst.musterErstellen": "Muster erstellen",
@@ -327,6 +332,19 @@ export const DE = {
     "Sie haben noch keine Motive. Wählen Sie einen Bereich im Muster aus und tippen Sie dann auf „Als Motiv merken“. Motive bleiben Ihnen auch für spätere Muster erhalten.",
   "motive.ohneBild": "ohne Bild",
   "motive.groesse": "{w} × {h} Stiche",
+  "motive.farbenZahl": "{anzahl} Farben",
+  "motive.seitenTitel": "Meine Motive",
+  "motive.seitenText":
+    "Hier liegen alle Motive, die Sie sich gemerkt haben. Sie bleiben über Muster hinweg erhalten. Eingesetzt werden sie im Muster selbst, unter „Gemerkt“.",
+  "motive.keineAufSeite":
+    "Sie haben noch keine Motive gemerkt. Wählen Sie in einem Muster einen Bereich aus und tippen Sie auf „Als Motiv merken“.",
+  "motive.zurueckMuster": "Zurück zum Muster",
+  "motive.umbenennen": "Umbenennen",
+  "motive.umbenennenTitel": "Motiv umbenennen",
+  "motive.umbenennenText": "Geben Sie dem Motiv einen Namen, unter dem Sie es wiederfinden.",
+  "motive.umbenannt": "Das Motiv heißt jetzt „{name}“.",
+  "motive.fehlerUmbenennen":
+    "Das Motiv konnte nicht umbenannt werden. Bitte versuchen Sie es noch einmal.",
   "motive.loeschen": "Löschen",
   "motive.fehlerLaden":
     "Die Motive konnten nicht geholt werden. Bitte prüfen Sie Ihre Internetverbindung und laden Sie die Seite noch einmal.",
@@ -381,6 +399,16 @@ export const DE = {
   "garne.erklaerung":
     "Tragen Sie hier ein, welche Garne Sie zu Hause haben. Beim Erstellen eines Musters können Sie dann einstellen, dass nur diese Garne verwendet werden.",
   "garne.zurueckMuster": "Zurück zum Muster",
+
+  // --- Leere Stickfläche -------------------------------------------------
+  "leer.titel": "Oder eine leere Fläche",
+  "leer.text":
+    "Ohne Foto anfangen: Sie bekommen eine leere Stickfläche und setzen Ihre gemerkten Motive darauf. Wie groß soll sie werden?",
+  "leer.breite": "Breite der Fläche",
+  "leer.hoehe": "Höhe der Fläche",
+  "leer.anfangen": "Leere Fläche anfangen",
+  "leer.zuGross":
+    "Diese Fläche ist zu groß. Zusammen sind höchstens {felder} Kästchen möglich – bitte machen Sie sie schmaler oder niedriger.",
   "garne.keinsEingetragen": "Noch kein Garn eingetragen.",
   "garne.eingetragen": "{anzahl} Garne eingetragen.",
   "garne.zuHause": "Das haben Sie zu Hause",
@@ -559,6 +587,7 @@ export const PL: Record<Textschluessel, string> = {
 
   "kopf.appName": "Wzory do haftu",
   "kopf.meineGarne": "Moje nici",
+  "kopf.meineMotive": "Moje motywy",
   "kopf.sprache": "Język",
 
   "schritt.bild": "Wybierz zdjęcie",
@@ -610,7 +639,11 @@ export const PL: Record<Textschluessel, string> = {
     "Jak szeroki ma być wzór, na jakiej kanwie Pani haftuje i ile kolorów może mieć? Gotowy rozmiar w centymetrach widać poniżej od razu.",
   "einst.fehltBild": "Do tego kroku brakuje jeszcze zdjęcia.",
   "einst.fehltBildText":
-    "Nie wybrano jeszcze zdjęcia. Proszę cofnąć się o krok i wybrać zdjęcie albo przykładowy obrazek.",
+    "Nie wybrano jeszcze zdjęcia. Proszę cofnąć się o krok i wybrać zdjęcie ze swojego urządzenia.",
+  "einst.leereFlaeche": "Tutaj nie ma nic do ustawienia.",
+  "einst.leereFlaecheText":
+    "Pracuje Pani na pustej powierzchni. Rozmiar i kolory liczone są ze zdjęcia – tutaj go nie ma, a kolory pojawią się wraz z motywami, które Pani na niej ustawi.",
+  "einst.zurueckFlaeche": "Wróć do powierzchni",
   "einst.zurueckBild": "Wróć do zdjęcia",
   "einst.zurueckBildAussuchen": "Wróć do wyboru zdjęcia",
   "einst.musterErstellen": "Utwórz wzór",
@@ -846,6 +879,19 @@ export const PL: Record<Textschluessel, string> = {
     "Nie ma jeszcze żadnych motywów. Proszę zaznaczyć obszar we wzorze i dotknąć „Zapamiętaj jako motyw”. Motywy zostaną zachowane także dla późniejszych wzorów.",
   "motive.ohneBild": "bez obrazka",
   "motive.groesse": "{w} × {h} ściegów",
+  "motive.farbenZahl": "{anzahl} kolorów",
+  "motive.seitenTitel": "Moje motywy",
+  "motive.seitenText":
+    "Tutaj są wszystkie zapamiętane motywy. Zostają niezależnie od wzoru. Wstawia się je w samym wzorze, w zakładce „Zapamiętane“.",
+  "motive.keineAufSeite":
+    "Nie ma jeszcze żadnych zapamiętanych motywów. Proszę zaznaczyć obszar we wzorze i dotknąć „Zapamiętaj jako motyw“.",
+  "motive.zurueckMuster": "Wróć do wzoru",
+  "motive.umbenennen": "Zmień nazwę",
+  "motive.umbenennenTitel": "Zmiana nazwy motywu",
+  "motive.umbenennenText": "Proszę nadać motywowi nazwę, po której go Pani odnajdzie.",
+  "motive.umbenannt": "Motyw nazywa się teraz „{name}“.",
+  "motive.fehlerUmbenennen":
+    "Nie udało się zmienić nazwy motywu. Proszę spróbować jeszcze raz.",
   "motive.loeschen": "Usuń",
   "motive.fehlerLaden":
     "Nie udało się pobrać motywów. Proszę sprawdzić połączenie z internetem i wczytać stronę jeszcze raz.",
@@ -898,6 +944,15 @@ export const PL: Record<Textschluessel, string> = {
   "garne.erklaerung":
     "Proszę wpisać tutaj, jakie nici ma Pani w domu. Przy tworzeniu wzoru można wtedy ustawić, żeby używać tylko tych nici.",
   "garne.zurueckMuster": "Wróć do wzoru",
+
+  "leer.titel": "Albo pusta powierzchnia",
+  "leer.text":
+    "Można zacząć bez zdjęcia: dostanie Pani pustą powierzchnię do haftu i ustawi na niej zapamiętane motywy. Jak duża ma być?",
+  "leer.breite": "Szerokość powierzchni",
+  "leer.hoehe": "Wysokość powierzchni",
+  "leer.anfangen": "Zacznij pustą powierzchnię",
+  "leer.zuGross":
+    "Ta powierzchnia jest za duża. Razem możliwe jest najwyżej {felder} kratek – proszę zrobić ją węższą albo niższą.",
   "garne.keinsEingetragen": "Nie wpisano jeszcze żadnej nitki.",
   "garne.eingetragen": "Wpisanych nici: {anzahl}.",
   "garne.zuHause": "To ma Pani w domu",

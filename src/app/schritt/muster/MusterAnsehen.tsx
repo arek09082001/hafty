@@ -28,10 +28,11 @@ import { Auswahlbereich } from "@/components/Auswahlbereich";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 import { garnname } from "@/lib/farbe/farbwort";
 import { garnlaengeMeter, meterText } from "@/lib/druck/garnverbrauch";
-import { useMuster } from "@/lib/zustand/MusterProvider";
-import { cmText, sticheInCm } from "@/lib/muster/typen";
+import { istLeereFlaeche, useMuster } from "@/lib/zustand/MusterProvider";
+import { cmText, sticheInCm, type PalettenEintrag } from "@/lib/muster/typen";
 import {
   allesWiederSticken,
+  ausschnittAufPalette,
   ausschnittEinsetzen,
   ausschnittHerausloesen,
   auswahlFuellen,
@@ -99,6 +100,13 @@ export function MusterAnsehen() {
   const { t, zahl, landeskennung } = useSprache();
   /** Welcher der vier Bereiche rechts gerade offen ist. */
   const [bereich, setBereich] = useState("bearbeiten");
+  /** Kein Foto dahinter: dann fällt alles weg, was daran hängt. */
+  const aufLeererFlaeche = istLeereFlaeche(muster);
+  // Wer beim Wechsel auf eine leere Fläche gerade in „Garne" oder „Muster"
+  // stand, sähe sonst einen Reiter, den es nicht mehr gibt – und daneben
+  // nichts.
+  const bereichJetzt =
+    aufLeererFlaeche && (bereich === "garne" || bereich === "muster") ? "gemerkt" : bereich;
   /**
    * Ist die Erklärung über den Reitern aufgeklappt?
    *
@@ -140,6 +148,15 @@ export function MusterAnsehen() {
     y: number;
     /** Motive lösen beim Einsetzen eine Sicherung aus, Kopien nicht. */
     ausMotiv: boolean;
+    /**
+     * Die Palette des Musters, um die Farben des Stückes ergänzt.
+     *
+     * Sie gilt schon für die Vorschau – sonst läge das Motiv in fremden
+     * Farben auf dem Raster. Ins Muster übernommen wird sie erst mit
+     * „Hier einsetzen"; wer abbricht, hat hinterher keine ungenutzten
+     * Farben in seiner Garnliste stehen.
+     */
+    palette: PalettenEintrag[];
   } | null>(null);
   const [mitSymbolen, setMitSymbolen] = useState(false);
   const { melden, alleWeg } = useMeldungen();
@@ -533,12 +550,17 @@ export function MusterAnsehen() {
 
   const einfuegenStarten = (stueck: Ausschnitt, ausMotiv = false) => {
     if (!muster) return;
+    // Die Farben des Stückes zuerst auf die Palette dieses Musters
+    // umschreiben: die Zahlen im Motiv sind Plätze in der Palette, aus der
+    // es stammt, und die gilt hier nicht.
+    const { ausschnitt: angepasst, palette } = ausschnittAufPalette(stueck, muster.palette);
     setVorschau({
-      quelle: stueck,
+      quelle: angepasst,
+      palette,
       stufe: STUECK_STUFE_NORMAL,
       ausMotiv,
-      x: Math.max(0, Math.floor((muster.breite - stueck.w) / 2)),
-      y: Math.max(0, Math.floor((muster.hoehe - stueck.h) / 2)),
+      x: Math.max(0, Math.floor((muster.breite - angepasst.w) / 2)),
+      y: Math.max(0, Math.floor((muster.hoehe - angepasst.h) / 2)),
     });
     setAuswahl(null);
     tippsVergessen();
@@ -547,6 +569,9 @@ export function MusterAnsehen() {
 
   const vorschauFestschreiben = () => {
     if (!muster || !vorschau || !vorschauStueck) return;
+    // Erst die Farben, dann die Stiche: sonst zeigten die neuen Zahlen im
+    // Raster einen Augenblick lang auf Plätze, die es noch nicht gibt.
+    if (vorschau.palette.length !== muster.palette.length) paletteErsetzen(vorschau.palette);
     const { indizes, werte } = ausschnittEinsetzen(
       vorschauStueck,
       muster.breite,
@@ -814,7 +839,11 @@ export function MusterAnsehen() {
            am Knopf. Die Zeile darunter fehlte dem Muster. */
         <>
           <div className="flex flex-wrap items-center gap-2">
-            <KnopfLink art="neben" klein href="/schritt/einstellungen">
+            <KnopfLink
+              art="neben"
+              klein
+              href={aufLeererFlaeche ? "/schritt/bild" : "/schritt/einstellungen"}
+            >
               {t("editor.einSchrittZurueck")}
             </KnopfLink>
             <Knopf
@@ -864,7 +893,7 @@ export function MusterAnsehen() {
           breite={muster.breite}
           hoehe={muster.hoehe}
           raster={anzeigeRaster}
-          palette={muster.palette}
+          palette={vorschau?.palette ?? muster.palette}
           mitSymbolen={mitSymbolen}
           auswahl={auswahl?.maske ?? null}
           vorschau={
@@ -1071,16 +1100,28 @@ export function MusterAnsehen() {
               </div>
 
               <Bereichswahl
-                bereiche={[
-                  { schluessel: "bearbeiten", titel: t("bereich.bearbeiten") },
-                  { schluessel: "garne", titel: t("bereich.garne") },
-                  { schluessel: "muster", titel: t("bereich.muster") },
-                  { schluessel: "gemerkt", titel: t("bereich.gemerkt") },
-                ]}
-                gewaehlt={bereich}
+                /* Auf einer leeren Fläche gibt es kein Bild und keine
+                   Farbrechnung: „Garne" zählt eine Palette auf, die erst mit
+                   den Motiven entsteht, und „Muster" stellt Regler, die auf
+                   nichts wirken. Beides fällt weg – geblieben ist, was hier
+                   wirklich gebraucht wird: die Werkzeuge und die Motive. */
+                bereiche={
+                  aufLeererFlaeche
+                    ? [
+                        { schluessel: "bearbeiten", titel: t("bereich.bearbeiten") },
+                        { schluessel: "gemerkt", titel: t("bereich.gemerkt") },
+                      ]
+                    : [
+                        { schluessel: "bearbeiten", titel: t("bereich.bearbeiten") },
+                        { schluessel: "garne", titel: t("bereich.garne") },
+                        { schluessel: "muster", titel: t("bereich.muster") },
+                        { schluessel: "gemerkt", titel: t("bereich.gemerkt") },
+                      ]
+                }
+                gewaehlt={bereichJetzt}
                 onWaehlen={setBereich}
               >
-                {bereich === "bearbeiten" ? (
+                {bereichJetzt === "bearbeiten" ? (
                   <>
                     {werkzeug === "schieben" ? (
                       <Abschnitt titel={t("ansicht.titel")}>
@@ -1184,7 +1225,7 @@ export function MusterAnsehen() {
                   </>
                 ) : null}
 
-                {bereich === "garne" ? (
+                {bereichJetzt === "garne" ? (
                   <Abschnitt
                     titel={t("editor.ihreGarne", { anzahl: String(paletteJetzt.length) })}
                     hinweis={t("editor.farbeHinweis")}
@@ -1239,7 +1280,7 @@ export function MusterAnsehen() {
                   </Abschnitt>
                 ) : null}
 
-                {bereich === "muster" ? (
+                {bereichJetzt === "muster" ? (
                   <>
                     {/* Die Maße standen früher oben in der Kopfzeile und haben
                         dort nur Platz gekostet: sie ändern sich beim Arbeiten
@@ -1268,7 +1309,7 @@ export function MusterAnsehen() {
                   </>
                 ) : null}
 
-                {bereich === "gemerkt" ? (
+                {bereichJetzt === "gemerkt" ? (
                   <>
                     <Abschnitt titel={t("staende.titel")}>
                       <Staendeleiste
@@ -1337,6 +1378,14 @@ export function MusterAnsehen() {
           id="motivname"
           value={motivName}
           onChange={(e) => setMotivName(e.target.value)}
+          // Die Eingabetaste schließt den Namen ab – wer tippt, will nicht
+          // erst mit dem Finger zum Knopf.
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              void motivMerken();
+            }
+          }}
           placeholder={t("editor.motivNamePlatzhalter")}
           className="min-h-[60px] w-full rounded-xl border-2 border-tinte bg-white px-4 text-[1.15rem]"
         />
