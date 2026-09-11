@@ -66,6 +66,7 @@ const BEIWERK = [
   "/symbol-512.png",
   "/symbol-maskierbar-512.png",
   "/icon.svg",
+  "/apple-icon.png",
   "/schriften/schrift-normal.ttf",
   "/schriften/schrift-fett.ttf",
 ];

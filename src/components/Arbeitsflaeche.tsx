@@ -196,6 +196,7 @@ export function Arbeitsflaeche({
   palette,
   mitLinien = true,
   mitSymbolen = false,
+  mitStichen = false,
   auswahl,
   vorschau,
   onZeiger,
@@ -213,6 +214,7 @@ export function Arbeitsflaeche({
       Betrachten im Weg. Deshalb abschaltbar (siehe MusterAnsehen). */
   mitLinien?: boolean;
   mitSymbolen?: boolean;
+  mitStichen?: boolean;
   auswahl?: Uint8Array | null;
   vorschau?: Einfuegevorschau | null;
   onZeiger?: (e: Zeigerereignis) => void;
@@ -339,11 +341,26 @@ export function Arbeitsflaeche({
       sichtHoehe: sicht.h,
       mitLinien,
       mitSymbolen,
+      mitStichen,
       auswahl,
       vorschau,
       mitBlatt: true,
     });
-  }, [breite, hoehe, raster, tabelle, zoom, x, y, sicht, mitLinien, mitSymbolen, auswahl, vorschau]);
+  }, [
+    breite,
+    hoehe,
+    raster,
+    tabelle,
+    zoom,
+    x,
+    y,
+    sicht,
+    mitLinien,
+    mitSymbolen,
+    mitStichen,
+    auswahl,
+    vorschau,
+  ]);
 
   // --- Zeigerbehandlung -----------------------------------------------------
   const zeiger = useRef(new Map<number, { x: number; y: number }>());

@@ -134,6 +134,9 @@ export const TEXTE = {
   "editor.symboleAus": "Symbole wył.",
   "editor.gitterAn": "Kratka wł.",
   "editor.gitterAus": "Kratka wył.",
+  // Podgląd haftu: wzór jako gotowa robota, a nie jako plan w kratkę.
+  "editor.sticheAn": "Jak w haftcie",
+  "editor.sticheAus": "Wróć do kratki",
   "editor.einSchrittZurueck": "Krok wstecz",
   "editor.rueckgaengig": "Cofnij",
   "editor.wiederholen": "Ponów",

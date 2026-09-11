@@ -592,6 +592,41 @@ Aus dem Bild schieben lässt sich das Muster nicht: 120 Punkte davon bleiben
 immer sichtbar. Sonst zieht man einmal zu weit und sieht nur noch leere
 Fläche, ohne zu wissen, in welche Richtung das Muster liegt.
 
+## Wie es gestickt aussähe
+
+Der Knopf „Jak w haftcie" unten am Bild tauscht den Kästchenplan gegen das
+fertige Stück: Aidastoff, und darauf echte Kreuze aus Faden
+(`sticheZeichnen` in `src/lib/muster/leinwand.ts`).
+
+Ein Plan beantwortet „welche Farbe wohin" – aber nicht die Frage, die vor dem
+Anfangen zählt: sieht das gestickt gut aus? Auf dem Stoff ist ein Stich kein
+Quadrat, sondern ein Kreuz aus zwei Fäden mit Stoff dazwischen. Deshalb wirkt
+eine Stickerei aus der Nähe grober und aus der Ferne weicher als ihr Plan.
+
+Drei Dinge mussten stimmen, bis daraus Kreuze wurden statt Streifen:
+
+- **Der Faden hört vor der Ecke auf.** Der obere Faden eines Kästchens und der
+  des schräg benachbarten liegen auf *einer* Geraden. Reichen sie bis in die
+  Ecke, verschmelzen sie zu einer Schnur quer über das ganze Bild – und genau
+  das kam bei den ersten Anläufen heraus. Die kleine Lücke an der Ecke ist das
+  Loch im Stoff, und sie macht aus der Schnur wieder einzelne Stiche.
+- **Der untere Faden ist dunkler.** Beide Fäden eines Stiches haben dieselbe
+  Garnfarbe. Ohne diesen Unterschied deckte der obere den unteren fast ganz
+  zu; sichtbar blieben zwei Stummel, die wie Beulen an der Schnur aussahen.
+- **Der Faden ist rund.** Gezeichnet als fünf Striche aufeinander, von außen
+  dunkel nach innen hell. Mit dreien sah er aus wie ein flaches Band mit
+  aufgemalten Streifen, und das Muster wirkte wie ein Schottenkaro.
+
+Gezeichnet wird je Farbe ein Pfad für die unteren und einer für die oberen
+Fäden, und erst danach gestrichen – bei zwanzigtausend sichtbaren Kästchen
+wären einzelne Striche zu langsam. Gemessen an einem Muster mit 400 Stichen
+Breite kostet das Schieben dasselbe wie im Plan: 16,7 ms je Bild in beiden
+Ansichten, das schlechteste Bild 22 statt 18 ms.
+
+Unter sechs Bildpunkten je Stich bleibt es beim Kästchenbild. Das ist keine
+Notlösung: aus der Entfernung sieht eine Stickerei tatsächlich aus wie ihre
+Farbflächen, und einzelne Fäden dort hinzumalen ergäbe nur Grau.
+
 ## Die Werkzeuge und die Bedienspalte
 
 Die Werkzeuge stehen als Schiene an der Leinwand

@@ -159,6 +159,20 @@ export function MusterAnsehen() {
    * Voreinstellung. Die Druckvorschau macht es seit jeher genauso.
    */
   const [mitLinien, setMitLinien] = useState(true);
+
+  /**
+   * Die Stickansicht: das Muster als fertiges Stück statt als Plan.
+   *
+   * Ein Kästchenplan beantwortet nicht die Frage, die vor dem Anfangen
+   * zählt – sieht das gestickt gut aus? Auf dem Stoff ist ein Stich kein
+   * Quadrat, sondern ein Kreuz aus zwei Fäden mit Stoff dazwischen. Deshalb
+   * wirkt eine Stickerei aus der Nähe grober und aus der Ferne weicher als
+   * ihr Plan. Hier lässt sich das ansehen, bevor die erste Nadel eingefädelt
+   * ist.
+   *
+   * Aus bleibt die Voreinstellung: gearbeitet wird am Plan.
+   */
+  const [mitStichen, setMitStichen] = useState(false);
   const { melden, alleWeg } = useMeldungen();
 
   const [motive, setMotive] = useState<Motiv[]>([]);
@@ -948,6 +962,7 @@ export function MusterAnsehen() {
           palette={muster.palette}
           mitLinien={mitLinien}
           mitSymbolen={mitSymbolen}
+          mitStichen={mitStichen}
           auswahl={auswahl?.maske ?? null}
           vorschau={
             vorschau && vorschauStueck
@@ -982,10 +997,24 @@ export function MusterAnsehen() {
                 {t("editor.groesser")}
               </Sichtknopf>
               <Sichtknopf onClick={ansicht.ganzZeigen}>{t("editor.allesZeigen")}</Sichtknopf>
-              <Sichtknopf onClick={() => setMitSymbolen((a) => !a)} gedrueckt={mitSymbolen}>
+              <Sichtknopf onClick={() => setMitStichen((a) => !a)} gedrueckt={mitStichen}>
+                {mitStichen ? t("editor.sticheAus") : t("editor.sticheAn")}
+              </Sichtknopf>
+              {/* In der Stickansicht gibt es weder Symbole noch Gitter zu
+                  sehen – die gehören zum Plan. Die Knöpfe bleiben stehen,
+                  damit die Reihe nicht springt, sind aber stumpf. */}
+              <Sichtknopf
+                onClick={() => setMitSymbolen((a) => !a)}
+                gedrueckt={mitSymbolen}
+                disabled={mitStichen}
+              >
                 {mitSymbolen ? t("editor.symboleAus") : t("editor.symboleAn")}
               </Sichtknopf>
-              <Sichtknopf onClick={() => setMitLinien((a) => !a)} gedrueckt={!mitLinien}>
+              <Sichtknopf
+                onClick={() => setMitLinien((a) => !a)}
+                gedrueckt={!mitLinien}
+                disabled={mitStichen}
+              >
                 {mitLinien ? t("editor.gitterAus") : t("editor.gitterAn")}
               </Sichtknopf>
             </div>
