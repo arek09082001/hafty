@@ -11,6 +11,7 @@
  */
 
 import { browserdatenbank, entpacken, packen, LADEN_MOTIVE } from "./browserspeicher";
+import { vormerken } from "./abgleichliste";
 import type { Ausschnitt } from "@/lib/muster/raster";
 import { LEER, type PalettenEintrag } from "@/lib/muster/typen";
 import { hexNachRgb } from "@/lib/farbe/lab";
@@ -25,7 +26,7 @@ export type Motiv = {
 };
 
 /** So liegt ein Motiv in der Datenbank. */
-type Abgelegt = {
+export type Motivsatz = {
   id: string;
   name: string;
   w: number;
@@ -162,7 +163,7 @@ async function vorschauBauen(a: Ausschnitt): Promise<Blob | null> {
 /** Alle Motive holen, das neueste zuerst. */
 export async function motiveLaden(): Promise<Motiv[]> {
   const db = await browserdatenbank();
-  const saetze = (await db.getAll(LADEN_MOTIVE)) as Abgelegt[];
+  const saetze = (await db.getAll(LADEN_MOTIVE)) as Motivsatz[];
   return saetze
     .sort((a, b) => b.angelegtAm.localeCompare(a.angelegtAm))
     .map((m) => ({
@@ -183,7 +184,7 @@ export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv
     const db = await browserdatenbank();
     const id = crypto.randomUUID();
     const vorschau = await vorschauBauen(a);
-    const satz: Abgelegt = {
+    const satz: Motivsatz = {
       id,
       name,
       w: a.w,
@@ -195,6 +196,9 @@ export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv
       fassung: FASSUNG,
     };
     await db.put(LADEN_MOTIVE, satz);
+    // Motive gehören genauso in die Sicherung wie Muster: sie entstehen über
+    // Monate und wären mit einem geleerten Browserspeicher weg.
+    await vormerken("motiv", id);
     return {
       id,
       name,
@@ -212,11 +216,25 @@ export async function motivSpeichern(name: string, a: Ausschnitt): Promise<Motiv
 export async function motivHolen(motiv: Motiv): Promise<Ausschnitt | null> {
   try {
     const db = await browserdatenbank();
-    const satz = (await db.get(LADEN_MOTIVE, motiv.id)) as Abgelegt | undefined;
+    const satz = (await db.get(LADEN_MOTIVE, motiv.id)) as Motivsatz | undefined;
     if (!satz) return null;
     return ausschnittEntpacken(await entpacken(satz.daten), satz.palette, satz.fassung ?? 1);
   } catch {
     return null;
+  }
+}
+
+/** Ein Motiv umbenennen. */
+export async function motivUmbenennen(motiv: Motiv, name: string): Promise<boolean> {
+  try {
+    const db = await browserdatenbank();
+    const satz = (await db.get(LADEN_MOTIVE, motiv.id)) as Motivsatz | undefined;
+    if (!satz) return false;
+    await db.put(LADEN_MOTIVE, { ...satz, name: name.trim() || satz.name });
+    await vormerken("motiv", motiv.id);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -225,7 +243,50 @@ export async function motivLoeschen(motiv: Motiv): Promise<boolean> {
   try {
     const db = await browserdatenbank();
     await db.delete(LADEN_MOTIVE, motiv.id);
+    // Gelöscht heißt gelöscht – sonst käme das Motiv beim nächsten Holen
+    // aus der Ferne wieder zurück.
+    await vormerken("motivLoeschung", motiv.id);
     return true;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Für den Abgleich mit der Ferne
+// ---------------------------------------------------------------------------
+
+/** Einen Motivsatz unverändert holen – mit Daten und Vorschau. */
+export async function motivSatzHolen(id: string): Promise<Motivsatz | null> {
+  try {
+    const db = await browserdatenbank();
+    return ((await db.get(LADEN_MOTIVE, id)) as Motivsatz | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Einen Motivsatz unverändert ablegen – dafür ist der Abgleich da. */
+export async function motivSatzSchreiben(satz: Motivsatz): Promise<void> {
+  const db = await browserdatenbank();
+  await db.put(LADEN_MOTIVE, satz);
+}
+
+/** Die Kennungen aller Motive auf diesem Gerät. */
+export async function motivKennungen(): Promise<string[]> {
+  try {
+    const db = await browserdatenbank();
+    return (await db.getAllKeys(LADEN_MOTIVE)) as string[];
+  } catch {
+    return [];
+  }
+}
+
+/** Gibt es dieses Motiv hier schon? */
+export async function motivVorhanden(id: string): Promise<boolean> {
+  try {
+    const db = await browserdatenbank();
+    return (await db.get(LADEN_MOTIVE, id)) !== undefined;
   } catch {
     return false;
   }

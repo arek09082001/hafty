@@ -20,10 +20,19 @@ import { browserdatenbank, LADEN_ABGLEICH } from "./browserspeicher";
 /**
  * `loeschung` trägt die Kennung eines Projekts, das hier weg ist und
  * deshalb auch in der Ferne weg gehört; `standLoeschung` dasselbe für eine
- * einzelne Version, als `projektId/standId`. Ohne sie kämen sie beim
- * nächsten Holen wieder zurück.
+ * einzelne Version, als `projektId/standId`, und `motivLoeschung` für ein
+ * Motiv. Ohne sie kämen sie beim nächsten Holen wieder zurück.
+ *
+ * `motiv` sind die gespeicherten Ausschnitte. Sie hängen an keinem Projekt:
+ * sie gehören der Nutzerin und lassen sich in jedes Muster einsetzen.
  */
-export type Art = "projekt" | "stand" | "loeschung" | "standLoeschung";
+export type Art =
+  | "projekt"
+  | "stand"
+  | "motiv"
+  | "loeschung"
+  | "standLoeschung"
+  | "motivLoeschung";
 
 export type Vormerkung = {
   /** `art:kennung` – damit dieselbe Sache nie zweimal in der Liste steht. */

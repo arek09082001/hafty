@@ -22,6 +22,12 @@ export function Kopfzeile() {
         <div className="flex items-center gap-3">
           <Sicherungszeichen klein />
           <Link
+            href="/wzory"
+            className="flex min-h-[56px] items-center rounded-xl px-4 text-[1rem] font-semibold underline hover:bg-hinweis"
+          >
+            {t("kopf.verwalten")}
+          </Link>
+          <Link
             href="/garne"
             className="flex min-h-[56px] items-center rounded-xl px-4 text-[1rem] font-semibold underline hover:bg-hinweis"
           >

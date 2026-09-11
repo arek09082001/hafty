@@ -1,5 +1,6 @@
 /*
- * Der Service Worker: dafür, dass die App ohne Internet läuft.
+ * Der Service Worker: dafür, dass die App ohne Internet läuft –
+ * und dafür, dass eine neue Fassung sofort ankommt.
  * ---------------------------------------------------------------------------
  *
  * Die App rechnet ohnehin alles im Browser – Muster, Glättung, Legende, PDF.
@@ -7,18 +8,23 @@
  * das erledigt diese Datei: sie legt die Seiten und ihre Bausteine im
  * Zwischenspeicher des Browsers ab.
  *
- * Beim Einrichten werden die vier Schritte einmal geholt und aus ihrem
- * Quelltext die Adressen aller Skripte und Stilvorlagen gelesen. So ist die
- * App vollständig, sobald sie installiert ist – und nicht erst, nachdem man
- * jede Seite einmal von Hand aufgerufen hat.
+ * **Die Fassung steht in der Adresse.** Angemeldet wird `/sw.js?v=…` mit der
+ * Kennung des Bauvorgangs (siehe `OhneNetz.tsx` und `next.config.ts`). Das ist
+ * der Kern der Sache: ein Browser merkt eine neue Fassung nur, wenn sich die
+ * Datei des Service Workers **selbst** ändert. Diese Datei änderte sich nie –
+ * sie steht ja fest im Programm. Eine installierte App blieb deshalb auf dem
+ * Zwischenspeicher sitzen, mit dem sie einmal eingerichtet worden war, und die
+ * Nutzerin sah Wochen später noch die alte Fassung. Mit der Fassung in der
+ * Adresse ist nach jeder Veröffentlichung ein anderer Service Worker
+ * anzumelden, und der räumt beim Aktivieren alles Alte weg.
  *
  * Danach gilt:
  *   - Seitenaufrufe: erst das Netz, sonst der Zwischenspeicher. So kommt
  *     eine neue Fassung an, sobald Verbindung besteht, und ohne Verbindung
  *     kommt trotzdem die Seite.
- *   - /_next/static/… und die festen Beigaben (Schriften, Symbole): immer aus
- *     dem Zwischenspeicher. Diese Adressen tragen einen Prüfwert im Namen
- *     oder ändern sich nie.
+ *   - /_next/static/… und die festen Beigaben (Schriften, Symbole): aus
+ *     dem Zwischenspeicher **dieser Fassung**. Diese Adressen tragen einen
+ *     Prüfwert im Namen oder ändern sich nie.
  *   - **Alles andere: erst das Netz**, der Zwischenspeicher nur als Rückfall.
  *
  * Der letzte Punkt war einmal andersherum, und das war ein Fehler. „Alles
@@ -31,14 +37,17 @@
  * ohnehin nichts an.
  */
 
+/** Die Fassung, mit der dieser Service Worker angemeldet wurde. */
+const FASSUNG = new URL(self.location.href).searchParams.get("v") || "ohne";
+
 /**
- * Der Name des Zwischenspeichers – mit Nummer.
+ * Der Name des Zwischenspeichers – mit der Fassung darin.
  *
- * Beim Aktivieren wird alles gelöscht, was anders heißt. Die Nummer
- * hochzuzählen ist deshalb der Weg, einen verkorksten Zwischenspeicher bei
- * allen Geräten wegzuräumen, ohne dass jemand etwas tun muss.
+ * Beim Aktivieren wird alles gelöscht, was anders heißt. Jede neue Fassung
+ * fängt damit mit einem leeren Zwischenspeicher an: nichts von gestern bleibt
+ * liegen, und es gibt keinen Weg, auf dem eine alte Datei überleben könnte.
  */
-const LAGER = "stickmuster-v2";
+const LAGER = `stickmuster-${FASSUNG}`;
 
 /** Was sich nie ändert und darum aus dem Zwischenspeicher kommen darf. */
 function unveraenderlich(pfad) {
@@ -49,9 +58,11 @@ function unveraenderlich(pfad) {
   );
 }
 
-/** Die Startseite, die vier Schritte und die Garnseite – alle Seiten der App. */
+/** Alle Seiten der App. */
 const SEITEN = [
   "/",
+  "/kanwa",
+  "/wzory",
   "/schritt/bild",
   "/schritt/einstellungen",
   "/schritt/muster",
@@ -97,6 +108,8 @@ async function einrichten() {
   const bausteine = new Set();
   for (const seite of SEITEN) {
     try {
+      // `cache: "reload"` geht am Browserzwischenspeicher vorbei: sonst
+      // richtete sich die neue Fassung mit den alten Dateien ein.
       const antwort = await fetch(seite, { cache: "reload" });
       if (!antwort.ok) continue;
       const text = await antwort.clone().text();
@@ -125,10 +138,17 @@ self.addEventListener("install", (ereignis) => {
 self.addEventListener("activate", (ereignis) => {
   ereignis.waitUntil(
     (async () => {
+      // Alles, was zu einer anderen Fassung gehört, fliegt weg.
       for (const name of await caches.keys()) {
         if (name !== LAGER) await caches.delete(name);
       }
       await self.clients.claim();
+      // Den offenen Fenstern Bescheid sagen. Sie laden sich daraufhin neu,
+      // damit auch ein Fenster, das seit gestern offen steht, die neue
+      // Fassung zeigt (siehe `OhneNetz.tsx`).
+      for (const fenster of await self.clients.matchAll({ type: "window" })) {
+        fenster.postMessage({ art: "neue-fassung", fassung: FASSUNG });
+      }
     })(),
   );
 });
@@ -150,17 +170,24 @@ self.addEventListener("fetch", (ereignis) => {
   // zum gemeinsamen Konto dran, und der läuft ab.
   if (adresse.pathname.startsWith("/api/")) return;
 
+  // Der Service Worker selbst: immer frisch aus dem Netz. Nur so merkt der
+  // Browser überhaupt, dass es eine neue Fassung gibt.
+  if (adresse.pathname === "/sw.js") return;
+
   // Unveränderliche Bausteine: was einmal da ist, bleibt gültig.
   if (unveraenderlich(adresse.pathname)) {
     ereignis.respondWith(
-      caches.match(anfrage).then(
-        (gefunden) =>
-          gefunden ??
-          fetch(anfrage).then(async (antwort) => {
-            if (antwort.ok) (await caches.open(LAGER)).put(anfrage, antwort.clone());
-            return antwort;
-          }),
-      ),
+      (async () => {
+        // Ausdrücklich nur im Lager **dieser** Fassung nachsehen und nicht
+        // über alle Zwischenspeicher hinweg: sonst käme nach einer
+        // Veröffentlichung womöglich noch ein Baustein von gestern heraus.
+        const lager = await caches.open(LAGER);
+        const gefunden = await lager.match(anfrage);
+        if (gefunden) return gefunden;
+        const antwort = await fetch(anfrage);
+        if (antwort.ok) lager.put(anfrage, antwort.clone());
+        return antwort;
+      })(),
     );
     return;
   }
@@ -197,7 +224,8 @@ self.addEventListener("fetch", (ereignis) => {
         }
         return antwort;
       } catch {
-        const gefunden = await caches.match(anfrage);
+        const lager = await caches.open(LAGER);
+        const gefunden = await lager.match(anfrage);
         if (gefunden) return gefunden;
         throw new Error("offline");
       }
