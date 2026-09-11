@@ -1,12 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { Knopf } from "./Knopf";
+import { Zahlenfeld } from "./Zahlenfeld";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
 /**
- * Eine Zahl einstellen – mit zwei großen Knöpfen statt eines Drehfeldes.
- * Ein Zahleneingabefeld mit winzigen Pfeilen ist auf einem Tablet nicht zu
- * treffen; „Weniger" und „Mehr" sind es immer.
+ * Eine Zahl einstellen – mit zwei großen Knöpfen und einem Feld dazwischen,
+ * in das man die Zahl auch eintippen kann.
+ *
+ * Ein Drehfeld mit winzigen Pfeilen wäre auf einem Tablet nicht zu treffen;
+ * „Weniger" und „Mehr" sind es immer, und sie bleiben deshalb der Hauptweg.
+ * Wer aber schon weiß, dass es 180 Stiche werden sollen, tippt sie ein,
+ * statt vierzehnmal auf „Mehr" zu drücken.
  *
  * `schritt` darf auch eine Funktion sein. Das wird bei einem weiten Bereich
  * gebraucht: bei der Farbanzahl reicht unten die feine Stufe, oben käme man
@@ -14,6 +20,7 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  * landete „Weniger" nach „Mehr" nicht wieder auf demselben Wert.
  */
 export function Zahlenwahl({
+  id,
   beschriftung,
   wert,
   min,
@@ -23,6 +30,8 @@ export function Zahlenwahl({
   onAendern,
   hinweis,
 }: {
+  /** Verbindet die Überschrift mit dem Eingabefeld. */
+  id: string;
   beschriftung: string;
   wert: number;
   min: number;
@@ -32,13 +41,17 @@ export function Zahlenwahl({
   onAendern: (neu: number) => void;
   hinweis?: string;
 }) {
-  const { t } = useSprache();
+  const { t, zahl } = useSprache();
+  /** Auf diesen Wert wurde zuletzt begrenzt – dann steht ein Satz darunter. */
+  const [begrenzt, setBegrenzt] = useState<number | null>(null);
   const begrenzen = (v: number) => Math.max(min, Math.min(max, v));
   const stufe = (v: number) => (typeof schritt === "function" ? schritt(v) : schritt);
 
   return (
     <div className="flex flex-col gap-3">
-      <span className="text-[1.2rem] font-semibold">{beschriftung}</span>
+      <label htmlFor={id} className="text-[1.2rem] font-semibold">
+        {beschriftung}
+      </label>
       <div className="flex flex-wrap items-center gap-4">
         <Knopf
           art="neben"
@@ -48,9 +61,15 @@ export function Zahlenwahl({
         >
           {t("einst.weniger")}
         </Knopf>
-        <output className="min-w-[190px] rounded-xl border-2 border-tinte bg-white px-5 py-3 text-center text-[1.5rem] font-bold">
-          {wert} {einheit}
-        </output>
+        <Zahlenfeld
+          id={id}
+          wert={wert}
+          min={min}
+          max={max}
+          einheit={einheit}
+          onAendern={onAendern}
+          onBegrenzt={setBegrenzt}
+        />
         <Knopf
           art="neben"
           onClick={() => onAendern(begrenzen(wert + stufe(wert)))}
@@ -60,7 +79,23 @@ export function Zahlenwahl({
           {t("einst.mehr")}
         </Knopf>
       </div>
-      {hinweis ? <p className="max-w-[60ch] text-[1rem] text-gedaempft">{hinweis}</p> : null}
+      {/* Eine zu große oder zu kleine Zahl wird nicht still zurechtgebogen,
+          sondern in einem ganzen Satz erklärt. Er steht unter der ganzen
+          Zeile und nicht neben dem Kästchen: dort zöge er es in die Breite
+          und schöbe „Mehr" in die nächste Zeile. */}
+      {begrenzt !== null ? (
+        <p role="status" className="max-w-[60ch] text-[1rem] text-warnung">
+          {t("zahlenfeld.begrenzt", { min: zahl(min), max: zahl(max), wert: zahl(begrenzt) })}
+        </p>
+      ) : null}
+
+      {/* Dass man die Zahl auch eintippen kann, sieht man dem Kästchen zwar
+          an – aber nicht jede Nutzerin rechnet damit, und ein Satz kostet
+          hier weniger als ein vergeblicher Versuch. */}
+      <p className="max-w-[60ch] text-[1rem] text-gedaempft">
+        {hinweis ? `${hinweis} ` : ""}
+        {t("zahlenfeld.tippen")}
+      </p>
     </div>
   );
 }

@@ -112,6 +112,10 @@ export const DE = {
   "einst.wenigerVon": "{was}: weniger",
   "einst.mehrVon": "{was}: mehr",
   "einst.farbenEinheit": "Farben",
+
+  // --- Zahlen eintippen --------------------------------------------------
+  "zahlenfeld.tippen": "Sie können die Zahl auch antippen und selbst eintippen.",
+  "zahlenfeld.begrenzt": "Möglich sind {min} bis {max}. Es stehen jetzt {wert} da.",
   "einst.stoff11": "Aida 11 – große Kreuze",
   "einst.stoff14": "Aida 14 – am gebräuchlichsten",
   "einst.stoff16": "Aida 16 – feiner",
@@ -643,6 +647,9 @@ export const PL: Record<Textschluessel, string> = {
   "einst.wenigerVon": "{was}: mniej",
   "einst.mehrVon": "{was}: więcej",
   "einst.farbenEinheit": "kolorów",
+
+  "zahlenfeld.tippen": "Liczbę można też dotknąć i wpisać samodzielnie.",
+  "zahlenfeld.begrenzt": "Możliwe jest od {min} do {max}. Teraz jest {wert}.",
   "einst.stoff11": "Aida 11 – duże krzyżyki",
   "einst.stoff14": "Aida 14 – najczęściej używana",
   "einst.stoff16": "Aida 16 – drobniejsza",
