@@ -15,6 +15,10 @@
  * Vom großen Symbol gibt es zwei Fassungen: eine ganz ausgefüllte und eine
  * mit Rand. Android schneidet Symbole rund oder als abgerundetes Quadrat zu
  * ("maskable"); ohne Rand fielen dabei die äußeren Kreuze weg.
+ *
+ * Dazu kommt `src/app/apple-icon.png`. Auf dem iPad nimmt der Startbildschirm
+ * weder das SVG noch die Symbole aus dem Manifest – ohne diese Datei malt iOS
+ * sich selbst eines aus einem verkleinerten Abbild der Seite.
  */
 
 import { writeFileSync } from "node:fs";
@@ -73,7 +77,23 @@ const ROT = [0x8a, 0x1c, 0x1c];
  * Zeichnet in einem Feld von 32 mal 32 Einheiten – denselben Maßen wie das
  * SVG. `rand` verkleinert die Zeichnung, damit beim runden Zuschneiden
  * nichts abgeschnitten wird.
+ *
+ * Das Raster: drei mal drei Kästchen zu je zehn Einheiten, von 1 bis 31, mit
+ * den Linien bei 11 und 21. Daraus folgen die Kästchenmitten 6, 16 und 26 –
+ * und genau dort sitzen die Kreuze.
+ *
+ * Vorher stimmte das nicht. Die Linien liefen über das ganze Feld (0 bis 32),
+ * die Kästchen waren also 11, 10 und 11 Einheiten breit, und die Kreuze
+ * standen bei 5,5, 13,5 und 21,5: das erste zufällig mittig, das zweite zwei
+ * ein halb daneben und das dritte genau auf der Linie. Im SVG lag es wieder
+ * anders herum. Sichtbar war das als ein Symbol, dessen Kreuze nicht in ihren
+ * Kästchen sitzen.
  */
+/** Die Rasterlinien und damit die Kästchengrenzen. */
+const LINIEN = [11, 21];
+/** Wo das Raster anfängt und aufhört. */
+const RAND_INNEN = 1;
+const RAND_AUSSEN = 31;
 function zeichnen(groesse, rand) {
   const puffer = Buffer.alloc(groesse * groesse * 3);
   const innen = groesse * (1 - 2 * rand);
@@ -86,9 +106,9 @@ function zeichnen(groesse, rand) {
 
   // Ein Kreuz aus zwei Diagonalen, wie ein Kreuzstich.
   const kreuze = [
-    { x: 5.5, y: 5.5, farbe: GRUEN },
-    { x: 13.5, y: 13.5, farbe: ROT },
-    { x: 21.5, y: 21.5, farbe: GRUEN },
+    { x: 6, y: 6, farbe: GRUEN },
+    { x: 16, y: 16, farbe: ROT },
+    { x: 26, y: 26, farbe: GRUEN },
   ];
 
   for (let y = 0; y < groesse; y++) {
@@ -98,8 +118,14 @@ function zeichnen(groesse, rand) {
       const ey = (y - versatz) / proEinheit;
       if (ex < 0 || ey < 0 || ex > 32 || ey > 32) continue;
 
-      // Stoffraster: Linien bei 11 und 21
-      const aufLinie = [11, 21].some((l) => Math.abs(ex - l) < 0.35 || Math.abs(ey - l) < 0.35);
+      // Stoffraster. Die Linien enden mit dem Raster, sie laufen nicht bis
+      // zum Bildrand – sonst waeren die aeusseren Kaestchen breiter als das
+      // mittlere und die Kreuze sassen nicht mehr mittig.
+      const imRaster =
+        ex >= RAND_INNEN && ex <= RAND_AUSSEN && ey >= RAND_INNEN && ey <= RAND_AUSSEN;
+      const aufLinie =
+        imRaster &&
+        LINIEN.some((l) => Math.abs(ex - l) < 0.35 || Math.abs(ey - l) < 0.35);
       if (aufLinie) setzen(x, y, LINIE);
 
       for (const k of kreuze) {
@@ -114,11 +140,14 @@ function zeichnen(groesse, rand) {
   return puffer;
 }
 
-for (const [datei, groesse, rand] of [
-  ["symbol-192.png", 192, 0.04],
-  ["symbol-512.png", 512, 0.04],
-  ["symbol-maskierbar-512.png", 512, 0.14],
+for (const [ziel, groesse, rand] of [
+  ["public/symbol-192.png", 192, 0.04],
+  ["public/symbol-512.png", 512, 0.04],
+  ["public/symbol-maskierbar-512.png", 512, 0.14],
+  // iOS rundet die Ecken selbst und mag keine Durchsichtigkeit – deshalb
+  // dieselbe Zeichnung, nur randvoll und in der Groesse, die Apple erwartet.
+  ["src/app/apple-icon.png", 180, 0.04],
 ]) {
-  writeFileSync(path.join(WURZEL, "public", datei), png(groesse, groesse, zeichnen(groesse, rand)));
-  console.log(`${datei} (${groesse}×${groesse}) geschrieben`);
+  writeFileSync(path.join(WURZEL, ziel), png(groesse, groesse, zeichnen(groesse, rand)));
+  console.log(`${ziel} (${groesse}×${groesse}) geschrieben`);
 }
