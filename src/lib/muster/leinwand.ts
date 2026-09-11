@@ -218,12 +218,41 @@ const LOCH = 0.11;
  * Fünf reichen für eine Rundung.
  */
 const QUERSCHNITT: ReadonlyArray<readonly [number, number]> = [
-  [1, -0.45],
-  [0.86, -0.26],
-  [0.7, -0.1],
+  [1, -0.3],
+  [0.86, -0.17],
+  [0.7, -0.06],
   [0.5, 0.06],
-  [0.3, 0.24],
+  [0.3, 0.22],
 ];
+
+/**
+ * Derselbe Faden, aus der Entfernung.
+ * ---------------------------------------------------------------------------
+ *
+ * Fällt auf einen Stich nur eine Handvoll Bildpunkte, ist von der Rundung
+ * ohnehin nichts mehr zu sehen – zu sehen ist nur noch, **wie dunkel** das
+ * Kästchen im Mittel ist. Und da schlug der dunkle Rand voll durch: ein rotes
+ * Muster sah aus zwei Metern schwarz aus, weil von jedem Faden vor allem
+ * seine Umrandung übrig blieb.
+ *
+ * Deshalb aus der Ferne fast nur Farbe: ein Hauch dunkler am Rand, damit die
+ * Kreuze nicht zu einer Fläche verlaufen, und sonst der Ton des Garns. Das
+ * ist auch das ehrlichere Bild – aus zwei Metern sieht man von einer
+ * Stickerei die Farbe und nicht die einzelnen Fäden.
+ */
+const QUERSCHNITT_FERN: ReadonlyArray<readonly [number, number]> = [
+  [1, -0.1],
+  [0.62, 0.05],
+];
+
+/**
+ * Ab so vielen Bildpunkten je Stich lohnt die volle Fadenrundung.
+ *
+ * Zehn und nicht sechs: darunter ist die Rundung nicht mehr zu erkennen, ihr
+ * dunkler Rand aber sehr wohl – und der entscheidet dann über den Ton des
+ * ganzen Musters.
+ */
+const FEIN_AB = 10;
 
 /**
  * Wie viel dunkler der untere Faden ist.
@@ -248,6 +277,17 @@ type Stichfeld = {
   tabelle: Farbtabelle;
   /** Bildpunkte je Stich. */
   zoom: number;
+  /**
+   * Wird dieses Bild später **verkleinert** gezeigt?
+   *
+   * Das gespeicherte Stickbild wird mit sechs bis acht Punkten je Stich
+   * gezeichnet und danach auf zwei oder drei heruntergerechnet. Für die Frage,
+   * wie fein der Faden gezeichnet werden soll, zählt aber, wie groß der Stich
+   * am Ende **auf dem Bildschirm** ist – sonst landet die volle Fadenrundung
+   * mitsamt ihrem dunklen Rand in einem Bild, in dem davon nur noch das
+   * Dunkel übrig bleibt.
+   */
+  fern?: boolean;
   vorschau?: Einfuegevorschau | null;
 };
 
@@ -282,7 +322,7 @@ function stoffZeichnen(
   // Die Rillen zwischen den gewebten Blöcken. Unter drei Punkten je Stich
   // lägen sie dichter als das Raster und würden zu einem Grauschleier.
   if (zoom < 3) return;
-  stift.strokeStyle = "rgba(0,0,0,0.10)";
+  stift.strokeStyle = !f.fern && zoom >= FEIN_AB ? "rgba(0,0,0,0.10)" : "rgba(0,0,0,0.05)";
   stift.lineWidth = Math.max(1, zoom * 0.07);
   stift.beginPath();
   for (let x = Math.max(0, x0); x <= x1 && x <= f.breite; x++) {
@@ -351,6 +391,7 @@ function sticheZeichnen(
   }
   if (unten.size === 0) return;
 
+  const fein = !f.fern && zoom >= FEIN_AB;
   const dicke = Math.max(1, zoom * FADENDICKE);
   const versatz = Math.max(0.5, zoom * 0.045);
   stift.lineCap = "round";
@@ -363,11 +404,14 @@ function sticheZeichnen(
    * unteren und nicht neben ihm.
    */
   const lageZeichnen = (pfade: Map<number, Path2D>, obenauf: boolean) => {
-    if (obenauf) {
+    // Der Schatten ist echtes Schwarz und darf deshalb nur dort liegen, wo er
+    // auch als Schatten zu erkennen ist. Aus der Entfernung wäre er nichts
+    // weiter als ein grauer Schleier über dem ganzen Muster.
+    if (obenauf && fein) {
       stift.save();
       stift.translate(versatz, versatz);
       stift.lineWidth = dicke;
-      stift.strokeStyle = "rgba(0,0,0,0.20)";
+      stift.strokeStyle = "rgba(0,0,0,0.14)";
       for (const pfad of pfade.values()) stift.stroke(pfad);
       stift.restore();
     }
@@ -394,7 +438,7 @@ function sticheZeichnen(
      * Umschalten den Browser sieben Sekunden lang.
      */
     let vorige = Infinity;
-    for (const [breite, helligkeit] of QUERSCHNITT) {
+    for (const [breite, helligkeit] of fein ? QUERSCHNITT : QUERSCHNITT_FERN) {
       const strich = dicke * breite;
       if (vorige - strich < 1 && breite < 1) continue;
       vorige = strich;
@@ -422,7 +466,7 @@ function sticheZeichnen(
    * Ein Pfad für alle, einmal gefüllt – bei zwanzigtausend sichtbaren
    * Kästchen wären zwanzigtausend einzelne Füllbefehle zu langsam.
    */
-  if (zoom < 5) return;
+  if (!fein) return;
   const loecher = new Path2D();
   const r = Math.max(0.6, zoom * LOCH);
   for (let y = y0; y <= y1; y++) {
@@ -431,7 +475,12 @@ function sticheZeichnen(
       loecher.arc(x * zoom, y * zoom, r, 0, Math.PI * 2);
     }
   }
-  stift.fillStyle = "rgba(40,30,20,0.42)";
+  // Ein Loch im Stoff ist kein schwarzer Punkt, sondern der Schatten des
+  // Stoffes selbst – deshalb aus der Stofffarbe abgedunkelt und nicht aus
+  // Schwarz. Sonst sitzt in jedem Kästchen ein dunkler Fleck, und aus der
+  // Entfernung ist das der Ton, den man sieht.
+  const [sr, sg, sb] = f.tabelle.stoff;
+  stift.fillStyle = `rgba(${Math.round(sr * 0.45)},${Math.round(sg * 0.42)},${Math.round(sb * 0.38)},0.38)`;
   stift.fill(loecher);
 }
 
@@ -491,7 +540,7 @@ function stempelBauen(tabelle: Farbtabelle, zoom: number): Map<number, ImageData
     // Nur, was wirklich gestickt wird – und einmal der leere Stoff.
     if (index !== LEER && !tabelle.eintraege[index]) continue;
     einer[0] = index;
-    const feld: Stichfeld = { breite: 1, hoehe: 1, raster: einer, tabelle, zoom };
+    const feld: Stichfeld = { breite: 1, hoehe: 1, raster: einer, tabelle, zoom, fern: true };
     stift.setTransform(1, 0, 0, 1, 0, 0);
     stift.clearRect(0, 0, zoom, zoom);
     stoffZeichnen(stift, feld, 0, 0, 1, 1);
@@ -550,7 +599,7 @@ export function stichbildZeichnen(
   const leer = stempel.get(LEER);
   if (!leer) return;
 
-  const feld: Stichfeld = { breite, hoehe, raster, tabelle, zoom, vorschau };
+  const feld: Stichfeld = { breite, hoehe, raster, tabelle, zoom, vorschau, fern: true };
   const bild = stift.createImageData(punkteBreit, punkteHoch);
   const ziel8 = bild.data;
   const zeile = punkteBreit * 4;
@@ -728,10 +777,23 @@ export function musterZeichnen(
   }
 
   // --- Symbole ------------------------------------------------------------
-  if (o.mitSymbolen && !alsStickerei && zoom >= 14) {
+  /**
+   * Sind die Symbole eingeschaltet, sind sie auch zu sehen.
+   *
+   * Vorher fingen sie erst bei vierzehn Bildpunkten je Stich an – und nicht
+   * über der Stickansicht. Ein Muster, das ganz auf den Bildschirm passt, hat
+   * aber vier bis sechs Punkte je Stich: die Nutzerin schaltete die Symbole
+   * ein und es passierte nichts. Fünf Punkte sind die Grenze, an der von
+   * einem Buchstaben noch etwas übrig bleibt; darunter ist ein Zeichen
+   * schmaler als der Strich, aus dem es besteht.
+   *
+   * Über der Stickansicht stehen sie jetzt auch: abgeschaltet werden sie mit
+   * ihrem Schalter und nicht durch die Hintertür.
+   */
+  if (o.mitSymbolen && zoom >= 5) {
     stift.textAlign = "center";
     stift.textBaseline = "middle";
-    stift.font = `bold ${Math.floor(zoom * 0.62)}px system-ui, sans-serif`;
+    stift.font = `bold ${Math.max(4, Math.round(zoom * 0.66))}px system-ui, sans-serif`;
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
         // Ein freies Feld bekommt kein Symbol – dort ist nichts zu sticken.
