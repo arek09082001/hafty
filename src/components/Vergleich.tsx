@@ -15,7 +15,7 @@ import {
 } from "@/lib/speicher/staende";
 import { zusammenfuehren } from "@/lib/muster/raster";
 import { useSprache } from "@/lib/sprache/SprachProvider";
-import type { PalettenEintrag } from "@/lib/muster/typen";
+import { cmText, sticheInCm, type PalettenEintrag } from "@/lib/muster/typen";
 
 /**
  * Alle Versionen eines Musters auf einen Blick.
@@ -75,7 +75,7 @@ export function Vergleich({
   /** Wird gerufen, wenn eine Version gelöscht wurde. */
   onGeloescht?: (standId: string) => void;
 }) {
-  const { t, zahl } = useSprache();
+  const { t, zahl, landeskennung } = useSprache();
 
   /**
    * Der Schlüssel sagt, zu welchem Muster die geladene Liste gehört. Solange
@@ -205,6 +205,30 @@ export function Vergleich({
   if (!offen) return null;
 
   /**
+   * Die fertige Größe in Zentimetern – die Angabe, nach der man in der
+   * Übersicht eigentlich sucht. „120 × 160 Stiche" sagt niemandem, ob das
+   * Muster auf ein Kissen passt; 21,8 cm × 29,0 cm sagt es sofort. Deshalb
+   * steht sie über den Stichen und nicht dahinter.
+   *
+   * Gerechnet wird mit der Stoffzählung, die zu **diesem** Stand gehört:
+   * wurde zwischen zwei Versionen von Aida 14 auf Aida 18 gewechselt, sind
+   * gleich viele Stiche unterschiedlich groß. Stände aus der Zeit vor den
+   * gespeicherten Einstellungen kennen ihre Zählung nicht – dann fehlt die
+   * Zeile, statt mit einer geratenen Zählung eine falsche Größe zu behaupten.
+   */
+  const groesse = (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) => {
+    const breite = stand.breite ?? breiteErsatz ?? 0;
+    const hoehe = stand.hoehe ?? hoeheErsatz ?? 0;
+    const zaehlung = stand.einstellungen?.stoffzaehlung ?? 0;
+    if (breite <= 0 || hoehe <= 0 || zaehlung <= 0) return null;
+    return t("vergleich.groesse", {
+      cmBreite: cmText(sticheInCm(breite, zaehlung), landeskennung),
+      cmHoehe: cmText(sticheInCm(hoehe, zaehlung), landeskennung),
+      zaehlung: zahl(zaehlung),
+    });
+  };
+
+  /**
    * Die Angaben unter jeder Kachel und in der großen Ansicht. Sind die Maße
    * ausnahmsweise nicht zu ermitteln, steht dort nur die Farbzahl – „0 × 0
    * Stiche" wäre schlicht gelogen.
@@ -275,6 +299,7 @@ export function Vergleich({
           onLoeschen={staende.length > 1 ? () => setZumLoeschen(grosserStand) : undefined}
           holtGerade={holtGerade}
           angaben={angaben}
+          groesse={groesse}
           zeit={zeit}
           istAktuell={grosserStand.id === startStandId}
           t={t}
@@ -327,6 +352,7 @@ export function Vergleich({
             >
               {staende.map((stand, i) => {
                 const ist = stand.id === startStandId;
+                const cm = groesse(stand);
                 return (
                   <li
                     key={stand.id}
@@ -377,6 +403,14 @@ export function Vergleich({
                       <span className="block text-[1.05rem] font-bold leading-tight">
                         {zeit(stand.angelegtAm)}
                       </span>
+                      {/* Die Größe in Zentimetern steht hervorgehoben und
+                          über den Stichen: sie ist das, was man beim
+                          Durchsehen der Versionen wissen will. */}
+                      {cm ? (
+                        <span className="block text-[1rem] font-semibold leading-tight text-hauptaktion">
+                          {cm}
+                        </span>
+                      ) : null}
                       <span className="block text-[0.95rem] text-gedaempft">
                         {angaben(stand)}
                       </span>
@@ -482,6 +516,7 @@ function GrosseAnsicht({
   onLoeschen,
   holtGerade,
   angaben,
+  groesse,
   zeit,
   istAktuell,
   t,
@@ -509,6 +544,8 @@ function GrosseAnsicht({
   onLoeschen?: () => void;
   holtGerade: boolean;
   angaben: (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) => string;
+  /** Die Größe in Zentimetern – `null`, wenn die Stoffzählung fehlt. */
+  groesse: (stand: Stand, breiteErsatz?: number, hoeheErsatz?: number) => string | null;
   zeit: (iso: string) => string;
   istAktuell: boolean;
   t: (schluessel: Parameters<ReturnType<typeof useSprache>["t"]>[0], werte?: Record<string, string>) => string;
@@ -549,6 +586,9 @@ function GrosseAnsicht({
 
   const kannSchieben = bildBreite > masse.breite || bildHoehe > masse.hoehe;
 
+  // Erst mit dem geholten Raster stehen die Maße auch bei alten Ständen fest.
+  const grosseAngabe = groesse(stand, geladen?.breite, geladen?.hoehe);
+
   return (
     <>
       <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-linie px-4 py-3">
@@ -557,6 +597,14 @@ function GrosseAnsicht({
           <p className="text-[1rem] text-gedaempft">
             {t("vergleich.wievielte", { nummer: String(nummer), gesamt: String(gesamt) })}
             {" · "}
+            {/* Auch hier zuerst die Zentimeter: in der großen Ansicht wird
+                geprüft, ob die Fassung so gestickt werden soll. */}
+            {grosseAngabe ? (
+              <>
+                <span className="font-semibold text-hauptaktion">{grosseAngabe}</span>
+                {" · "}
+              </>
+            ) : null}
             {angaben(stand, geladen?.breite, geladen?.hoehe)}
             {" · "}
             {stand.gemerkt ? t("staende.gemerkt") : t(stand.beschriftung)}

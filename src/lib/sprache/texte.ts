@@ -519,6 +519,7 @@ export const TEXTE = {
   "vergleich.spaeter": "Późniejsza wersja",
   "vergleich.nehmen": "Weź tę wersję",
   "vergleich.schonHier": "Tu Pani właśnie pracuje",
+  "vergleich.groesse": "{cmBreite} cm × {cmHoehe} cm · Aida {zaehlung}",
   "vergleich.angaben": "{farben} kolorów · {breite} × {hoehe} ściegów",
   "vergleich.nurFarben": "{farben} kolorów",
   "vergleich.loeschen": "Usuń tę wersję",
