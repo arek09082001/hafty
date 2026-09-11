@@ -18,10 +18,19 @@
 -- eine richtige Anmeldung.
 
 -- --------------------------------------------------------------------------
--- Die Spalte `besitzer` faellt weg
+-- Erst die alten Regeln, dann die Spalte `besitzer`
 -- --------------------------------------------------------------------------
--- Sie zeigte per Fremdschluessel auf auth.users und haette ohne Anmeldung
--- keinen Wert mehr, den man eintragen koennte.
+-- Die Reihenfolge ist nicht beliebig: die Regeln aus 0001 lesen `besitzer`,
+-- und solange sie stehen, laesst Postgres die Spalte nicht fallen -
+-- "cannot drop column besitzer ... because other objects depend on it".
+-- Diese Migration lief deshalb auf jeder Datenbank, in der 0001 schon einmal
+-- gelaufen war, gar nicht durch.
+drop policy if exists "eigene projekte" on public.projekte;
+drop policy if exists "eigene staende" on public.staende;
+drop policy if exists "eigene musterdateien" on storage.objects;
+
+-- Die Spalte zeigte per Fremdschluessel auf auth.users und haette ohne
+-- Anmeldung keinen Wert mehr, den man eintragen koennte.
 alter table public.projekte drop column if exists besitzer;
 alter table public.staende drop column if exists besitzer;
 
@@ -41,9 +50,6 @@ grant select, insert, update, delete on public.staende to anon;
 
 alter table public.projekte enable row level security;
 alter table public.staende enable row level security;
-
-drop policy if exists "eigene projekte" on public.projekte;
-drop policy if exists "eigene staende" on public.staende;
 
 drop policy if exists "alle projekte" on public.projekte;
 create policy "alle projekte" on public.projekte
@@ -69,7 +75,13 @@ insert into storage.buckets (id, name, public)
 values ('muster', 'muster', false)
 on conflict (id) do nothing;
 
-drop policy if exists "eigene musterdateien" on storage.objects;
+-- Auch hier erst das Recht, dann die Regel. In einem frischen
+-- Supabase-Projekt stehen diese Rechte schon; doppelt vergeben schadet nicht,
+-- und fehlen sie, antwortet der Dateispeicher mit 403, noch bevor die Regel
+-- darunter zum Zuge kommt.
+grant usage on schema storage to anon;
+grant select on storage.buckets to anon;
+grant select, insert, update, delete on storage.objects to anon;
 
 drop policy if exists "alle musterdateien" on storage.objects;
 create policy "alle musterdateien" on storage.objects
