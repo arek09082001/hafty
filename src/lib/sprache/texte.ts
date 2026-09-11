@@ -184,7 +184,10 @@ export const TEXTE = {
   "editor.stueckKleiner": "Zmniejsz kawałek",
   "editor.stueckGroesser": "Powiększ kawałek",
   "editor.stueckMasse": "{breite} × {hoehe} ściegów · {cmBreite} cm × {cmHoehe} cm",
-  "editor.vierteldrehung": "Obróć o ćwierć",
+  "editor.achteldrehung": "Obróć o 45°",
+  "editor.vierteldrehung": "Obróć o 90°",
+  "editor.schraegHinweis":
+    "Kawałek stoi skosem ({winkel}°) i jest ułożony na kratkę ściegów – dlatego brzegi idą schodkami. Jeszcze jedno dotknięcie „Obróć o 45°” i znowu stanie prosto.",
   "editor.spiegelnWaagerecht": "Odbij w poziomie",
   "editor.spiegelnSenkrecht": "Odbij w pionie",
   "editor.hierEinsetzen": "Wstaw tutaj",

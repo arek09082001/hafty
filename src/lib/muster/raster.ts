@@ -336,14 +336,19 @@ export function ausschnittHerausloesen(
 // ---------------------------------------------------------------------------
 
 /**
- * Drehen ausschließlich in 90-Grad-Schritten, dazu Spiegeln waagerecht und
- * senkrecht. Alles davon ist reines Umsortieren der Indizes und damit
- * verlustfrei.
+ * Drehen in 45-Grad-Schritten, dazu Spiegeln waagerecht und senkrecht.
  *
- * Freie Winkel gibt es bewusst nicht: auf einem Stichraster müsste dabei
- * jedes Feld neu interpoliert werden, und aus sauberen Kanten würden
- * ausgefranste Treppen mit lauter Einzelstichen – genau das, was diese App
- * verhindern soll.
+ * Die Vierteldrehung (90°) und das Spiegeln sind reines Umsortieren der
+ * Indizes und damit verlustfrei. Die halbe Vierteldrehung (45°) ist es
+ * nicht: auf einem Stichraster gibt es keine schrägen Kästchen, also wird
+ * jedes Feld neu auf das Raster gelegt. Aus einer geraden Kante wird dabei
+ * eine Treppe – bei einer Raute oder einem schräg gestellten Herz ist genau
+ * das gewollt, bei feiner Schrift eher nicht. Deshalb wird nie vom schon
+ * Gedrehten weitergerechnet (siehe `drehenGrad`), und der Editor weist auf
+ * die Treppen hin.
+ *
+ * Beliebige Winkel gibt es weiterhin nicht: 37° ergäbe auf dem Raster nur
+ * ausgefranste Einzelstiche, die niemand sticken will.
  */
 export function drehen90(a: Ausschnitt): Ausschnitt {
   const { w, h } = a;
@@ -393,6 +398,114 @@ export function spiegelnSenkrecht(a: Ausschnitt): Ausschnitt {
     }
   }
   return { w, h, daten, maske, palette: a.palette };
+}
+
+/**
+ * Die Winkel, um die ein Stück gedreht werden kann – in 45-Grad-Schritten.
+ *
+ * Mehr Stufen wären auf dem Raster nicht zu unterscheiden: zwischen 45° und
+ * 50° liegt bei einem Motiv von vierzig Stichen kein einziges Kästchen
+ * Unterschied, wohl aber eine unruhigere Treppe an jeder Kante.
+ */
+export const DREH_SCHRITT = 45;
+
+/**
+ * Ein Stück um 45° drehen und dabei auf das Stichraster legen.
+ *
+ * Gerechnet wird von hinten nach vorn: für jedes Kästchen des Ergebnisses
+ * wird gefragt, welches Kästchen der Vorlage in seiner Mitte liegt. Rückwärts
+ * gerechnet, weil vorwärts Löcher entstünden – zwei schräg benachbarte Felder
+ * der Vorlage landen nicht immer in zwei benachbarten Feldern des Ergebnisses.
+ * So bekommt jedes Feld des Ergebnisses genau eine Farbe der Vorlage, und die
+ * Palette bleibt dieselbe (kein Mittelwert, der im Garnkatalog nicht vorkommt).
+ *
+ * Der Rahmen wächst auf die Diagonale: ein Quadrat von 20 × 20 Stichen liegt
+ * schräg gestellt in 29 × 29. Leere Ränder werden danach wieder abgeschnitten,
+ * damit das Stück nicht in einem Kissen aus Durchsichtigkeit steckt und die
+ * angezeigten Maße die des Motivs bleiben.
+ */
+export function drehen45(a: Ausschnitt): Ausschnitt {
+  const wurzel = Math.SQRT1_2; // cos 45° = sin 45°
+  const w = Math.max(1, Math.ceil((a.w + a.h) * wurzel));
+  const h = Math.max(1, Math.ceil((a.w + a.h) * wurzel));
+
+  const daten = new Uint16Array(w * h);
+  const maske = new Uint8Array(w * h);
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // Mitte des Zielkästchens, gemessen von der Mitte des Stücks aus.
+      const zx = x + 0.5 - w / 2;
+      const zy = y + 0.5 - h / 2;
+      // Rückwärts um 45° gedreht, dann zurück in die Ecke der Vorlage.
+      const qx = Math.floor(wurzel * (zx + zy) + a.w / 2);
+      const qy = Math.floor(wurzel * (zy - zx) + a.h / 2);
+      if (qx < 0 || qy < 0 || qx >= a.w || qy >= a.h) continue;
+      const q = qy * a.w + qx;
+      if (!a.maske[q]) continue;
+      const z = y * w + x;
+      daten[z] = a.daten[q];
+      maske[z] = 1;
+    }
+  }
+
+  return zuschneiden({ w, h, daten, maske, palette: a.palette });
+}
+
+/**
+ * Die leeren Ränder eines Stücks abschneiden.
+ *
+ * Ist alles durchsichtig – das kann bei einem Stück von einem einzigen Feld
+ * passieren, das beim Drehen aus dem Rahmen fällt –, bleibt das Stück, wie es
+ * ist: ein Ausschnitt von 0 × 0 hätte nichts, was man einsetzen könnte.
+ */
+function zuschneiden(a: Ausschnitt): Ausschnitt {
+  let x0 = a.w;
+  let y0 = a.h;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < a.h; y++) {
+    for (let x = 0; x < a.w; x++) {
+      if (!a.maske[y * a.w + x]) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) return a;
+  if (x0 === 0 && y0 === 0 && x1 === a.w - 1 && y1 === a.h - 1) return a;
+
+  const w = x1 - x0 + 1;
+  const h = y1 - y0 + 1;
+  const daten = new Uint16Array(w * h);
+  const maske = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const q = (y0 + y) * a.w + (x0 + x);
+      const z = y * w + x;
+      daten[z] = a.daten[q];
+      maske[z] = a.maske[q];
+    }
+  }
+  return { w, h, daten, maske, palette: a.palette };
+}
+
+/**
+ * Ein Stück um einen Vielfachen von 45° drehen – immer aus der Vorlage.
+ *
+ * Gerufen wird das **immer mit dem ungedrehten Original**, nie mit dem schon
+ * Gedrehten: 45° sind auf dem Raster nicht umkehrbar, und achtmal
+ * hintereinander gedreht wäre aus einem Motiv ein Fleck geworden, obwohl es
+ * wieder gerade steht. So ist jede Drehung so gut, wie sie aus dem Original
+ * sein kann, und 45° + 45° ergeben die verlustfreie Vierteldrehung.
+ */
+export function drehenGrad(a: Ausschnitt, grad: number): Ausschnitt {
+  const winkel = ((Math.round(grad / DREH_SCHRITT) * DREH_SCHRITT) % 360 + 360) % 360;
+  let stueck = winkel % 90 === 0 ? a : drehen45(a);
+  const viertel = Math.floor(winkel / 90);
+  for (let i = 0; i < viertel; i++) stueck = drehen90(stueck);
+  return stueck;
 }
 
 // ---------------------------------------------------------------------------
