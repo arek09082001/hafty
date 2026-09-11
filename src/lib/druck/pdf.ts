@@ -590,7 +590,7 @@ export async function musterAlsPdf(auftrag: Druckauftrag): Promise<Blob> {
 
   const pdf = await PDFDocument.create();
   pdf.setTitle(auftrag.name);
-  pdf.setCreator("Stickmuster");
+  pdf.setCreator("Wzory do haftu");
 
   pdf.registerFontkit(fontkit);
   const [normalBytes, fettBytes] = await Promise.all([

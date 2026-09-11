@@ -1,7 +1,7 @@
 import { Kopfzeile } from "@/components/Kopfzeile";
 import { MeineGarne } from "./MeineGarne";
 
-export const metadata = { title: "Meine Garne · Moje nici" };
+export const metadata = { title: "Moje nici" };
 
 export default function GarneSeite() {
   return (

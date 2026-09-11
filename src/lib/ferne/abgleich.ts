@@ -52,7 +52,6 @@ import {
   zeilenLesen,
   zeilenLoeschen,
   zeilenSchreiben,
-  zugangHolen,
 } from "./supabase";
 
 /** Höchstens so viele Projekte werden beim Start aus der Ferne geholt. */
@@ -247,13 +246,9 @@ async function einesHochladen(
 async function standEntfernen(kennung: string): Promise<void> {
   const [projektId, standId] = kennung.split("/");
   if (!projektId || !standId) return;
-  const zugang = await zugangHolen();
 
   try {
-    await dateienLoeschen([
-      rasterPfad(zugang.benutzer, projektId, standId),
-      vorschauPfad(zugang.benutzer, projektId, standId),
-    ]);
+    await dateienLoeschen([rasterPfad(projektId, standId), vorschauPfad(projektId, standId)]);
   } catch {
     // Bleiben die Dateien liegen, findet sie ohne ihre Zeile niemand mehr.
   }
@@ -267,8 +262,7 @@ async function standEntfernen(kennung: string): Promise<void> {
  * und muss einzeln weg.
  */
 async function projektEntfernen(id: string): Promise<void> {
-  const zugang = await zugangHolen();
-  const basis = `${zugang.benutzer}/${id}`;
+  const basis = id;
 
   try {
     const oben = await dateienListen(basis);
@@ -288,14 +282,14 @@ async function projektEntfernen(id: string): Promise<void> {
 }
 
 /** Wo die Dateien eines Projekts in der Ferne liegen. */
-function bildPfad(benutzer: string, projektId: string) {
-  return `${benutzer}/${projektId}/bild`;
+function bildPfad(projektId: string) {
+  return `${projektId}/bild`;
 }
-function rasterPfad(benutzer: string, projektId: string, standId: string) {
-  return `${benutzer}/${projektId}/staende/${standId}.rle.gz`;
+function rasterPfad(projektId: string, standId: string) {
+  return `${projektId}/staende/${standId}.rle.gz`;
 }
-function vorschauPfad(benutzer: string, projektId: string, standId: string) {
-  return `${benutzer}/${projektId}/staende/${standId}.png`;
+function vorschauPfad(projektId: string, standId: string) {
+  return `${projektId}/staende/${standId}.png`;
 }
 
 /**
@@ -310,12 +304,10 @@ async function projektHochladen(id: string, schonOben: Set<string>): Promise<boo
   const projekt = await projektHolen(id);
   // Gelöscht, während die Vormerkung wartete: dann gibt es nichts zu tun.
   if (!projekt) return false;
-  const zugang = await zugangHolen();
 
   await zeilenSchreiben("projekte", [
     {
       id: projekt.id,
-      besitzer: zugang.benutzer,
       name: projekt.name,
       angelegt_am: projekt.angelegtAm,
       zuletzt_am: projekt.zuletztAm,
@@ -332,7 +324,7 @@ async function projektHochladen(id: string, schonOben: Set<string>): Promise<boo
   // Das Quellfoto kann 25 Megabyte haben und ändert sich nie. Es geht genau
   // einmal hinauf; danach steht das im Projekt und wird nicht wiederholt.
   if (projekt.bild && !projekt.bildGesichert) {
-    await dateiHochladen(bildPfad(zugang.benutzer, projekt.id), projekt.bild);
+    await dateiHochladen(bildPfad(projekt.id), projekt.bild);
     await projektSatzSchreiben({ ...projekt, bildGesichert: true });
   }
   return true;
@@ -362,12 +354,9 @@ async function standHochladen(id: string, schonOben: Set<string>): Promise<Ergeb
     return "spaeter";
   }
 
-  const zugang = await zugangHolen();
-
   await zeilenSchreiben("staende", [
     {
       id: stand.id,
-      besitzer: zugang.benutzer,
       projekt_id: stand.musterId,
       eltern_id: stand.elternId,
       beschriftung: stand.beschriftung,
@@ -381,11 +370,11 @@ async function standHochladen(id: string, schonOben: Set<string>): Promise<Ergeb
   ]);
 
   await dateiHochladen(
-    rasterPfad(zugang.benutzer, stand.musterId, stand.id),
+    rasterPfad(stand.musterId, stand.id),
     new Blob([stand.raster as BlobPart], { type: "application/gzip" }),
   );
   if (stand.vorschau) {
-    await dateiHochladen(vorschauPfad(zugang.benutzer, stand.musterId, stand.id), stand.vorschau);
+    await dateiHochladen(vorschauPfad(stand.musterId, stand.id), stand.vorschau);
   }
   return "erledigt";
 }
@@ -431,7 +420,6 @@ export async function ausDerFerneHolen(): Promise<number> {
 
   try {
     melden({ art: "laeuft" });
-    const zugang = await zugangHolen();
     const db = await browserdatenbank();
 
     const projekte = await zeilenLesen<FerneProjektzeile>(
@@ -444,7 +432,7 @@ export async function ausDerFerneHolen(): Promise<number> {
       const hier = (await db.get(LADEN_PROJEKTE, zeile.id)) as Projektsatz | undefined;
 
       if (!hier) {
-        const bild = zeile.hat_bild ? await dateiHolen(bildPfad(zugang.benutzer, zeile.id)) : null;
+        const bild = zeile.hat_bild ? await dateiHolen(bildPfad(zeile.id)) : null;
         await projektSatzSchreiben({
           id: zeile.id,
           name: zeile.name ?? "",
@@ -486,9 +474,9 @@ export async function ausDerFerneHolen(): Promise<number> {
       for (const s of staende) {
         const vorhanden = await db.get(LADEN_STAENDE, s.id);
         if (vorhanden) continue;
-        const raster = await dateiHolen(rasterPfad(zugang.benutzer, s.projekt_id, s.id));
+        const raster = await dateiHolen(rasterPfad(s.projekt_id, s.id));
         if (!raster) continue;
-        const vorschau = await dateiHolen(vorschauPfad(zugang.benutzer, s.projekt_id, s.id));
+        const vorschau = await dateiHolen(vorschauPfad(s.projekt_id, s.id));
         const satz: Standsatz = {
           id: s.id,
           musterId: s.projekt_id,

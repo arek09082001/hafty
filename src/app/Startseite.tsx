@@ -32,7 +32,7 @@ import { useSprache } from "@/lib/sprache/SprachProvider";
  * derselbe wie vorher.
  */
 export function Startseite() {
-  const { t, sprache, zahl } = useSprache();
+  const { t, zahl } = useSprache();
   const { zustand: abgleich, jetztSichern } = useAbgleich();
   const router = useRouter();
   const [projekte, setProjekte] = useState<Projektuebersicht[] | null>(null);
@@ -40,7 +40,7 @@ export function Startseite() {
   const [vergleich, setVergleich] = useState<string | null>(null);
   const [zumLoeschen, setZumLoeschen] = useState<Projektuebersicht | null>(null);
 
-  const zeit = (iso: string) => zeitpunktText(iso, sprache, t);
+  const zeit = (iso: string) => zeitpunktText(iso, t);
 
   const neuLaden = useCallback(() => {
     projekteLaden()

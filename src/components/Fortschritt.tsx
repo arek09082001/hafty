@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useSprache } from "@/lib/sprache/SprachProvider";
-import { Sprachwahl } from "./Sprachwahl";
 import { Sicherungszeichen } from "./Sicherungszeichen";
 
 /** Die vier Schritte des gefuehrten Weges. */
@@ -153,7 +152,6 @@ export function Fortschritt() {
           >
             {t("kopf.meineGarne")}
           </Link>
-          <Sprachwahl klein />
         </div>
       </div>
     </nav>

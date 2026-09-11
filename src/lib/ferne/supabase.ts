@@ -7,23 +7,33 @@
  * Die App bleibt eine App, die auf dem Gerät arbeitet. Supabase ist nur das
  * **zweite Exemplar**: sobald Verbindung besteht, liegt jedes Muster auch
  * dort und übersteht damit ein verlorenes Tablet oder einen geleerten
- * Browserspeicher.
+ * Browserspeicher. Und weil alle Geräte denselben Bestand sehen, steht auf
+ * dem Telefon dasselbe wie auf dem Tablet.
  *
  * Drei Dinge sind dabei wichtig:
  *
  *  - **Ohne Einrichtung ändert sich nichts.** Fehlen die beiden Angaben in
  *    der Umgebung, ist die Sicherung aus und die App verhält sich wie
  *    bisher. Keine Fehlermeldung, kein Hinweis, nichts.
- *  - **Es gibt weiter keine Anmeldung.** Alle Geräte teilen sich ein
- *    einziges Konto; den Zugang dazu holt sich das Gerät im Hintergrund von
- *    `/api/konto` (das Passwort bleibt dabei auf dem Server). Die Nutzerin
- *    bekommt davon nichts zu sehen – und weil alle Geräte derselbe Benutzer
- *    sind, steht auf jedem von ihnen dasselbe. Vorher meldete sich jedes
- *    Gerät **einzeln anonym** an und sicherte damit in seine eigene Ecke.
- *  - **Kein zusätzliches Programmpaket.** Gebraucht werden Anmelden,
- *    Schreiben, Lesen und zwei Dateibefehle; das sind die paar Zeilen hier.
- *    Ein Paket dafür wöge mehr als der ganze Rest der App und läge auf einem
- *    Gerät, das die App gerade ohne Verbindung geöffnet hat.
+ *  - **Es gibt keine Anmeldung – auch nicht im Hintergrund.** Geschickt wird
+ *    nur der öffentliche Schlüssel, sonst nichts. Kein Zugang, der abläuft,
+ *    keine Kennung, die ein Gerät vom anderen trennt, nichts, was beim
+ *    Leeren des Browserspeichers verloren ginge.
+ *
+ *    Vorher meldete sich jedes Gerät im Hintergrund **anonym** an. Supabase
+ *    legte dafür jedes Mal einen neuen Benutzer an, und die Regeln in der
+ *    Datenbank liessen jeden nur an seine eigenen Zeilen. Die Sicherung lief
+ *    also – aber jedes Gerät sicherte in seine eigene Ecke, und auf dem
+ *    zweiten Gerät stand nichts.
+ *
+ *    Der Preis dafür steht in der Migration: **wer den öffentlichen
+ *    Schlüssel hat, kommt an die Muster.** Er steht im Programmtext jeder
+ *    ausgelieferten Seite. Für eine Handvoll Stickmuster ist das der bewusst
+ *    gewählte Tausch.
+ *  - **Kein zusätzliches Programmpaket.** Gebraucht werden Schreiben, Lesen
+ *    und zwei Dateibefehle; das sind die paar Zeilen hier. Ein Paket dafür
+ *    wöge mehr als der ganze Rest der App und läge auf einem Gerät, das die
+ *    App gerade ohne Verbindung geöffnet hat.
  */
 
 /** Kommt aus der Umgebung, siehe .env.example. Fehlt sie, ist alles aus. */
@@ -33,33 +43,8 @@ const SCHLUESSEL = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 /** Der Eimer im Dateispeicher, in dem Bilder, Raster und Vorschauen liegen. */
 export const EIMER = "muster";
 
-/**
- * Wo der Zugang dieses Geräts liegt.
- *
- * Die `-2` ist Absicht: unter dem alten Namen liegt auf Geräten, die die App
- * schon kannten, der **anonyme** Zugang von früher. Der ließe sich noch
- * jahrelang erneuern – das Gerät bliebe in seiner eigenen Ecke und bekäme von
- * den anderen nie etwas zu sehen. Ein neuer Name lässt ihn liegen und holt
- * einmal den gemeinsamen.
- */
-const SITZUNG_IM_SPEICHER = "stickmuster-ferne-sitzung-2";
-
-/** So lange vor Ablauf wird der Zugang erneuert. */
-const VORLAUF_MS = 60_000;
-
-/**
- * Wird gesetzt, wenn der Server meldet, dass die Zugangsdaten fehlen.
- *
- * Ob das gemeinsame Konto eingerichtet ist, weiß nur der Server – sein
- * Passwort steht absichtlich in keiner `NEXT_PUBLIC_`-Variablen, und damit
- * kann der Browser es auch nicht nachsehen. Also fragt er einmal und merkt
- * sich die Antwort: ab dann ist die Sicherung still aus, so wie sie es auch
- * ohne jede Einrichtung wäre.
- */
-let abgeschaltet = false;
-
 export function ferneEingerichtet(): boolean {
-  return !abgeschaltet && ADRESSE.length > 0 && SCHLUESSEL.length > 0;
+  return ADRESSE.length > 0 && SCHLUESSEL.length > 0;
 }
 
 /**
@@ -79,163 +64,20 @@ export class FerneFehler extends Error {
   }
 }
 
-type Sitzung = {
-  zugang: string;
-  erneuerung: string;
-  /** Zeitpunkt in Millisekunden, ab dem der Zugang nicht mehr gilt. */
-  gueltigBis: number;
-  benutzer: string;
-};
-
-let sitzung: Sitzung | null = null;
-let laufendeAnmeldung: Promise<Sitzung> | null = null;
-
-function sitzungLesen(): Sitzung | null {
-  if (sitzung) return sitzung;
-  try {
-    const roh = window.localStorage.getItem(SITZUNG_IM_SPEICHER);
-    if (!roh) return null;
-    const gelesen = JSON.parse(roh) as Sitzung;
-    if (!gelesen?.zugang || !gelesen?.erneuerung || !gelesen?.benutzer) return null;
-    sitzung = gelesen;
-    return sitzung;
-  } catch {
-    return null;
-  }
-}
-
-function sitzungSchreiben(neu: Sitzung) {
-  sitzung = neu;
-  try {
-    window.localStorage.setItem(SITZUNG_IM_SPEICHER, JSON.stringify(neu));
-  } catch {
-    // Privates Fenster: dann gilt der Zugang eben nur für diesen Besuch.
-  }
-}
-
-/** Antwort von Supabase auf Anmelden und Erneuern. */
-type AnmeldeAntwort = {
-  access_token?: string;
-  refresh_token?: string;
-  expires_in?: number;
-  user?: { id?: string };
-  error?: string;
-  error_description?: string;
-  msg?: string;
-  message?: string;
-};
-
-async function anmeldenBei(pfad: string, koerper: unknown): Promise<Sitzung> {
-  let antwort: Response;
-  try {
-    antwort = await fetch(`${ADRESSE}${pfad}`, {
-      method: "POST",
-      headers: { apikey: SCHLUESSEL, "Content-Type": "application/json" },
-      body: JSON.stringify(koerper),
-    });
-  } catch {
-    throw new FerneFehler("netz", "Keine Verbindung.");
-  }
-
-  const daten = (await antwort.json().catch(() => ({}))) as AnmeldeAntwort;
-  if (!antwort.ok || !daten.access_token || !daten.refresh_token) {
-    const text = daten.error_description ?? daten.msg ?? daten.message ?? `HTTP ${antwort.status}`;
-    throw new FerneFehler("anmeldung", text);
-  }
-
-  return {
-    zugang: daten.access_token,
-    erneuerung: daten.refresh_token,
-    gueltigBis: Date.now() + (daten.expires_in ?? 3600) * 1000,
-    benutzer: daten.user?.id ?? "",
-  };
-}
-
 /**
- * Den Zugang zum gemeinsamen Konto holen.
+ * Eine Anfrage an Supabase.
  *
- * Gefragt wird die eigene Seite, nicht Supabase: das Passwort liegt auf dem
- * Server (siehe src/app/api/konto/route.ts) und hat im Browser nichts zu
- * suchen. Zurück kommt derselbe Zugang, den Supabase auch direkt ausgäbe.
+ * Mitgeschickt wird nur der öffentliche Schlüssel – einmal als `apikey` und
+ * einmal als `Authorization`. Beides will Supabase sehen: das erste wählt das
+ * Projekt aus, das zweite bestimmt die Rolle, unter der die Regeln in der
+ * Datenbank greifen (hier: `anon`).
  */
-async function gemeinsamesKonto(): Promise<Sitzung> {
-  let antwort: Response;
-  try {
-    antwort = await fetch("/api/konto", { method: "POST", cache: "no-store" });
-  } catch {
-    throw new FerneFehler("netz", "Keine Verbindung.");
-  }
-
-  const daten = (await antwort.json().catch(() => ({}))) as AnmeldeAntwort & { fehler?: string };
-  if (!antwort.ok || !daten.access_token || !daten.refresh_token) {
-    // 501 heißt: auf dem Server fehlen die Zugangsdaten. Das ist kein Ausfall,
-    // sondern „nicht eingerichtet" – ab jetzt wird gar nicht mehr gefragt und
-    // die App arbeitet allein auf dem Gerät weiter, ohne ein Wort darüber.
-    if (antwort.status === 501) abgeschaltet = true;
-    const art: Fehlerart = antwort.status === 501 ? "dienst" : "anmeldung";
-    throw new FerneFehler(art, daten.fehler ?? `HTTP ${antwort.status}`);
-  }
-
-  return {
-    zugang: daten.access_token,
-    erneuerung: daten.refresh_token,
-    gueltigBis: Date.now() + (daten.expires_in ?? 3600) * 1000,
-    benutzer: daten.user?.id ?? "",
-  };
-}
-
-/**
- * Den gültigen Zugang dieses Geräts holen – und ihn, falls nötig, erneuern
- * oder überhaupt erst anlegen.
- *
- * Läuft immer nur einmal gleichzeitig: sonst fragte ein Gerät, das beim
- * Öffnen zwei Sachen gleichzeitig hochlädt, zweimal nach einem Zugang und
- * überschriebe den einen mit dem anderen.
- */
-export async function zugangHolen(): Promise<Sitzung> {
+async function anfrage(pfad: string, init: RequestInit): Promise<Response> {
   if (!ferneEingerichtet()) throw new FerneFehler("dienst", "Nicht eingerichtet.");
 
-  const vorhanden = sitzungLesen();
-  if (vorhanden && vorhanden.gueltigBis - VORLAUF_MS > Date.now()) return vorhanden;
-  if (laufendeAnmeldung) return laufendeAnmeldung;
-
-  laufendeAnmeldung = (async () => {
-    if (vorhanden) {
-      try {
-        const erneuert = await anmeldenBei("/auth/v1/token?grant_type=refresh_token", {
-          refresh_token: vorhanden.erneuerung,
-        });
-        sitzungSchreiben(erneuert);
-        return erneuert;
-      } catch (fehler) {
-        // Ein abgelaufener oder zurückgezogener Zugang lässt sich nicht
-        // erneuern. Dann wird der gemeinsame Zugang eben neu geholt; er
-        // führt zu demselben Konto und damit zu denselben Mustern.
-        if (fehler instanceof FerneFehler && fehler.art === "netz") throw fehler;
-      }
-    }
-    const neu = await gemeinsamesKonto();
-    sitzungSchreiben(neu);
-    return neu;
-  })();
-
-  try {
-    return await laufendeAnmeldung;
-  } finally {
-    laufendeAnmeldung = null;
-  }
-}
-
-/** Die Kennung dieses Geräts in der Ferne, sofern es schon eine hat. */
-export function benutzerKennung(): string | null {
-  return sitzungLesen()?.benutzer ?? null;
-}
-
-async function anfrage(pfad: string, init: RequestInit): Promise<Response> {
-  const zugang = await zugangHolen();
   const kopf = new Headers(init.headers);
   kopf.set("apikey", SCHLUESSEL);
-  kopf.set("Authorization", `Bearer ${zugang.zugang}`);
+  kopf.set("Authorization", `Bearer ${SCHLUESSEL}`);
 
   let antwort: Response;
   try {
@@ -246,6 +88,9 @@ async function anfrage(pfad: string, init: RequestInit): Promise<Response> {
   if (!antwort.ok) {
     const text = await antwort.text().catch(() => "");
     throw new FerneFehler(
+      // 401 und 403 heißen hier nicht „falsch angemeldet" – angemeldet wird
+      // ja niemand mehr. Sie heißen: die Regeln aus der Migration sind nicht
+      // gelaufen. Das muss die Nutzerin erfahren, deshalb nicht „netz".
       antwort.status === 401 || antwort.status === 403 ? "anmeldung" : "dienst",
       `HTTP ${antwort.status} ${text.slice(0, 200)}`,
     );
