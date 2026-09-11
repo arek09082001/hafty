@@ -1,8 +1,8 @@
 {
-  "name": "Stickmuster · Wzory do haftu",
-  "short_name": "Stickmuster",
-  "description": "Aus einem Foto ein Kreuzstich-Zählmuster machen. – Z jednego zdjęcia wzór do haftu krzyżykowego.",
-  "lang": "de",
+  "name": "Wzory do haftu",
+  "short_name": "Wzory",
+  "description": "Z jednego zdjęcia wzór do haftu krzyżykowego.",
+  "lang": "pl",
   "dir": "ltr",
   "start_url": "/",
   "scope": "/",

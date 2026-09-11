@@ -42,8 +42,8 @@ export function Staendeleiste({
   // Der Schlüssel sagt, welchen Datenstand die Liste zeigt. Solange er nicht
   // zum gewünschten passt, wird noch geladen – so braucht es kein eigenes
   // Ladekennzeichen, das im Effekt gesetzt werden müsste.
-  const { t, sprache } = useSprache();
-  const zeit = (iso: string) => zeitpunktText(iso, sprache, t);
+  const { t } = useSprache();
+  const zeit = (iso: string) => zeitpunktText(iso, t);
   const schluessel = `${musterId ?? ""}#${neuLaden}`;
   const [geladen, setGeladen] = useState<{
     schluessel: string;

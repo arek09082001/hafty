@@ -25,7 +25,7 @@ import { masseLesen, rasterPacken, rasterEntpacken } from "./rle";
 import { browserdatenbank, entpacken, packen, LADEN_STAENDE } from "./browserspeicher";
 import { vormerken } from "./abgleichliste";
 import type { Einstellungen, PalettenEintrag } from "@/lib/muster/typen";
-import { LANDESKENNUNG, type Sprache } from "@/lib/sprache/SprachProvider";
+import { LANDESKENNUNG } from "@/lib/sprache/SprachProvider";
 import type { Textschluessel } from "@/lib/sprache/texte";
 
 /** So viele automatische Stände bleiben erhalten. Gemerkte nie löschen. */
@@ -362,10 +362,9 @@ export async function aufraeumen(musterId: string): Promise<void> {
 /** Zeitpunkt eines Standes in der eingestellten Sprache. */
 export function zeitpunktText(
   iso: string,
-  sprache: Sprache,
   t: (schluessel: Textschluessel, werte?: Record<string, string>) => string,
 ): string {
-  const kennung = LANDESKENNUNG[sprache];
+  const kennung = LANDESKENNUNG;
   const zeit = new Date(iso);
   const uhr = zeit.toLocaleTimeString(kennung, { hour: "2-digit", minute: "2-digit" });
 

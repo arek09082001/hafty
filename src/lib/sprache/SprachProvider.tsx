@@ -1,40 +1,31 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useSyncExternalStore,
-  type ReactNode,
-} from "react";
-import { DE, PL, type Textschluessel } from "./texte";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { TEXTE, type Textschluessel } from "./texte";
 
-export const SPRACHEN = ["de", "pl"] as const;
-export type Sprache = (typeof SPRACHEN)[number];
-
-/** Wie die Sprache heißt – jeweils in ihrer eigenen Sprache. */
-export const SPRACHNAMEN: Record<Sprache, string> = {
-  de: "Deutsch",
-  pl: "Polski",
-};
+/**
+ * Die Sprache der Oberfläche: Polnisch.
+ * ---------------------------------------------------------------------------
+ *
+ * Hier stand einmal eine Wahl zwischen Deutsch und Polnisch, samt zwei
+ * Knöpfen in der Kopfzeile, einem Eintrag im Browserspeicher und einem
+ * Blick auf die Spracheinstellung des Geräts. Gebraucht wurde davon nichts:
+ * die App ist für eine Person gebaut, und die liest Polnisch. Eine Wahl, bei
+ * der es nichts zu wählen gibt, ist für die Nutzerin eine Stolperstelle mehr
+ * – ein Fehltipper, und die App spricht plötzlich eine fremde Sprache.
+ *
+ * Was bleibt, ist `t()`: alle sichtbaren Texte stehen weiterhin an **einer**
+ * Stelle (texte.ts) statt verstreut im Programmtext. Das ist der eigentliche
+ * Nutzen, und der hängt nicht an der Zahl der Sprachen.
+ */
 
 /** Für Zahlen, Datum und Uhrzeit. */
-export const LANDESKENNUNG: Record<Sprache, string> = {
-  de: "de-DE",
-  pl: "pl-PL",
-};
-
-const WOERTERBUCH: Record<Sprache, Record<Textschluessel, string>> = { de: DE, pl: PL };
-const SCHLUESSEL_IM_SPEICHER = "stickmuster-sprache";
+export const LANDESKENNUNG = "pl-PL";
 
 type SprachKontext = {
-  sprache: Sprache;
-  spracheSetzen: (s: Sprache) => void;
   /** Einen Text holen, Platzhalter in geschweiften Klammern werden ersetzt. */
   t: (schluessel: Textschluessel, werte?: Record<string, string>) => string;
-  /** Eine Zahl so schreiben, wie es in der gewählten Sprache üblich ist. */
+  /** Eine Zahl so schreiben, wie es üblich ist. */
   zahl: (n: number) => string;
   landeskennung: string;
 };
@@ -52,80 +43,17 @@ function einsetzen(vorlage: string, werte?: Record<string, string>): string {
   return vorlage.replace(/\{(\w+)\}/g, (ganz, name: string) => werte[name] ?? ganz);
 }
 
-/**
- * Die gewählte Sprache liegt im Browser, nicht in React – deshalb wird sie
- * hier als kleiner äußerer Speicher gehalten und mit `useSyncExternalStore`
- * gelesen. Das ist der Weg, den React dafür vorsieht, und er vermeidet einen
- * zusätzlichen Durchlauf nach dem ersten Zeichnen.
- */
-let gemerkteSprache: Sprache | null = null;
-const zuhoerer = new Set<() => void>();
-
-function spracheLesen(): Sprache {
-  if (gemerkteSprache) return gemerkteSprache;
-  try {
-    const gespeichert = window.localStorage.getItem(SCHLUESSEL_IM_SPEICHER);
-    if (gespeichert === "de" || gespeichert === "pl") {
-      gemerkteSprache = gespeichert;
-      return gemerkteSprache;
-    }
-  } catch {
-    // Privates Fenster: dann entscheidet das Gerät.
-  }
-  // Beim allerersten Besuch entscheidet die Spracheinstellung des Geräts.
-  gemerkteSprache = window.navigator.language.toLowerCase().startsWith("pl") ? "pl" : "de";
-  return gemerkteSprache;
-}
-
-/** Auf dem Server gibt es keinen Browser – dort gilt Deutsch. */
-function spracheAufDemServer(): Sprache {
-  return "de";
-}
-
-function abonnieren(rueckruf: () => void): () => void {
-  zuhoerer.add(rueckruf);
-  return () => {
-    zuhoerer.delete(rueckruf);
-  };
-}
-
-function spracheMerken(neu: Sprache) {
-  gemerkteSprache = neu;
-  try {
-    window.localStorage.setItem(SCHLUESSEL_IM_SPEICHER, neu);
-  } catch {
-    // Privates Fenster: dann gilt die Wahl eben nur für diese Sitzung.
-  }
-  for (const rueckruf of zuhoerer) rueckruf();
-}
-
-/**
- * Die Sprache der Oberfläche.
- *
- * Beim allerersten Besuch entscheidet die Spracheinstellung des Geräts: steht
- * dort Polnisch, ist die App polnisch. Wer einmal von Hand umschaltet, bekommt
- * ab dann immer seine Sprache – die Wahl übersteht das Schließen des Reiters.
- */
 export function SprachProvider({ children }: { children: ReactNode }) {
-  const sprache = useSyncExternalStore(abonnieren, spracheLesen, spracheAufDemServer);
-
-  useEffect(() => {
-    document.documentElement.lang = sprache;
-  }, [sprache]);
-
-  const spracheSetzen = useCallback((neu: Sprache) => spracheMerken(neu), []);
-
-  const wert = useMemo<SprachKontext>(() => {
-    const buch = WOERTERBUCH[sprache];
-    const kennung = LANDESKENNUNG[sprache];
-    return {
-      sprache,
-      spracheSetzen,
-      t: (schluessel, werte) => einsetzen(buch[schluessel] ?? schluessel, werte),
-      zahl: (n) => n.toLocaleString(kennung),
-      landeskennung: kennung,
-    };
-  }, [sprache, spracheSetzen]);
+  // Nichts daran ändert sich zur Laufzeit, also wird es einmal gebaut und
+  // bleibt: so rechnet kein Verbraucher wegen der Sprache noch einmal nach.
+  const wert = useMemo<SprachKontext>(
+    () => ({
+      t: (schluessel, werte) => einsetzen(TEXTE[schluessel] ?? schluessel, werte),
+      zahl: (n) => n.toLocaleString(LANDESKENNUNG),
+      landeskennung: LANDESKENNUNG,
+    }),
+    [],
+  );
 
   return <Kontext.Provider value={wert}>{children}</Kontext.Provider>;
 }

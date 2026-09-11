@@ -6,12 +6,11 @@ import { OhneNetz } from "@/components/OhneNetz";
 import { MeldungenProvider } from "@/components/Meldungen";
 
 export const metadata: Metadata = {
-  title: "Stickmuster · Wzory do haftu",
-  description:
-    "Aus einem Foto ein Kreuzstich-Zählmuster machen. – Z jednego zdjęcia wzór do haftu krzyżykowego.",
+  title: "Wzory do haftu",
+  description: "Z jednego zdjęcia wzór do haftu krzyżykowego.",
   // Damit sich die App installieren laesst wie ein Programm.
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Stickmuster", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Wzory do haftu", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -24,8 +23,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // lang wird vom SprachProvider auf die gewählte Sprache gesetzt.
-    <html lang="de" className="h-full">
+    // Die App spricht nur Polnisch – siehe src/lib/sprache/SprachProvider.tsx.
+    <html lang="pl" className="h-full">
       <body className="flex h-full flex-col overflow-hidden bg-papier text-tinte antialiased">
         <OhneNetz />
         <SprachProvider>

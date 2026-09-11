@@ -75,7 +75,7 @@ export function Vergleich({
   /** Wird gerufen, wenn eine Version gelöscht wurde. */
   onGeloescht?: (standId: string) => void;
 }) {
-  const { t, sprache, zahl } = useSprache();
+  const { t, zahl } = useSprache();
 
   /**
    * Der Schlüssel sagt, zu welchem Muster die geladene Liste gehört. Solange
@@ -122,7 +122,7 @@ export function Vergleich({
     ? Math.min(2, Math.max(0.5, mitMassen.breite / mitMassen.hoehe))
     : 1 / 1.15;
 
-  const zeit = (iso: string) => zeitpunktText(iso, sprache, t);
+  const zeit = (iso: string) => zeitpunktText(iso, t);
 
   // --- Die Stände des Projekts holen ---------------------------------------
   useEffect(() => {

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Sprachwahl } from "./Sprachwahl";
 import { Sicherungszeichen } from "./Sicherungszeichen";
 import { useSprache } from "@/lib/sprache/SprachProvider";
 
@@ -28,7 +27,6 @@ export function Kopfzeile() {
           >
             {t("kopf.meineGarne")}
           </Link>
-          <Sprachwahl />
         </div>
       </div>
     </header>

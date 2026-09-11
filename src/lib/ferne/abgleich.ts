@@ -52,7 +52,6 @@ import {
   zeilenLesen,
   zeilenLoeschen,
   zeilenSchreiben,
-  zugangHolen,
 } from "./supabase";
 
 /** Höchstens so viele Projekte werden beim Start aus der Ferne geholt. */
@@ -196,6 +195,14 @@ async function einmalHochladen(): Promise<void> {
     }
   }
 
+  // Hat sich unterwegs herausgestellt, dass gar nichts eingerichtet ist, war
+  // das kein Fehler: die App arbeitet dann allein auf dem Gerät, und das
+  // Zeichen in der Kopfzeile soll dazu schweigen.
+  if (!ferneEingerichtet()) {
+    melden({ art: "aus", meldung: null });
+    return;
+  }
+
   const offenDanach = await offeneAnzahl();
   if (gestolpert) {
     melden({ art: "fehler", offen: offenDanach, meldung: gestolpert });
@@ -239,13 +246,9 @@ async function einesHochladen(
 async function standEntfernen(kennung: string): Promise<void> {
   const [projektId, standId] = kennung.split("/");
   if (!projektId || !standId) return;
-  const zugang = await zugangHolen();
 
   try {
-    await dateienLoeschen([
-      rasterPfad(zugang.benutzer, projektId, standId),
-      vorschauPfad(zugang.benutzer, projektId, standId),
-    ]);
+    await dateienLoeschen([rasterPfad(projektId, standId), vorschauPfad(projektId, standId)]);
   } catch {
     // Bleiben die Dateien liegen, findet sie ohne ihre Zeile niemand mehr.
   }
@@ -259,8 +262,7 @@ async function standEntfernen(kennung: string): Promise<void> {
  * und muss einzeln weg.
  */
 async function projektEntfernen(id: string): Promise<void> {
-  const zugang = await zugangHolen();
-  const basis = `${zugang.benutzer}/${id}`;
+  const basis = id;
 
   try {
     const oben = await dateienListen(basis);
@@ -280,14 +282,14 @@ async function projektEntfernen(id: string): Promise<void> {
 }
 
 /** Wo die Dateien eines Projekts in der Ferne liegen. */
-function bildPfad(benutzer: string, projektId: string) {
-  return `${benutzer}/${projektId}/bild`;
+function bildPfad(projektId: string) {
+  return `${projektId}/bild`;
 }
-function rasterPfad(benutzer: string, projektId: string, standId: string) {
-  return `${benutzer}/${projektId}/staende/${standId}.rle.gz`;
+function rasterPfad(projektId: string, standId: string) {
+  return `${projektId}/staende/${standId}.rle.gz`;
 }
-function vorschauPfad(benutzer: string, projektId: string, standId: string) {
-  return `${benutzer}/${projektId}/staende/${standId}.png`;
+function vorschauPfad(projektId: string, standId: string) {
+  return `${projektId}/staende/${standId}.png`;
 }
 
 /**
@@ -302,12 +304,10 @@ async function projektHochladen(id: string, schonOben: Set<string>): Promise<boo
   const projekt = await projektHolen(id);
   // Gelöscht, während die Vormerkung wartete: dann gibt es nichts zu tun.
   if (!projekt) return false;
-  const zugang = await zugangHolen();
 
   await zeilenSchreiben("projekte", [
     {
       id: projekt.id,
-      besitzer: zugang.benutzer,
       name: projekt.name,
       angelegt_am: projekt.angelegtAm,
       zuletzt_am: projekt.zuletztAm,
@@ -324,7 +324,7 @@ async function projektHochladen(id: string, schonOben: Set<string>): Promise<boo
   // Das Quellfoto kann 25 Megabyte haben und ändert sich nie. Es geht genau
   // einmal hinauf; danach steht das im Projekt und wird nicht wiederholt.
   if (projekt.bild && !projekt.bildGesichert) {
-    await dateiHochladen(bildPfad(zugang.benutzer, projekt.id), projekt.bild);
+    await dateiHochladen(bildPfad(projekt.id), projekt.bild);
     await projektSatzSchreiben({ ...projekt, bildGesichert: true });
   }
   return true;
@@ -354,12 +354,9 @@ async function standHochladen(id: string, schonOben: Set<string>): Promise<Ergeb
     return "spaeter";
   }
 
-  const zugang = await zugangHolen();
-
   await zeilenSchreiben("staende", [
     {
       id: stand.id,
-      besitzer: zugang.benutzer,
       projekt_id: stand.musterId,
       eltern_id: stand.elternId,
       beschriftung: stand.beschriftung,
@@ -373,11 +370,11 @@ async function standHochladen(id: string, schonOben: Set<string>): Promise<Ergeb
   ]);
 
   await dateiHochladen(
-    rasterPfad(zugang.benutzer, stand.musterId, stand.id),
+    rasterPfad(stand.musterId, stand.id),
     new Blob([stand.raster as BlobPart], { type: "application/gzip" }),
   );
   if (stand.vorschau) {
-    await dateiHochladen(vorschauPfad(zugang.benutzer, stand.musterId, stand.id), stand.vorschau);
+    await dateiHochladen(vorschauPfad(stand.musterId, stand.id), stand.vorschau);
   }
   return "erledigt";
 }
@@ -423,7 +420,6 @@ export async function ausDerFerneHolen(): Promise<number> {
 
   try {
     melden({ art: "laeuft" });
-    const zugang = await zugangHolen();
     const db = await browserdatenbank();
 
     const projekte = await zeilenLesen<FerneProjektzeile>(
@@ -434,39 +430,53 @@ export async function ausDerFerneHolen(): Promise<number> {
 
     for (const zeile of projekte) {
       const hier = (await db.get(LADEN_PROJEKTE, zeile.id)) as Projektsatz | undefined;
-      // Ist das Projekt hier schon, wird nichts angerührt – auch seine
-      // Stände nicht. Sonst holte das Aufräumen (die letzten 20 automatischen
-      // Stände bleiben) sie bei jedem Start wieder zurück, und die Sicherung
-      // schriebe dem Gerät vor, was es zu haben hat.
-      if (hier) continue;
 
-      const bild = zeile.hat_bild ? await dateiHolen(bildPfad(zugang.benutzer, zeile.id)) : null;
-      await projektSatzSchreiben({
-        id: zeile.id,
-        name: zeile.name ?? "",
-        angelegtAm: zeile.angelegt_am,
-        zuletztAm: zeile.zuletzt_am,
-        bild,
-        bildVorschau: bild ? await bildVorschauBauen(bild) : null,
-        bildMasse: zeile.bild_masse,
-        bildAusschnitt: zeile.bild_ausschnitt,
-        bildKennung: zeile.bild_kennung ?? "",
-        einstellungen: einstellungenLesen(zeile.einstellungen),
-        // Es kam gerade von dort – noch einmal hinaufschicken wäre unnötig.
-        bildGesichert: true,
-      });
-      geholt++;
+      if (!hier) {
+        const bild = zeile.hat_bild ? await dateiHolen(bildPfad(zeile.id)) : null;
+        await projektSatzSchreiben({
+          id: zeile.id,
+          name: zeile.name ?? "",
+          angelegtAm: zeile.angelegt_am,
+          zuletztAm: zeile.zuletzt_am,
+          bild,
+          bildVorschau: bild ? await bildVorschauBauen(bild) : null,
+          bildMasse: zeile.bild_masse,
+          bildAusschnitt: zeile.bild_ausschnitt,
+          bildKennung: zeile.bild_kennung ?? "",
+          einstellungen: einstellungenLesen(zeile.einstellungen),
+          // Es kam gerade von dort – noch einmal hinaufschicken wäre unnötig.
+          bildGesichert: true,
+        });
+        geholt++;
+      }
 
+      /**
+       * Welche Stände geholt werden.
+       *
+       * Ist das Projekt hier **neu**, kommt alles mit – das Gerät kennt es ja
+       * noch gar nicht.
+       *
+       * Ist es hier **schon da**, nur die **gemerkten**. Grund: das Aufräumen
+       * behält von den automatischen Ständen nur die letzten 20 (siehe
+       * staende.ts). Holte man alle, kämen die weggeräumten bei jedem Start
+       * wieder zurück und die Sicherung schriebe dem Gerät vor, was es zu
+       * haben hat. Gemerkte Stände werden dagegen **nie** von selbst gelöscht;
+       * fehlt hier einer, dann wurde er auf einem anderen Gerät angelegt – und
+       * genau der soll herüberkommen. Wird ein gemerkter Stand von Hand
+       * gelöscht, verschwindet auch seine Zeile in der Ferne; er kommt also
+       * nicht zurück.
+       */
+      const filter = hier ? "&gemerkt=is.true" : "";
       const staende = await zeilenLesen<FerneStandzeile>(
         "staende",
-        `select=*&projekt_id=eq.${zeile.id}&order=angelegt_am.desc`,
+        `select=*&projekt_id=eq.${zeile.id}${filter}&order=angelegt_am.desc`,
       );
       for (const s of staende) {
         const vorhanden = await db.get(LADEN_STAENDE, s.id);
         if (vorhanden) continue;
-        const raster = await dateiHolen(rasterPfad(zugang.benutzer, s.projekt_id, s.id));
+        const raster = await dateiHolen(rasterPfad(s.projekt_id, s.id));
         if (!raster) continue;
-        const vorschau = await dateiHolen(vorschauPfad(zugang.benutzer, s.projekt_id, s.id));
+        const vorschau = await dateiHolen(vorschauPfad(s.projekt_id, s.id));
         const satz: Standsatz = {
           id: s.id,
           musterId: s.projekt_id,
@@ -489,6 +499,10 @@ export async function ausDerFerneHolen(): Promise<number> {
     melden({ art: "gesichert", offen: await offeneAnzahl(), meldung: null, zuletzt: Date.now() });
     return geholt;
   } catch (fehler) {
+    if (!ferneEingerichtet()) {
+      melden({ art: "aus", meldung: null });
+      return 0;
+    }
     melden({
       art: fehler instanceof FerneFehler && fehler.art === "netz" ? "ohneNetz" : "fehler",
       meldung: fehler instanceof Error ? fehler.message : String(fehler),

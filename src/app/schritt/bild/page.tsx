@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { BildAussuchen } from "./BildAussuchen";
 
-export const metadata = { title: "Bild aussuchen · Wybierz zdjęcie" };
+export const metadata = { title: "Wybierz zdjęcie" };
 
 /**
  * Schritt 1 liest die Adresse (`?neu=1`, siehe `BildAussuchen`). Next.js

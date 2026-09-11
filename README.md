@@ -12,28 +12,34 @@ gespeicherte Stand, sobald Verbindung besteht, auch dort. Ohne diese
 Einrichtung ändert sich nichts, und die Oberfläche erwähnt sie mit keinem
 Wort.
 
-Die Oberfläche gibt es auf **Deutsch und Polnisch** und ist für eine Nutzerin
-ohne Computererfahrung gebaut: Grundschrift 20px, Schaltflächen mindestens 56px
-hoch, pro Bildschirm genau eine Hauptaktion, keine versteckten Einstellungen.
+Die Oberfläche ist **polnisch** und für eine Nutzerin ohne Computererfahrung
+gebaut: Grundschrift 20px, Schaltflächen mindestens 56px hoch, pro Bildschirm
+genau eine Hauptaktion, keine versteckten Einstellungen.
 
-**Es gibt keine Anmeldung.** Die App ist für eine einzige Person gedacht, die
-ihre Muster wiederfinden will, ohne sich etwas merken zu müssen: Seite
-aufrufen und loslegen. Auch mit Sicherung bleibt das so – das Gerät meldet
-sich im Hintergrund anonym an. Was das für die Sicherheit bedeutet, steht
-weiter unten unter „Keine Anmeldung, kein Passwort".
+**Es gibt keine Anmeldung – auch nicht im Hintergrund.** Die App ist für eine
+einzige Person gedacht, die ihre Muster wiederfinden will, ohne sich etwas
+merken zu müssen: Seite aufrufen und loslegen. Mit Sicherung bleibt das so;
+alle Geräte sehen denselben Bestand. Was das für die Sicherheit bedeutet,
+steht weiter unten unter „Keine Anmeldung, kein Passwort".
 
-## Zwei Sprachen
+## Eine Sprache: Polnisch
 
-Alle sichtbaren Texte stehen in `src/lib/sprache/texte.ts`, Deutsch und
-Polnisch nebeneinander. Deutsch ist die Vorlage, Polnisch wird dagegen
-getypt – eine fehlende Übersetzung ist damit ein Fehler beim Übersetzen des
-Programms und nicht erst im Betrieb zu merken.
+Alle sichtbaren Texte stehen in `src/lib/sprache/texte.ts` – Oberfläche,
+Meldungen und der Ausdruck. Zahlen, Datum und Uhrzeit werden nach `pl-PL`
+geschrieben.
 
-Beim allerersten Besuch entscheidet die Spracheinstellung des Geräts; wer
-einmal von Hand umschaltet, bekommt ab dann immer seine Sprache. Die beiden
-Knöpfe stehen oben rechts, jeder in seiner eigenen Sprache beschriftet.
-Übersetzt wird alles: die Oberfläche, die Meldungen, die Zahlen- und
-Datumsschreibweise und der Ausdruck.
+Hier stand einmal dieselbe Tabelle zweimal, deutsch und polnisch, mit zwei
+Knöpfen oben rechts. Gebraucht wurde davon eine Hälfte: die App ist für eine
+Person gebaut, und die liest Polnisch. Eine Wahl, bei der es nichts zu wählen
+gibt, ist für die Nutzerin eine Stolperstelle mehr – ein Fehltipper, und die
+App spricht plötzlich eine fremde Sprache.
+
+Die Schlüssel bleiben deutsch benannt (`allgemein.abbrechen`), so wie der
+übrige Programmtext. Sie bekommt niemand zu sehen.
+
+Geblieben ist `t()`: die Texte stehen weiter an **einer** Stelle statt
+verstreut im Programmtext. Das ist der eigentliche Nutzen, und der hängt
+nicht an der Zahl der Sprachen.
 
 Für den Ausdruck liegt eine eigene Schriftdatei bei: die eingebauten
 Schriften eines PDF beherrschen nur WinAnsi und damit kein einziges
@@ -410,16 +416,19 @@ Dateispeicher – das Quellfoto (genau einmal, es ändert sich nie), das
 zusammengedrückte Raster und das Vorschaubild. Ein Muster mit 160 000 Feldern
 wiegt dabei ein paar Kilobyte, das Foto ist das Schwere daran.
 
-Eingerichtet ist es mit drei Handgriffen:
+Eingerichtet ist es mit zwei Handgriffen:
 
 ```bash
-# 1. Tabellen und Regeln anlegen
-#    supabase/migrations/0001_muster_sichern.sql im Projekt ausführen
-# 2. In Supabase: Authentication -> Sign In / Providers -> Anonymous erlauben
-# 3. .env.local anlegen (Vorlage: .env.example)
+# 1. Tabellen und Regeln anlegen – beide Dateien, in dieser Reihenfolge:
+#    supabase/migrations/0001_muster_sichern.sql
+#    supabase/migrations/0002_ohne_anmeldung.sql
+# 2. .env.local anlegen (Vorlage: .env.example)
 NEXT_PUBLIC_SUPABASE_URL=https://…supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=…
 ```
+
+Mehr ist es nicht: kein Konto, kein Schalter unter Authentication, kein
+Schlüssel, der geheim bleiben müsste.
 
 ### Erst das Projekt, dann seine Stände
 
@@ -450,13 +459,14 @@ Zweimal ist es dasselbe Loch in der Einrichtung:
 
 | Antwort | Was fehlt |
 | --- | --- |
-| `POST /auth/v1/signup` → 422 | „Anonymous sign-ins" ist nicht erlaubt |
-| `/rest/v1/…` → 403, `permission denied for table` | die `grant`-Zeilen der Migration sind nicht gelaufen |
-| `POST /rest/v1/staende` → 409, `duplicate key` | die Zeilen in der Ferne gehören einem früheren anonymen Benutzer dieses Geräts (siehe „Keine Anmeldung, kein Passwort") |
+| `/rest/v1/…` → 403, `permission denied for table` | die `grant`-Zeilen aus 0002 sind nicht gelaufen |
+| `/rest/v1/…` → 401 oder 403 mit `row-level security` | die Regeln aus 0002 sind nicht gelaufen – es gelten noch die alten aus 0001, die eine Anmeldung verlangen |
+| `POST /rest/v1/projekte` → 400, `besitzer … violates not-null` | 0002 ist nicht gelaufen: die Spalte steht noch und will eine Benutzerkennung |
+| `/storage/v1/…` → 400 oder 403 | die Regel für den Eimer `muster` aus 0002 fehlt |
 
 Angesprochen wird Supabase über seine HTTP-Schnittstelle, ohne zusätzliches
-Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Anmelden,
-Schreiben, Lesen und zwei Dateibefehle – das sind zweihundert Zeilen. Ein
+Programmpaket (`src/lib/ferne/supabase.ts`). Gebraucht werden Schreiben,
+Lesen und zwei Dateibefehle – das sind hundertfünfzig Zeilen. Ein
 Paket dafür wöge mehr als der ganze Rest der App und läge auf einem Gerät,
 das die App gerade ohne Verbindung geöffnet hat.
 
@@ -469,26 +479,34 @@ Ohne eingerichtete Sicherung gibt es dafür auch nichts einzurichten: alle
 Daten liegen im Browser des Geräts, und was dort liegt, bekommt ohnehin nur,
 wer das Gerät hat.
 
-Mit Sicherung bleibt die Oberfläche dieselbe. Beim ersten Mal meldet sich das
-Gerät im Hintergrund **anonym** an – Supabase legt dafür einen Benutzer ohne
-Namen und ohne Passwort an –, und der Zugang liegt danach im Browser. Alle
-Zeilen und Dateien gehören diesem Benutzer, und die Regeln in der Datenbank
-lassen nur ihn heran (`supabase/migrations/0001_muster_sichern.sql`). Der
-Schlüssel im Programm ist der öffentliche; für sich genommen erlaubt er
-nichts.
+Mit Sicherung bleibt die Oberfläche dieselbe, und es kommt auch im
+Hintergrund keine Anmeldung dazu. Geschickt wird nur der **öffentliche
+Schlüssel**, sonst nichts. Es gibt einen Bestand, und den sehen alle Geräte –
+deshalb steht auf dem Telefon dasselbe wie auf dem Tablet.
 
-Zwei Dinge gehören dazugesagt:
+Vorher meldete sich jedes Gerät im Hintergrund **anonym** an. Supabase legte
+dafür jedes Mal einen neuen Benutzer an, und die Regeln in der Datenbank
+liessen jeden nur an seine eigenen Zeilen. Die Sicherung lief also – aber
+jedes Gerät sicherte in seine eigene Ecke, und auf dem zweiten Gerät stand
+nichts. Wer von dort kommt: der alte Zugang liegt noch unter
+`stickmuster-ferne-sitzung` im Browserspeicher und wird nicht mehr angefasst;
+die Muster, die unter ihm in der Ferne liegen, holt niemand mehr. Auf dem
+Gerät selbst stehen sie weiter und gehen beim nächsten Sichern in den
+gemeinsamen Bestand.
 
-- Wer den Browserspeicher leert, verliert **den Zugang**, nicht die Daten:
-  Das Gerät meldet sich danach als neuer anonymer Benutzer an und sieht die
-  alte Sicherung nicht mehr. Deshalb ist die Sicherung ein zweites Exemplar
-  und kein Archiv, an das man sich von überall anmelden könnte.
-  Bleiben dabei die Muster auf dem Gerät stehen und geht nur der Zugang
-  verloren, lehnt der Dienst ihre alten Kennungen ab (`409 duplicate key`) –
-  sie gehören dem alten Benutzer. Die App bleibt davon arbeitsfähig: der
-  Eintrag bleibt vorgemerkt, alles Neue geht weiter hinauf.
-- Ein fertiges Muster gehört trotzdem ausgedruckt. Papier überlebt jedes
-  Konto.
+Drei Dinge gehören dazugesagt:
+
+- **Wer den öffentlichen Schlüssel hat, kommt an die Muster.** Er steht im
+  Programmtext jeder ausgelieferten Seite und lässt sich in jedem Browser
+  nachlesen. Das ist der bewusst gewählte Tausch – kein Anmeldebildschirm
+  gegen keine Geheimhaltung. Wer beides will, lässt 0002 weg und baut auf den
+  Regeln aus 0001 eine richtige Anmeldung; die Datenbank trüge sie ohne
+  Änderung mit, es fehlte nur die Oberfläche dafür.
+- Der Browserspeicher darf geleert werden: es gibt nichts darin, was für die
+  Sicherung gebraucht würde. Das war mit der anonymen Anmeldung anders – da
+  war mit dem Zugang auch die Sicherung weg.
+- Ein fertiges Muster gehört trotzdem ausgedruckt. Papier überlebt jede
+  Datenbank.
 
 ## Wie die Oberfläche gebaut ist
 
@@ -635,7 +653,7 @@ src/lib/farbe           Lab, CIEDE2000 und die Farbbeschreibungen
 src/lib/garne           Der Garnkatalog, fest im Programm
 src/lib/speicher        IndexedDB: Projekte, Arbeitsstand, Stände, Motive, Garne
 src/lib/ferne           Die freiwillige Sicherung bei Supabase
-src/lib/sprache         Wörterbuch Deutsch/Polnisch und der Sprachumschalter
+src/lib/sprache         Alle sichtbaren Texte, auf Polnisch
 public/sw.js            Service Worker – dafür läuft die App ohne Internet
 supabase/migrations     Tabellen und Regeln für die Sicherung
 data                    Garnlisten und ihre Quelldaten
@@ -650,8 +668,7 @@ scripts                 Garnfarben ableiten, Katalog und Symbole erzeugen
    Blätter werden
 2. Garnliste mit Symbol, Garnnummer, Farbname, Stichzahl und geschätztem
    Garnverbrauch in Metern
-3. Das Muster in Schwarzweiß mit Symbolen, Blatt für Blatt
-4. Dasselbe noch einmal in Farbe
+3. Das Muster in Farbe mit Symbolen, Blatt für Blatt
 
 Die Blätter überlappen sich um zwei Reihen, jede zehnte Rasterlinie ist
 dicker, und an den Rändern stehen die Reihen- und Spaltennummern. Die
