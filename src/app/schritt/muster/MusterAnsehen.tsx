@@ -36,7 +36,7 @@ import {
   ausschnittHerausloesen,
   auswahlFuellen,
   auswahlNichtSticken,
-  drehen90,
+  drehenGrad,
   freieFelder,
   freihandAuswahl,
   gleicheFlaecheAuswaehlen,
@@ -129,16 +129,20 @@ export function MusterAnsehen() {
   /**
    * Das Stück, das gerade eingesetzt wird.
    *
-   * Gehalten wird die **unskalierte** Quelle, dazu die Stufe. Gedreht und
-   * gespiegelt wird die Quelle selbst – beides ist verlustfrei. Vergrößert
-   * wird immer erst beim Anzeigen, aus der Quelle heraus: sonst rechnete
-   * jeder Tipp auf „Größer" das schon Gerechnete noch einmal um, und nach
-   * zweimal hin und her wäre aus dem Motiv ein Klotz geworden.
+   * Gehalten wird die **unskalierte, ungedrehte** Quelle, dazu der Winkel und
+   * die Stufe. Gedreht und vergrößert wird immer erst beim Anzeigen, aus der
+   * Quelle heraus: sonst rechnete jeder Tipp auf „Größer" das schon
+   * Gerechnete noch einmal um, und nach zweimal hin und her wäre aus dem
+   * Motiv ein Klotz geworden. Bei der halben Vierteldrehung (45°) wiegt das
+   * doppelt – sie legt das Stück neu auf das Raster und ist nicht umkehrbar.
+   * Gespiegelt wird die Quelle selbst, das ist verlustfrei.
    */
   const [vorschau, setVorschau] = useState<{
     quelle: Ausschnitt;
     /** Stelle in STUECK_STUFEN. */
     stufe: number;
+    /** Drehung in Grad, in 45er-Schritten. 0 = wie die Vorlage. */
+    winkel: number;
     x: number;
     y: number;
     /** Motive lösen beim Einsetzen eine Sicherung aus, Kopien nicht. */
@@ -150,12 +154,15 @@ export function MusterAnsehen() {
    *
    * „Wstaw tutaj" schreibt das Stück ins Raster, und danach war es dort
    * festgewachsen: wer einen Stich danebenlag, musste rückgängig machen und
-   * das Motiv von vorn aus der Liste holen. Gemerkt wird die unskalierte
-   * Quelle samt Stufe und Stelle – dasselbe, was die Vorschau hält.
+   * das Motiv von vorn aus der Liste holen. Gemerkt wird die unskalierte,
+   * ungedrehte Quelle samt Winkel, Stufe und Stelle – dasselbe, was die
+   * Vorschau hält, damit ein wieder aufgenommenes Stück genauso liegt wie
+   * eben noch.
    */
   const [letztesStueck, setLetztesStueck] = useState<{
     quelle: Ausschnitt;
     stufe: number;
+    winkel: number;
     x: number;
     y: number;
     ausMotiv: boolean;
@@ -608,9 +615,15 @@ export function MusterAnsehen() {
    */
   const vorschauQuelle = vorschau?.quelle ?? null;
   const vorschauStufe = vorschau?.stufe ?? STUECK_STUFE_NORMAL;
+  const vorschauWinkel = vorschau?.winkel ?? 0;
+  /** Die Quelle im gewählten Winkel – Grundlage für Maße und Stufen. */
+  const vorschauBasis = useMemo(
+    () => (vorschauQuelle ? drehenGrad(vorschauQuelle, vorschauWinkel) : null),
+    [vorschauQuelle, vorschauWinkel],
+  );
   const vorschauStueck = useMemo(
-    () => (vorschauQuelle ? skalieren(vorschauQuelle, STUECK_STUFEN[vorschauStufe]) : null),
-    [vorschauQuelle, vorschauStufe],
+    () => (vorschauBasis ? skalieren(vorschauBasis, STUECK_STUFEN[vorschauStufe]) : null),
+    [vorschauBasis, vorschauStufe],
   );
 
   // ---------------------------------------------------------------------
@@ -629,6 +642,7 @@ export function MusterAnsehen() {
     setVorschau({
       quelle: stueck,
       stufe: STUECK_STUFE_NORMAL,
+      winkel: 0,
       ausMotiv,
       x: Math.max(0, Math.floor((muster.breite - stueck.w) / 2)),
       y: Math.max(0, Math.floor((muster.hoehe - stueck.h) / 2)),
@@ -655,6 +669,7 @@ export function MusterAnsehen() {
         ? {
             quelle: vorschau.quelle,
             stufe: vorschau.stufe,
+            winkel: vorschau.winkel,
             x: vorschau.x,
             y: vorschau.y,
             ausMotiv: vorschau.ausMotiv,
@@ -700,8 +715,53 @@ export function MusterAnsehen() {
     melden(t("editor.einsetzenMeldung"));
   };
 
-  const vorschauDrehen = () => {
-    setVorschau((v) => (v ? { ...v, quelle: drehen90(v.quelle) } : v));
+  /**
+   * Um 45° oder 90° weiterdrehen.
+   *
+   * Gedreht wird nicht das, was liegt, sondern immer die Vorlage im neuen
+   * Winkel: zwei halbe Vierteldrehungen ergeben so die saubere
+   * Vierteldrehung, und achtmal 45° bringen das Motiv unversehrt dorthin
+   * zurück, wo es angefangen hat.
+   *
+   * Schräg gestellt wird das Stück breiter (eine Raute braucht ihre
+   * Diagonale). Damit es dabei nicht vom Fleck rutscht, den die Nutzerin
+   * gerade getroffen hat, wächst es um seine Mitte – wie beim Vergrößern.
+   */
+  const vorschauDrehen = (schritt: number) => {
+    setVorschau((v) => {
+      if (!v) return v;
+      const winkel = (v.winkel + schritt + 360) % 360;
+      const alt = skalierteMasse(drehenGrad(v.quelle, v.winkel), STUECK_STUFEN[v.stufe]);
+      const jetzt = skalierteMasse(drehenGrad(v.quelle, winkel), STUECK_STUFEN[v.stufe]);
+      return {
+        ...v,
+        winkel,
+        x: Math.round(v.x + (alt.w - jetzt.w) / 2),
+        y: Math.round(v.y + (alt.h - jetzt.h) / 2),
+      };
+    });
+  };
+
+  /**
+   * Spiegeln – an dem, was zu sehen ist, und nicht an der Vorlage.
+   *
+   * Ist das Stück schräg gestellt, dreht sich der Winkel beim Spiegeln mit
+   * um (aus 45° wird 315°). Ohne das kippte ein gespiegeltes Motiv zur
+   * anderen Seite weg, obwohl die Nutzerin nur die Seiten tauschen wollte.
+   */
+  const vorschauSpiegeln = (richtung: "waagerecht" | "senkrecht") => {
+    setVorschau((v) =>
+      v
+        ? {
+            ...v,
+            quelle:
+              richtung === "waagerecht"
+                ? spiegelnWaagerecht(v.quelle)
+                : spiegelnSenkrecht(v.quelle),
+            winkel: (360 - v.winkel) % 360,
+          }
+        : v,
+    );
   };
 
   /**
@@ -718,10 +778,10 @@ export function MusterAnsehen() {
    * das Muster, ließe sich sonst verkleinern und nie wieder herstellen.
    */
   const stufeErlaubt = (stufe: number): boolean => {
-    if (!vorschau || !muster) return false;
+    if (!vorschau || !vorschauBasis || !muster) return false;
     if (stufe < 0 || stufe >= STUECK_STUFEN.length) return false;
     if (STUECK_STUFEN[stufe] <= 100) return true;
-    const masse = skalierteMasse(vorschau.quelle, STUECK_STUFEN[stufe]);
+    const masse = skalierteMasse(vorschauBasis, STUECK_STUFEN[stufe]);
     return masse.w <= muster.breite && masse.h <= muster.hoehe;
   };
 
@@ -733,8 +793,9 @@ export function MusterAnsehen() {
       if (!v) return v;
       const neu = v.stufe + richtung;
       if (neu < 0 || neu >= STUECK_STUFEN.length) return v;
-      const alt = skalierteMasse(v.quelle, STUECK_STUFEN[v.stufe]);
-      const jetzt = skalierteMasse(v.quelle, STUECK_STUFEN[neu]);
+      const gedreht = drehenGrad(v.quelle, v.winkel);
+      const alt = skalierteMasse(gedreht, STUECK_STUFEN[v.stufe]);
+      const jetzt = skalierteMasse(gedreht, STUECK_STUFEN[neu]);
       return {
         ...v,
         stufe: neu,
@@ -1212,29 +1273,31 @@ export function MusterAnsehen() {
                   </p>
                 ) : null}
 
+                {/* Zwei Drehknöpfe nebeneinander: 45° für alles, was schräg
+                    stehen soll (eine Raute, ein gekipptes Herz), 90° für den
+                    geraden Vierteldreh. Der Hinweis darunter steht nur, wenn
+                    das Stück wirklich schräg liegt – dann sind die Treppen an
+                    den Kanten zu sehen, und die Nutzerin soll wissen, dass
+                    das kein Fehler ist, sondern das Raster. */}
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Knopf art="neben" klein onClick={vorschauDrehen}>
+                  <Knopf art="neben" klein onClick={() => vorschauDrehen(45)}>
+                    {t("editor.achteldrehung")}
+                  </Knopf>
+                  <Knopf art="neben" klein onClick={() => vorschauDrehen(90)}>
                     {t("editor.vierteldrehung")}
                   </Knopf>
-                  <Knopf
-                    art="neben"
-                    klein
-                    onClick={() =>
-                      setVorschau((v) => (v ? { ...v, quelle: spiegelnWaagerecht(v.quelle) } : v))
-                    }
-                  >
+                  <Knopf art="neben" klein onClick={() => vorschauSpiegeln("waagerecht")}>
                     {t("editor.spiegelnWaagerecht")}
                   </Knopf>
-                  <Knopf
-                    art="neben"
-                    klein
-                    onClick={() =>
-                      setVorschau((v) => (v ? { ...v, quelle: spiegelnSenkrecht(v.quelle) } : v))
-                    }
-                  >
+                  <Knopf art="neben" klein onClick={() => vorschauSpiegeln("senkrecht")}>
                     {t("editor.spiegelnSenkrecht")}
                   </Knopf>
                 </div>
+                {vorschau.winkel % 90 !== 0 ? (
+                  <p className="mt-2 text-[1rem] text-gedaempft">
+                    {t("editor.schraegHinweis", { winkel: String(vorschau.winkel) })}
+                  </p>
+                ) : null}
               </Abschnitt>
 
               <Abschnitt>
