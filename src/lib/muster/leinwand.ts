@@ -124,6 +124,12 @@ export type Zeichenauftrag = {
    * zum Plan, nicht zum fertigen Stück.
    */
   mitStichen?: boolean;
+  /**
+   * Das einmal gebaute Bild der ganzen Stickerei (siehe `stichbildZeichnen`).
+   * Wird gebraucht, sobald so weit herausgezoomt ist, dass sich einzelne
+   * Fäden nicht mehr zeichnen lassen.
+   */
+  stichbild?: HTMLCanvasElement | null;
   auswahl?: Uint8Array | null;
   vorschau?: Einfuegevorschau | null;
   /** Kante und Schatten ringsum – das Muster als Blatt auf dem Tisch. */
@@ -170,8 +176,7 @@ export type Zeichenauftrag = {
  * überhaupt Kreuze erkennt – siehe die Begründungen bei den Konstanten.
  */
 
-/** Ab so vielen Bildpunkten je Stich lohnt es, einzelne Fäden zu zeichnen. */
-const STICHE_AB = 6;
+
 
 /** Fadendicke im Verhältnis zum Kästchen. */
 const FADENDICKE = 0.5;
@@ -235,32 +240,57 @@ function mischen(farbe: [number, number, number], ziel: number, anteil: number):
   return `rgb(${misch(farbe[0])},${misch(farbe[1])},${misch(farbe[2])})`;
 }
 
+/** Alles, was das Zeichnen der Stiche braucht – ohne den Rest des Auftrags. */
+type Stichfeld = {
+  breite: number;
+  hoehe: number;
+  raster: Uint16Array;
+  tabelle: Farbtabelle;
+  /** Bildpunkte je Stich. */
+  zoom: number;
+  vorschau?: Einfuegevorschau | null;
+};
+
+/** Was in einem Feld liegt – die verschiebbare Vorschau geht vor. */
+function feldLesen(f: Stichfeld, x: number, y: number): number {
+  const v = f.vorschau;
+  if (v) {
+    const vx = x - v.x;
+    const vy = y - v.y;
+    if (vx >= 0 && vy >= 0 && vx < v.w && vy < v.h) {
+      const q = vy * v.w + vx;
+      if (v.maske[q]) return v.daten[q];
+    }
+  }
+  return f.raster[y * f.breite + x];
+}
+
 /** Der Stoff unter den Stichen, mit den Rillen des Gewebes. */
 function stoffZeichnen(
   stift: CanvasRenderingContext2D,
-  o: Zeichenauftrag,
+  f: Stichfeld,
   x0: number,
   y0: number,
   x1: number,
   y1: number,
 ): void {
-  const { zoom } = o;
-  const [r, g, b] = o.tabelle.stoff;
+  const { zoom } = f;
+  const [r, g, b] = f.tabelle.stoff;
   stift.fillStyle = `rgb(${r},${g},${b})`;
-  stift.fillRect(0, 0, o.breite * zoom, o.hoehe * zoom);
+  stift.fillRect(x0 * zoom, y0 * zoom, (x1 - x0) * zoom, (y1 - y0) * zoom);
 
-  // Die Rillen zwischen den gewebten Blöcken. Unter sechs Punkten je Stich
-  // lägen sie dichter als das Bildschirmraster und würden zu einem Grauschleier.
-  if (zoom < STICHE_AB) return;
+  // Die Rillen zwischen den gewebten Blöcken. Unter drei Punkten je Stich
+  // lägen sie dichter als das Raster und würden zu einem Grauschleier.
+  if (zoom < 3) return;
   stift.strokeStyle = "rgba(0,0,0,0.10)";
   stift.lineWidth = Math.max(1, zoom * 0.07);
   stift.beginPath();
-  for (let x = Math.max(0, x0); x <= x1 && x <= o.breite; x++) {
+  for (let x = Math.max(0, x0); x <= x1 && x <= f.breite; x++) {
     const px = x * zoom;
     stift.moveTo(px, y0 * zoom);
     stift.lineTo(px, y1 * zoom);
   }
-  for (let y = Math.max(0, y0); y <= y1 && y <= o.hoehe; y++) {
+  for (let y = Math.max(0, y0); y <= y1 && y <= f.hoehe; y++) {
     const py = y * zoom;
     stift.moveTo(x0 * zoom, py);
     stift.lineTo(x1 * zoom, py);
@@ -282,15 +312,13 @@ function stoffZeichnen(
  */
 function sticheZeichnen(
   stift: CanvasRenderingContext2D,
-  o: Zeichenauftrag,
+  f: Stichfeld,
   x0: number,
   y0: number,
   x1: number,
   y1: number,
 ): void {
-  const { zoom, breite, raster, tabelle } = o;
-  if (zoom < STICHE_AB) return;
-
+  const { zoom, tabelle } = f;
   const unten = new Map<number, Path2D>();
   const oben = new Map<number, Path2D>();
   const nah = EINZUG * zoom;
@@ -298,7 +326,7 @@ function sticheZeichnen(
 
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
-      const index = raster[y * breite + x];
+      const index = feldLesen(f, x, y);
       // Ein freies Feld bleibt Stoff. `farben[LEER]` trägt zwar die
       // Stofffarbe, aber einen Eintrag hat nur, was wirklich gestickt wird.
       if (index === LEER || !tabelle.eintraege[index]) continue;
@@ -329,15 +357,12 @@ function sticheZeichnen(
   stift.lineJoin = "round";
 
   /**
-   * Eine Lage Fäden legen: Rand, Faden, Glanz.
+   * Eine Lage Fäden legen: von außen dunkel nach innen hell.
    *
    * Der obere Faden bekommt vorweg noch einen Schatten – er liegt ja auf dem
    * unteren und nicht neben ihm.
    */
   const lageZeichnen = (pfade: Map<number, Path2D>, obenauf: boolean) => {
-    // Der untere Faden liegt im Schatten des oberen.
-    const schatten = obenauf ? 0 : 1 - UNTENDUNKEL;
-
     if (obenauf) {
       stift.save();
       stift.translate(versatz, versatz);
@@ -347,26 +372,32 @@ function sticheZeichnen(
       stift.restore();
     }
 
-    /** Die Garnfarbe dieser Lage, in einer der drei Helligkeiten. */
+    /** Die Garnfarbe dieser Lage, heller oder dunkler gemischt. */
     const ton = (index: number, ziel: number, anteil: number) => {
       const farbe = tabelle.farben[index] ?? tabelle.stoff;
-      // Erst der Schatten der Lage, dann Rand oder Glanz obendrauf.
-      const gedaempft = schatten
-        ? ([
-            farbe[0] * UNTENDUNKEL,
-            farbe[1] * UNTENDUNKEL,
-            farbe[2] * UNTENDUNKEL,
-          ] as [number, number, number])
-        : farbe;
+      // Der untere Faden liegt im Schatten des oberen.
+      const gedaempft: [number, number, number] = obenauf
+        ? farbe
+        : [farbe[0] * UNTENDUNKEL, farbe[1] * UNTENDUNKEL, farbe[2] * UNTENDUNKEL];
       return mischen(gedaempft, ziel, anteil);
     };
 
-    // Der Faden ist rund: von außen nach innen wird er heller. Bei wenigen
-    // Bildpunkten je Stich wären die inneren Stufen schmaler als ein Punkt –
-    // dort bleibt es bei den äußeren.
+    /**
+     * Wie viele Stufen der Rundung gezeichnet werden, hängt davon ab, wie
+     * dick der Faden auf dem Bildschirm ist.
+     *
+     * Zwei Stufen, die sich um weniger als einen Bildpunkt unterscheiden,
+     * ergeben dasselbe Bild – die zweite kostet nur Zeit. Und Zeit ist hier
+     * kein Nebenschauplatz: bei 400 Stichen Breite sind es über
+     * zweihunderttausend Kästchen, und jede zusätzliche Stufe schlägt mit
+     * einer halben Million Strichen zu Buche. Ungebremst blockierte das
+     * Umschalten den Browser sieben Sekunden lang.
+     */
+    let vorige = Infinity;
     for (const [breite, helligkeit] of QUERSCHNITT) {
       const strich = dicke * breite;
-      if (strich < 1 && breite < 1) continue;
+      if (vorige - strich < 1 && breite < 1) continue;
+      vorige = strich;
       stift.lineWidth = Math.max(1, strich);
       for (const index of pfade.keys()) {
         stift.strokeStyle =
@@ -384,15 +415,14 @@ function sticheZeichnen(
    *
    * Sie sind das, was einen Stich vom nächsten trennt. Die oberen Fäden zweier
    * schräg benachbarter Kästchen liegen nämlich auf **einer** Geraden; ohne
-   * die Löcher wurden daraus durchlaufende Schnüre quer über das ganze Bild,
-   * und von einzelnen Kreuzen war nichts mehr zu sehen. Auf dem Stoff
-   * verschwindet der Faden an jeder Ecke im Gewebe, und genau diese
-   * Einschnürung macht aus der Schnur wieder einzelne Stiche.
+   * die Lücke an der Ecke wurden daraus durchlaufende Schnüre quer über das
+   * ganze Bild. Der dunkle Punkt füllt diese Lücke, damit sie nicht als Stoff
+   * gelesen wird.
    *
    * Ein Pfad für alle, einmal gefüllt – bei zwanzigtausend sichtbaren
    * Kästchen wären zwanzigtausend einzelne Füllbefehle zu langsam.
    */
-  if (zoom < 8 || LOCH <= 0) return;
+  if (zoom < 5) return;
   const loecher = new Path2D();
   const r = Math.max(0.6, zoom * LOCH);
   for (let y = y0; y <= y1; y++) {
@@ -403,6 +433,141 @@ function sticheZeichnen(
   }
   stift.fillStyle = "rgba(40,30,20,0.42)";
   stift.fill(loecher);
+}
+
+/**
+ * Wie fein das gespeicherte Stickbild ist.
+ *
+ * Es wird einmal gezeichnet und danach nur noch verkleinert angezeigt. Je
+ * Stich braucht es also so viele Bildpunkte, dass beim Verkleinern noch
+ * Struktur übrig bleibt – aber nicht so viele, dass ein großes Muster den
+ * Speicher sprengt. Bei 250 000 Feldern und acht Punkten je Stich wären das
+ * 16 Millionen Bildpunkte; deshalb je größer das Muster, desto gröber.
+ */
+function stichfeinheit(felder: number): number {
+  if (felder <= 60_000) return 8;
+  if (felder <= 150_000) return 6;
+  return 4;
+}
+
+/**
+ * Das ganze Muster einmal als Stickerei zeichnen.
+ * ---------------------------------------------------------------------------
+ *
+ * Der Grund für dieses zweite Bild: die Stickansicht soll man **von weitem**
+ * sehen, nicht erst beim Hineinzoomen. Bei einem Muster, das ganz auf den
+ * Bildschirm passt, fallen auf einen Stich aber oft nur zwei oder drei
+ * Bildpunkte – zu wenig, um zwei Fäden und ein Loch hineinzuzeichnen. Der
+ * erste Anlauf zeigte deshalb unterhalb von sechs Punkten je Stich wieder den
+ * Kästchenplan, und genau das war der Fehler: die Ansicht tat nur beim
+ * Hineinzoomen etwas.
+ *
+ * Jetzt wird das Muster einmal mit acht Punkten je Stich gezeichnet und
+ * danach **verkleinert** angezeigt. Das Verkleinern besorgt der Browser, und
+ * es mittelt dabei – genau das, was auch das Auge tut, wenn es aus zwei
+ * Metern auf eine Stickerei schaut. Die Struktur bleibt als Körnung erhalten,
+ * statt zu einer Fläche zu werden.
+ *
+ * Gebaut wird es nur, wenn die Stickansicht an ist, und nur neu, wenn sich am
+ * Muster etwas geändert hat.
+ */
+/**
+ * Ein einzelner Stich als kleines Bild – für jede Garnfarbe einer.
+ *
+ * Gezeichnet wird dafür ein Muster aus genau einem Kästchen; herauskommt ein
+ * Block von `zoom` mal `zoom` Bildpunkten, den das Stickbild danach nur noch
+ * an die richtigen Stellen kopiert.
+ */
+function stempelBauen(tabelle: Farbtabelle, zoom: number): Map<number, ImageData> {
+  const stempel = new Map<number, ImageData>();
+  const hilfe = document.createElement("canvas");
+  hilfe.width = zoom;
+  hilfe.height = zoom;
+  const stift = hilfe.getContext("2d", { willReadFrequently: true });
+  if (!stift) return stempel;
+
+  const einer = new Uint16Array(1);
+  for (let index = 0; index < FARBINDIZES; index++) {
+    // Nur, was wirklich gestickt wird – und einmal der leere Stoff.
+    if (index !== LEER && !tabelle.eintraege[index]) continue;
+    einer[0] = index;
+    const feld: Stichfeld = { breite: 1, hoehe: 1, raster: einer, tabelle, zoom };
+    stift.setTransform(1, 0, 0, 1, 0, 0);
+    stift.clearRect(0, 0, zoom, zoom);
+    stoffZeichnen(stift, feld, 0, 0, 1, 1);
+    sticheZeichnen(stift, feld, 0, 0, 1, 1);
+    stempel.set(index, stift.getImageData(0, 0, zoom, zoom));
+  }
+  return stempel;
+}
+
+/**
+ * Das ganze Muster einmal als Stickerei zeichnen.
+ * ---------------------------------------------------------------------------
+ *
+ * Der Grund für dieses zweite Bild: die Stickansicht soll man **von weitem**
+ * sehen, nicht erst beim Hineinzoomen. Bei einem Muster, das ganz auf den
+ * Bildschirm passt, fallen auf einen Stich aber oft nur zwei oder drei
+ * Bildpunkte – zu wenig, um zwei Fäden und ein Loch hineinzuzeichnen. Der
+ * erste Anlauf zeigte deshalb unterhalb von sechs Punkten je Stich wieder den
+ * Kästchenplan, und genau das war der Fehler: die Ansicht tat nur beim
+ * Hineinzoomen etwas.
+ *
+ * Jetzt wird das Muster einmal mit wenigen Punkten je Stich gezeichnet und
+ * danach **verkleinert** angezeigt. Das Verkleinern besorgt der Browser, und
+ * es mittelt dabei – genau das, was auch das Auge tut, wenn es aus zwei
+ * Metern auf eine Stickerei schaut. Die Struktur bleibt als Körnung erhalten,
+ * statt zu einer Fläche zu werden.
+ *
+ * Gebaut wird nicht Stich für Stich, sondern aus **Stempeln**: je Garnfarbe
+ * einmal ein Kästchen zeichnen und den Block danach nur noch kopieren. Der
+ * Unterschied ist nicht kosmetisch. Bei 400 Stichen Breite sind über
+ * zweihunderttausend Kästchen zu füllen; einzeln gezeichnet blockierte das
+ * den Browser mehrere Sekunden lang, kopiert sind es ein paar Dutzend
+ * Millisekunden. Verloren geht dabei nur, dass die Fäden benachbarter Stiche
+ * einander leicht überlappen – bei acht Bildpunkten je Stich sieht das
+ * niemand, und beim Hineinzoomen wird ohnehin frisch gezeichnet.
+ */
+export function stichbildZeichnen(
+  ziel: HTMLCanvasElement,
+  breite: number,
+  hoehe: number,
+  raster: Uint16Array,
+  tabelle: Farbtabelle,
+  vorschau?: Einfuegevorschau | null,
+): void {
+  const zoom = stichfeinheit(breite * hoehe);
+  const punkteBreit = Math.max(1, breite * zoom);
+  const punkteHoch = Math.max(1, hoehe * zoom);
+  if (ziel.width !== punkteBreit || ziel.height !== punkteHoch) {
+    ziel.width = punkteBreit;
+    ziel.height = punkteHoch;
+  }
+  const stift = ziel.getContext("2d");
+  if (!stift) return;
+
+  const stempel = stempelBauen(tabelle, zoom);
+  const leer = stempel.get(LEER);
+  if (!leer) return;
+
+  const feld: Stichfeld = { breite, hoehe, raster, tabelle, zoom, vorschau };
+  const bild = stift.createImageData(punkteBreit, punkteHoch);
+  const ziel8 = bild.data;
+  const zeile = punkteBreit * 4;
+  const block = zoom * 4;
+
+  for (let y = 0; y < hoehe; y++) {
+    for (let x = 0; x < breite; x++) {
+      const quelle = (stempel.get(feldLesen(feld, x, y)) ?? leer).data;
+      const links = x * block;
+      for (let z = 0; z < zoom; z++) {
+        ziel8.set(quelle.subarray(z * block, (z + 1) * block), (y * zoom + z) * zeile + links);
+      }
+    }
+  }
+
+  stift.setTransform(1, 0, 0, 1, 0, 0);
+  stift.putImageData(bild, 0, 0);
 }
 
 /**
@@ -462,20 +627,44 @@ export function musterZeichnen(
   /**
    * In der Stickansicht liegt kein Kästchenbild darunter, sondern Stoff.
    *
-   * Ist so weit herausgezoomt, dass ein Stich nur noch ein paar Bildpunkte
-   * misst, wird trotzdem das Kästchenbild gezeichnet – und das ist keine
-   * Notlösung: aus der Entfernung sieht eine Stickerei tatsächlich aus wie
-   * ihre Farbflächen. Einzelne Fäden dort hinzumalen ergäbe nur Grau.
+   * Zwei Wege führen dorthin, und beide zeigen dieselbe Stickerei:
+   *
+   *  - **Nah** wird sie frisch gezeichnet, nur für die sichtbaren Felder. So
+   *    sind die Fäden gestochen scharf, egal wie weit hineingezoomt wird.
+   *  - **Fern** wird das einmal gebaute Stickbild verkleinert hingelegt. Dort
+   *    fielen auf einen Stich zu wenige Bildpunkte, um zwei Fäden und ein
+   *    Loch hineinzuzeichnen; das Verkleinern mittelt sie stattdessen – genau
+   *    das, was auch das Auge tut, wenn es aus zwei Metern hinschaut.
+   *
+   * Fehlt das Stickbild (der erste Durchlauf, bevor es gebaut ist), bleibt es
+   * beim Kästchenplan – lieber der als ein leeres Feld.
    */
-  const alsStickerei = (o.mitStichen ?? false) && zoom >= STICHE_AB;
+  const stickerei = o.mitStichen ?? false;
+  // Umgeschaltet wird genau bei der Feinheit des Stickbildes. So wird es nur
+  // je verkleinert und nie vergrößert – vergrößert wäre es unscharf, und
+  // gerade beim Hineinsehen soll jeder Faden zu erkennen sein.
+  const nahGezeichnet = stickerei && zoom >= stichfeinheit(breite * hoehe);
+  const fernGelegt = stickerei && !nahGezeichnet && !!o.stichbild;
 
-  stift.imageSmoothingEnabled = false;
-  if (alsStickerei) {
-    stoffZeichnen(stift, o, x0, y0, x1, y1);
-    sticheZeichnen(stift, o, x0, y0, x1, y1);
+  stift.imageSmoothingEnabled = fernGelegt;
+  if (nahGezeichnet) {
+    const feld = {
+      breite,
+      hoehe,
+      raster: o.raster,
+      tabelle: o.tabelle,
+      zoom,
+      vorschau: o.vorschau,
+    };
+    stoffZeichnen(stift, feld, x0, y0, x1, y1);
+    sticheZeichnen(stift, feld, x0, y0, x1, y1);
+  } else if (fernGelegt) {
+    stift.drawImage(o.stichbild as HTMLCanvasElement, 0, 0, musterBreite, musterHoehe);
   } else {
     stift.drawImage(klein, 0, 0, musterBreite, musterHoehe);
   }
+  stift.imageSmoothingEnabled = false;
+  const alsStickerei = nahGezeichnet || fernGelegt;
 
   // --- Rasterlinien -------------------------------------------------------
   // Erst ab 5 Bildpunkten je Stich; darunter würde das Raster das Bild
