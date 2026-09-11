@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Knopf } from "./Knopf";
+import { Zahlenfeld } from "./Zahlenfeld";
 import {
   FARBMARKEN,
   FARBREGLER_MAX,
@@ -58,6 +59,8 @@ export function Farbregler({
 }) {
   const { t, zahl } = useSprache();
   const [gezeigt, setGezeigt] = useState(farbanzahl);
+  /** Auf diesen Wert wurde zuletzt begrenzt – dann steht ein Satz darunter. */
+  const [begrenzt, setBegrenzt] = useState<number | null>(null);
   /** Der zuletzt hinausgegebene Wert – daran hängt, ob von außen kam, was kommt. */
   const gesendet = useRef(farbanzahl);
   const uhr = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -127,7 +130,10 @@ export function Farbregler({
           Raster statt nebeneinander: die Spalte im Editor ist schmal, und
           umbrechende Knöpfe hätten „Mehr" allein in die nächste Zeile
           gesetzt. */}
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+      {/* `minmax(0,…)` statt `1fr`: sonst dürfen die beiden Knöpfe nicht unter
+          ihre Textbreite schrumpfen, und die Zeile schob „Mehr" in dieser
+          schmalen Spalte über den rechten Rand hinaus. */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
         <Knopf
           art="neben"
           className="px-3"
@@ -137,9 +143,18 @@ export function Farbregler({
         >
           {t("einst.weniger")}
         </Knopf>
-        <output className="min-w-[96px] rounded-xl border-2 border-tinte bg-white px-3 py-3 text-center text-[1.5rem] font-bold tabular-nums">
-          {gezeigt}
-        </output>
+        {/* Auch hier lässt sich die Zahl eintippen. Ein erklärender Satz
+            steht nicht daneben: die Spalte ist schmal, und wer bis hierher
+            kommt, hat das Feld in Schritt 2 schon gesehen. */}
+        <Zahlenfeld
+          id="farbanzahl-feld"
+          wert={gezeigt}
+          min={MIN_FARBEN}
+          max={MAX_FARBEN}
+          beschriftung={t("einst.farbanzahl")}
+          onAendern={schieben}
+          onBegrenzt={setBegrenzt}
+        />
         <Knopf
           art="neben"
           className="px-3"
@@ -150,6 +165,16 @@ export function Farbregler({
           {t("einst.mehr")}
         </Knopf>
       </div>
+
+      {begrenzt !== null ? (
+        <p role="status" className="text-[1rem] text-warnung">
+          {t("zahlenfeld.begrenzt", {
+            min: zahl(MIN_FARBEN),
+            max: zahl(MAX_FARBEN),
+            wert: zahl(begrenzt),
+          })}
+        </p>
+      ) : null}
     </div>
   );
 }

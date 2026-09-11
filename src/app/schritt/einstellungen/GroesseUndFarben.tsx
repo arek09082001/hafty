@@ -105,6 +105,7 @@ export function GroesseUndFarben() {
         <div className="grid gap-9 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
           <div className="flex flex-col gap-9">
             <Zahlenwahl
+              id="breite-stiche"
               beschriftung={t("einst.breite")}
               wert={breite}
               min={MIN_BREITE}
@@ -150,6 +151,7 @@ export function GroesseUndFarben() {
             </div>
 
             <Zahlenwahl
+              id="anzahl-farben"
               beschriftung={t("einst.farbanzahl")}
               wert={einstellungen.farbanzahl}
               min={MIN_FARBEN}
