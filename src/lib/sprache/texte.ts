@@ -569,6 +569,19 @@ export const TEXTE = {
   "editor.farbeDazugenommen": "Dodano kolor: {marke} {code} · {name}",
   "editor.farbeVoll": "Wzór ma już najwięcej kolorów, ile się da. Nowy kolor się nie zmieści.",
   "editor.farbenAusMotiv": "Kolory motywu dołączyły do listy: {anzahl}.",
+  "editor.unbenutzteEntfernen": "Usuń kolory bez ściegów ({anzahl})",
+  "editor.unbenutzteWeg": "Usunięto kolory bez ściegów: {anzahl}",
+  "editor.unbenutzteHinweis":
+    "Motyw z innego wzoru przynosi ze sobą swoje kolory. Gdy go Pani przesunie albo zdejmie, kolory zostają na liście – bez ani jednego ściegu.",
+  "editor.farbeErsetzen": "Zastąp ten kolor innym",
+  "editor.farbeErsetzenTitel": "Zamiast {garn}",
+  "editor.farbeErsetzenText":
+    "Proszę dotknąć koloru, który ma go zastąpić. Wszystkie ściegi dostaną ten kolor, a zastępowany zniknie z listy.",
+  "editor.farbeErsetzt": "{alt} → {neu} ({anzahl} ściegów)",
+  "editor.keineAndereFarbe": "We wzorze nie ma innego koloru, na który dałoby się zamienić.",
+  "editor.farbeStiche": "{anzahl} ściegów",
+  "schrittname.farbeErsetzt": "Zamiana koloru",
+
   "editor.motivAngefasstTitel": "Wstawiony motyw",
   "editor.motivAngefasstMitNamen": "Wstawiony motyw: {name}",
   "editor.motivAngefasstHinweis":
