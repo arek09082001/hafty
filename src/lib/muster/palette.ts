@@ -104,7 +104,23 @@ export function ausschnittUebernehmen(
   let palette = ziel;
   const abbildung = new Map<number, number>();
 
+  /**
+   * Nur die Farben, die im Stück auch wirklich vorkommen.
+   *
+   * Ein Motiv bringt seine ganze Palette mit – auch Töne, die nur außerhalb
+   * der Maske liegen oder beim Verkleinern weggefallen sind. Die landeten
+   * bisher alle in der Liste, und am Ende standen dort sechsundsechzig
+   * Garne, von denen dreizehn keinen einzigen Stich hatten.
+   */
+  const benutzt = new Set<number>();
+  for (let i = 0; i < stueck.daten.length; i++) {
+    if (!stueck.maske[i]) continue;
+    const wert = stueck.daten[i];
+    if (wert !== LEER) benutzt.add(wert);
+  }
+
   for (const eintrag of stueck.palette) {
+    if (!benutzt.has(eintrag.index)) continue;
     const ergebnis = farbeAnhaengen(palette, {
       hex: eintrag.hex,
       L: eintrag.L,

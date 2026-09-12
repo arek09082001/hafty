@@ -212,6 +212,8 @@ export function MusterAnsehen() {
   const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
   /** Steht das Fenster offen, mit dem eine Farbe dazugenommen wird? */
   const [farbeDazuOffen, setFarbeDazuOffen] = useState(false);
+  /** Welche Farbe gerade durch eine andere ersetzt werden soll. */
+  const [farbeErsetzen, setFarbeErsetzen] = useState<number | null>(null);
   /** Ob gerade zwei Stände nebeneinander liegen. */
   const [vergleichOffen, setVergleichOffen] = useState(false);
 
@@ -293,11 +295,21 @@ export function MusterAnsehen() {
     };
   }, []);
 
-  // Die gewählte Farbe muss es in der Palette geben – nach einem neuen
-  // Durchlauf kann die Palette kleiner geworden sein. Deshalb wird sie beim
-  // Lesen begrenzt und nicht in einem Effekt nachgeführt.
-  const paletteLaenge = muster?.palette.length ?? 0;
-  const farbeSicher = paletteLaenge > 0 ? Math.min(farbe, paletteLaenge - 1) : 0;
+  /**
+   * Die gewählte Farbe muss es in der Palette wirklich geben.
+   *
+   * Nachgesehen wird bei jedem Lesen und nicht in einem Effekt nachgeführt –
+   * die Palette kann nach einem neuen Durchlauf kleiner sein, und seit sich
+   * Farben entfernen und zusammenlegen lassen, sind ihre Nummern auch nicht
+   * mehr lückenlos. Früher stand hier eine Begrenzung auf die Länge der
+   * Liste; die zeigte nach dem Entfernen einer Farbe auf eine Nummer, die es
+   * nicht mehr gab, und der Pinsel malte damit ins Nichts.
+   */
+  const farbeSicher = useMemo(() => {
+    const palette = muster?.palette ?? [];
+    if (palette.length === 0) return 0;
+    return palette.some((e) => e.index === farbe) ? farbe : palette[0].index;
+  }, [muster, farbe]);
 
   /**
    * Zu jedem Tipp die Fläche, die er ausgewählt hat.
@@ -394,6 +406,7 @@ export function MusterAnsehen() {
     vergleichOffen ||
     garnwechsel !== null ||
     farbeDazuOffen ||
+    farbeErsetzen !== null ||
     motivNameOffen ||
     motivZumLoeschen !== null;
 
@@ -734,6 +747,78 @@ export function MusterAnsehen() {
     if (!gewaehltePlatzierung || !muster) return null;
     return platzierungen.find((p) => p.id === gewaehltePlatzierung) ?? null;
   }, [gewaehltePlatzierung, platzierungen, muster]);
+
+  /**
+   * Farben ohne einen einzigen Stich aus der Liste nehmen.
+   * -------------------------------------------------------------------------
+   *
+   * Sie entstehen ganz von selbst: ein Motiv aus einem anderen Muster bringt
+   * seine Farben mit, und wer es danach verschiebt, überdeckt oder wieder
+   * abnimmt, lässt sie leer zurück. Am Ende stehen sechsundsechzig Farben in
+   * der Liste, dreizehn davon mit null Stichen – und die Nutzerin sucht beim
+   * Einkaufen Garne, die im Muster gar nicht vorkommen.
+   *
+   * Weggenommen wird nur, was wirklich leer ist. Eine Farbe, mit der gerade
+   * gemalt werden soll, hat ja noch keinen Stich – deshalb ist das ein Knopf
+   * und nichts, was von selbst passiert.
+   */
+  const unbenutzteFarben = useMemo(
+    () => paletteJetzt.filter((e) => e.stiche === 0),
+    [paletteJetzt],
+  );
+
+  const unbenutzteEntfernen = () => {
+    if (!muster || unbenutzteFarben.length === 0) return;
+    const weg = new Set(unbenutzteFarben.map((e) => e.index));
+    paletteErsetzen(muster.palette.filter((e) => !weg.has(e.index)));
+    melden(t("editor.unbenutzteWeg", { anzahl: zahl(weg.size) }), "erfolg");
+  };
+
+  /**
+   * Zwei Farben zusammenlegen.
+   * -------------------------------------------------------------------------
+   *
+   * „Eine Farbe ersetzen" heißt hier: jeder Stich dieser Farbe bekommt eine
+   * andere, und die alte verschwindet aus der Liste. Das ist der Weg von
+   * sechsundsechzig Garnen auf zwanzig – zwei Rottöne, die nebeneinander
+   * ohnehin gleich aussehen, werden einer.
+   *
+   * Das ist etwas anderes als „anderes Garn": dort behält die Farbe ihren
+   * Platz in der Liste und bekommt nur eine andere Rolle Garn zugewiesen.
+   */
+  const farbeZusammenlegen = (ziel: number) => {
+    if (!muster || !raster || farbeErsetzen === null) return;
+    const alt = farbeErsetzen;
+    setFarbeErsetzen(null);
+    if (ziel === alt) return;
+
+    const indizes: number[] = [];
+    for (let i = 0; i < raster.length; i++) {
+      if (raster[i] === alt) indizes.push(i);
+    }
+    if (indizes.length > 0) {
+      felderAendern(
+        "schrittname.farbeErsetzt",
+        indizes,
+        indizes.map(() => ziel),
+      );
+    }
+    paletteErsetzen(muster.palette.filter((e) => e.index !== alt));
+    setFarbe(ziel);
+
+    const name = (index: number) => {
+      const eintrag = muster.palette.find((e) => e.index === index);
+      return eintrag?.garn ? `${eintrag.garn.marke} ${eintrag.garn.code}` : t("legende.eigeneFarbe");
+    };
+    melden(
+      t("editor.farbeErsetzt", {
+        alt: name(alt),
+        neu: name(ziel),
+        anzahl: zahl(indizes.length),
+      }),
+      "erfolg",
+    );
+  };
 
   /**
    * Ein eingesetztes Motiv wieder aufnehmen.
@@ -1622,6 +1707,33 @@ export function MusterAnsehen() {
                       </Knopf>
                     ) : null}
 
+                    {/* Zwei Wege, die Liste kürzer zu machen: die leeren
+                        Farben auf einen Schlag, und zwei ähnliche Töne
+                        zusammenlegen. */}
+                    {unbenutzteFarben.length > 0 ? (
+                      <>
+                        <Knopf art="neben" klein className="mt-3 w-full" onClick={unbenutzteEntfernen}>
+                          {t("editor.unbenutzteEntfernen", {
+                            anzahl: String(unbenutzteFarben.length),
+                          })}
+                        </Knopf>
+                        <p className="mt-2 text-[0.95rem] text-gedaempft">
+                          {t("editor.unbenutzteHinweis")}
+                        </p>
+                      </>
+                    ) : null}
+
+                    {farbeJetzt && paletteJetzt.length > 1 ? (
+                      <Knopf
+                        art="neben"
+                        klein
+                        className="mt-3 w-full"
+                        onClick={() => setFarbeErsetzen(farbeSicher)}
+                      >
+                        {t("editor.farbeErsetzen")}
+                      </Knopf>
+                    ) : null}
+
                     {/* Ein Knopf statt eines je Zeile: gewechselt wird das Garn
                         der Farbe, die gerade gewählt ist. Er sagt auch gleich,
                         um welche das geht. */}
@@ -1725,6 +1837,37 @@ export function MusterAnsehen() {
         onWiederherstellen={standWiederherstellen}
         onGeloescht={versionVergessen}
       />
+
+      {/* Eine Farbe durch eine andere **aus diesem Muster** ersetzen. Die
+          Auswahl ist deshalb die Legende selbst und nicht der Garnkatalog:
+          gesucht wird ja der Ton, der schon da ist und den anderen
+          mitnehmen kann. */}
+      <Dialog
+        offen={farbeErsetzen !== null}
+        titel={t("editor.farbeErsetzenTitel", {
+          garn: (() => {
+            const alt = muster.palette.find((e) => e.index === farbeErsetzen);
+            return alt?.garn ? `${alt.garn.marke} ${alt.garn.code}` : t("legende.eigeneFarbe");
+          })(),
+        })}
+        text={t("editor.farbeErsetzenText")}
+        bestaetigenText={t("allgemein.abbrechen")}
+        nurSchliessen
+        onBestaetigen={() => setFarbeErsetzen(null)}
+        onAbbrechen={() => setFarbeErsetzen(null)}
+      >
+        {paletteJetzt.filter((e) => e.index !== farbeErsetzen).length === 0 ? (
+          <Hinweis>{t("editor.keineAndereFarbe")}</Hinweis>
+        ) : (
+          <div className="max-h-[52vh] overflow-y-auto pr-1">
+            <Legende
+              palette={paletteJetzt.filter((e) => e.index !== farbeErsetzen)}
+              onWaehlen={farbeZusammenlegen}
+              stoffzaehlung={einstellungen.stoffzaehlung}
+            />
+          </div>
+        )}
+      </Dialog>
 
       <Dialog
         offen={farbeDazuOffen}
