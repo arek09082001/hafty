@@ -194,7 +194,8 @@ export const TEXTE = {
   "editor.ihreGarne": "Moje nici ({anzahl})",
   "editor.garnbedarf":
     "Razem potrzeba około {meter} nici. Szacunek dla dwóch nitek z jednej muliny – lepiej kupić trochę więcej.",
-  "editor.farbeHinweis": "Dotknięty kolor będzie używany do malowania i kolorowania.",
+  "editor.farbeHinweis":
+    "Dotknięty kolor będzie używany do malowania i kolorowania. Na liście są tylko kolory, które naprawdę są we wzorze – kolor bez ani jednego ściegu znika z niej sam.",
   "editor.hinweisAufklappen": "Pokaż objaśnienie narzędzia",
   "editor.hinweisZuklappen": "Ukryj objaśnienie narzędzia",
   "editor.anderesGarnTitel": "Inna nitka dla tego koloru",
@@ -569,6 +570,15 @@ export const TEXTE = {
   "editor.farbeDazugenommen": "Dodano kolor: {marke} {code} · {name}",
   "editor.farbeVoll": "Wzór ma już najwięcej kolorów, ile się da. Nowy kolor się nie zmieści.",
   "editor.farbenAusMotiv": "Kolory motywu dołączyły do listy: {anzahl}.",
+  "editor.farbeErsetzen": "Zastąp ten kolor innym",
+  "editor.farbeErsetzenTitel": "Zamiast {garn}",
+  "editor.farbeErsetzenText":
+    "Proszę dotknąć koloru, który ma go zastąpić. Wszystkie ściegi dostaną ten kolor, a zastępowany zniknie z listy.",
+  "editor.farbeErsetzt": "{alt} → {neu} ({anzahl} ściegów)",
+  "editor.keineAndereFarbe": "We wzorze nie ma innego koloru, na który dałoby się zamienić.",
+  "editor.farbeStiche": "{anzahl} ściegów",
+  "schrittname.farbeErsetzt": "Zamiana koloru",
+
   "editor.motivAngefasstTitel": "Wstawiony motyw",
   "editor.motivAngefasstMitNamen": "Wstawiony motyw: {name}",
   "editor.motivAngefasstHinweis":

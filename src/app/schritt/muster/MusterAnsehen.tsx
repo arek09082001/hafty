@@ -212,6 +212,8 @@ export function MusterAnsehen() {
   const [garnwechsel, setGarnwechsel] = useState<number | null>(null);
   /** Steht das Fenster offen, mit dem eine Farbe dazugenommen wird? */
   const [farbeDazuOffen, setFarbeDazuOffen] = useState(false);
+  /** Welche Farbe gerade durch eine andere ersetzt werden soll. */
+  const [farbeErsetzen, setFarbeErsetzen] = useState<number | null>(null);
   /** Ob gerade zwei Stände nebeneinander liegen. */
   const [vergleichOffen, setVergleichOffen] = useState(false);
 
@@ -293,11 +295,56 @@ export function MusterAnsehen() {
     };
   }, []);
 
-  // Die gewählte Farbe muss es in der Palette geben – nach einem neuen
-  // Durchlauf kann die Palette kleiner geworden sein. Deshalb wird sie beim
-  // Lesen begrenzt und nicht in einem Effekt nachgeführt.
-  const paletteLaenge = muster?.palette.length ?? 0;
-  const farbeSicher = paletteLaenge > 0 ? Math.min(farbe, paletteLaenge - 1) : 0;
+  /** Farben, die von Hand dazugenommen und noch nicht benutzt wurden. */
+  const [frischeFarben, setFrischeFarben] = useState<number[]>([]);
+
+  /**
+   * Die Garnliste wird vor dem Anzeigen neu gezählt.
+   *
+   * Die Zahlen aus dem Worker gelten für das frisch erzeugte Muster. Wer von
+   * Hand malt oder ein Motiv freistellt, ändert sie – und gerade dann muss
+   * hier stehen, wie viel Garn wirklich gebraucht wird.
+   */
+  const paletteGezaehlt = useMemo(
+    () => (muster && raster ? paletteNachzaehlen(muster.palette, raster) : []),
+    [muster, raster],
+  );
+
+  /**
+   * Die gewählte Farbe muss es in der Palette wirklich geben.
+   *
+   * Nachgesehen wird bei jedem Lesen und nicht in einem Effekt nachgeführt –
+   * die Palette kann nach einem neuen Durchlauf kleiner sein, und seit sich
+   * Farben zusammenlegen lassen, sind ihre Nummern auch nicht mehr lückenlos.
+   * Früher stand hier eine Begrenzung auf die Länge der Liste; die zeigte nach
+   * dem Entfernen einer Farbe auf eine Nummer, die es nicht mehr gab, und der
+   * Pinsel malte damit ins Nichts.
+   *
+   * Fällt die Wahl zurück, dann auf eine Farbe, die im Muster **vorkommt**:
+   * eine leere wäre in der Liste gar nicht zu sehen.
+   */
+  const farbeSicher = useMemo(() => {
+    if (paletteGezaehlt.length === 0) return 0;
+    if (paletteGezaehlt.some((e) => e.index === farbe)) return farbe;
+    return (paletteGezaehlt.find((e) => e.stiche > 0) ?? paletteGezaehlt[0]).index;
+  }, [paletteGezaehlt, farbe]);
+
+  /**
+   * Der Schutz einer dazugenommenen Farbe endet mit ihrem ersten Stich: von da
+   * an steht sie ohnehin in der Liste, und wird sie später wieder übermalt,
+   * soll sie gehen wie jede andere leere Farbe auch.
+   *
+   * Nachgeführt beim Rendern und nicht in einem Effekt – so gibt es keinen
+   * Durchgang, in dem die Liste noch die alte Menge zeigt.
+   */
+  const frischeNoch = useMemo(
+    () =>
+      frischeFarben.filter(
+        (index) => (paletteGezaehlt.find((e) => e.index === index)?.stiche ?? 0) === 0,
+      ),
+    [frischeFarben, paletteGezaehlt],
+  );
+  if (frischeNoch.length !== frischeFarben.length) setFrischeFarben(frischeNoch);
 
   /**
    * Zu jedem Tipp die Fläche, die er ausgewählt hat.
@@ -394,6 +441,7 @@ export function MusterAnsehen() {
     vergleichOffen ||
     garnwechsel !== null ||
     farbeDazuOffen ||
+    farbeErsetzen !== null ||
     motivNameOffen ||
     motivZumLoeschen !== null;
 
@@ -626,15 +674,39 @@ export function MusterAnsehen() {
   }, [raster, malSpur]);
 
   /**
-   * Die Garnliste wird vor dem Anzeigen neu gezählt.
+   * Die Garnliste, wie sie angezeigt wird: nur Farben, die auch vorkommen.
+   * -------------------------------------------------------------------------
    *
-   * Die Zahlen aus dem Worker gelten für das frisch erzeugte Muster. Wer von
-   * Hand malt oder ein Motiv freistellt, ändert sie – und gerade dann muss
-   * hier stehen, wie viel Garn wirklich gebraucht wird.
+   * Leere Farben entstehen ganz von selbst: ein Motiv aus einem anderen Muster
+   * bringt seine Farben mit, und wer es danach verschiebt, überdeckt oder
+   * wieder abnimmt, lässt sie ohne einen einzigen Stich zurück. Am Ende standen
+   * sechsundsechzig Garne in der Liste, dreizehn davon mit null Stichen – und
+   * beim Einkaufen sucht man Garne, die im Muster gar nicht vorkommen.
+   *
+   * Deshalb fallen sie von selbst heraus, ohne Knopf und ohne Nachfrage: die
+   * Liste zeigt, was gestickt wird. Zwei bleiben trotzdem stehen, obwohl sie
+   * keinen Stich haben:
+   *
+   *   - die **gewählte** Farbe – mit ihr soll ja gerade gemalt werden;
+   *   - jede von Hand **dazugenommene**, solange sie noch unbenutzt ist. Wer
+   *     sich auf der leeren Kanwa erst vier Garne zurechtlegt und dann malt,
+   *     soll seine Auswahl vorfinden und nicht drei verschwundene Farben.
+   *
+   * Sobald so eine Farbe den ersten Stich hat, zählt für sie wieder die Regel:
+   * wird sie später vollständig übermalt, geht auch sie.
+   *
+   * Aus der Palette des Musters genommen werden sie dabei *nicht*. Dort hängt
+   * das Rückgängig-Machen daran: wer einen Pinselstrich zurücknimmt, bekommt
+   * die alten Stiche wieder, und deren Farbe muss es dann noch geben – sonst
+   * käme statt ihrer leerer Stoff zum Vorschein. Sie sind nur nicht zu sehen
+   * und tauchen von allein wieder auf, sobald wieder ein Stich auf sie fällt.
    */
   const paletteJetzt = useMemo(
-    () => (muster && raster ? paletteNachzaehlen(muster.palette, raster) : []),
-    [muster, raster],
+    () =>
+      paletteGezaehlt.filter(
+        (e) => e.stiche > 0 || e.index === farbeSicher || frischeNoch.includes(e.index),
+      ),
+    [paletteGezaehlt, farbeSicher, frischeNoch],
   );
 
   /** Wie viele Felder bleiben frei, werden also nicht gestickt? */
@@ -734,6 +806,52 @@ export function MusterAnsehen() {
     if (!gewaehltePlatzierung || !muster) return null;
     return platzierungen.find((p) => p.id === gewaehltePlatzierung) ?? null;
   }, [gewaehltePlatzierung, platzierungen, muster]);
+
+  /**
+   * Zwei Farben zusammenlegen.
+   * -------------------------------------------------------------------------
+   *
+   * „Eine Farbe ersetzen" heißt hier: jeder Stich dieser Farbe bekommt eine
+   * andere, und die alte verschwindet aus der Liste. Das ist der Weg von
+   * sechsundsechzig Garnen auf zwanzig – zwei Rottöne, die nebeneinander
+   * ohnehin gleich aussehen, werden einer.
+   *
+   * Das ist etwas anderes als „anderes Garn": dort behält die Farbe ihren
+   * Platz in der Liste und bekommt nur eine andere Rolle Garn zugewiesen.
+   */
+  const farbeZusammenlegen = (ziel: number) => {
+    if (!muster || !raster || farbeErsetzen === null) return;
+    const alt = farbeErsetzen;
+    setFarbeErsetzen(null);
+    if (ziel === alt) return;
+
+    const indizes: number[] = [];
+    for (let i = 0; i < raster.length; i++) {
+      if (raster[i] === alt) indizes.push(i);
+    }
+    if (indizes.length > 0) {
+      felderAendern(
+        "schrittname.farbeErsetzt",
+        indizes,
+        indizes.map(() => ziel),
+      );
+    }
+    paletteErsetzen(muster.palette.filter((e) => e.index !== alt));
+    setFarbe(ziel);
+
+    const name = (index: number) => {
+      const eintrag = muster.palette.find((e) => e.index === index);
+      return eintrag?.garn ? `${eintrag.garn.marke} ${eintrag.garn.code}` : t("legende.eigeneFarbe");
+    };
+    melden(
+      t("editor.farbeErsetzt", {
+        alt: name(alt),
+        neu: name(ziel),
+        anzahl: zahl(indizes.length),
+      }),
+      "erfolg",
+    );
+  };
 
   /**
    * Ein eingesetztes Motiv wieder aufnehmen.
@@ -1000,6 +1118,11 @@ export function MusterAnsehen() {
       return;
     }
     if (ergebnis.palette !== muster.palette) paletteErsetzen(ergebnis.palette);
+    // Sie bleibt in der Liste stehen, bis sie benutzt wird: wer sich mehrere
+    // Garne zurechtlegt, soll sie alle wiederfinden.
+    setFrischeFarben((bisher) =>
+      bisher.includes(ergebnis.index) ? bisher : [...bisher, ergebnis.index],
+    );
     setFarbe(ergebnis.index);
     melden(
       t("editor.farbeDazugenommen", {
@@ -1598,10 +1721,10 @@ export function MusterAnsehen() {
                     titel={t("editor.ihreGarne", { anzahl: String(paletteJetzt.length) })}
                     hinweis={t("editor.farbeHinweis")}
                   >
-                    {/* Hier steht die volle Palette: dieser Bereich ist auch die
-                        Farbauswahl zum Malen, und eine Farbe, die gerade nicht
-                        im Muster vorkommt, muss trotzdem wählbar bleiben. Wie
-                        viele Garne wirklich zu kaufen sind, sagt Schritt 4. */}
+                    {/* Hier stehen die Farben, die im Muster wirklich
+                        vorkommen – und die gerade gewählte, auch wenn mit ihr
+                        noch kein Stich gemacht ist. Was leer geworden ist,
+                        fällt von selbst heraus. */}
                     <Legende
                       palette={paletteJetzt}
                       gewaehlt={farbeSicher}
@@ -1619,6 +1742,20 @@ export function MusterAnsehen() {
                         onClick={() => setFarbeDazuOffen(true)}
                       >
                         {t("editor.farbeDazunehmen")}
+                      </Knopf>
+                    ) : null}
+
+                    {/* Der Weg, die Liste kürzer zu machen: zwei ähnliche Töne
+                        zusammenlegen. Die leeren Farben fallen von selbst
+                        heraus. */}
+                    {farbeJetzt && paletteJetzt.length > 1 ? (
+                      <Knopf
+                        art="neben"
+                        klein
+                        className="mt-3 w-full"
+                        onClick={() => setFarbeErsetzen(farbeSicher)}
+                      >
+                        {t("editor.farbeErsetzen")}
                       </Knopf>
                     ) : null}
 
@@ -1725,6 +1862,37 @@ export function MusterAnsehen() {
         onWiederherstellen={standWiederherstellen}
         onGeloescht={versionVergessen}
       />
+
+      {/* Eine Farbe durch eine andere **aus diesem Muster** ersetzen. Die
+          Auswahl ist deshalb die Legende selbst und nicht der Garnkatalog:
+          gesucht wird ja der Ton, der schon da ist und den anderen
+          mitnehmen kann. */}
+      <Dialog
+        offen={farbeErsetzen !== null}
+        titel={t("editor.farbeErsetzenTitel", {
+          garn: (() => {
+            const alt = muster.palette.find((e) => e.index === farbeErsetzen);
+            return alt?.garn ? `${alt.garn.marke} ${alt.garn.code}` : t("legende.eigeneFarbe");
+          })(),
+        })}
+        text={t("editor.farbeErsetzenText")}
+        bestaetigenText={t("allgemein.abbrechen")}
+        nurSchliessen
+        onBestaetigen={() => setFarbeErsetzen(null)}
+        onAbbrechen={() => setFarbeErsetzen(null)}
+      >
+        {paletteJetzt.filter((e) => e.index !== farbeErsetzen).length === 0 ? (
+          <Hinweis>{t("editor.keineAndereFarbe")}</Hinweis>
+        ) : (
+          <div className="max-h-[52vh] overflow-y-auto pr-1">
+            <Legende
+              palette={paletteJetzt.filter((e) => e.index !== farbeErsetzen)}
+              onWaehlen={farbeZusammenlegen}
+              stoffzaehlung={einstellungen.stoffzaehlung}
+            />
+          </div>
+        )}
+      </Dialog>
 
       <Dialog
         offen={farbeDazuOffen}
