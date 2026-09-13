@@ -194,7 +194,8 @@ export const TEXTE = {
   "editor.ihreGarne": "Moje nici ({anzahl})",
   "editor.garnbedarf":
     "Razem potrzeba około {meter} nici. Szacunek dla dwóch nitek z jednej muliny – lepiej kupić trochę więcej.",
-  "editor.farbeHinweis": "Dotknięty kolor będzie używany do malowania i kolorowania.",
+  "editor.farbeHinweis":
+    "Dotknięty kolor będzie używany do malowania i kolorowania. Na liście są tylko kolory, które naprawdę są we wzorze – kolor bez ani jednego ściegu znika z niej sam.",
   "editor.hinweisAufklappen": "Pokaż objaśnienie narzędzia",
   "editor.hinweisZuklappen": "Ukryj objaśnienie narzędzia",
   "editor.anderesGarnTitel": "Inna nitka dla tego koloru",
@@ -569,10 +570,6 @@ export const TEXTE = {
   "editor.farbeDazugenommen": "Dodano kolor: {marke} {code} · {name}",
   "editor.farbeVoll": "Wzór ma już najwięcej kolorów, ile się da. Nowy kolor się nie zmieści.",
   "editor.farbenAusMotiv": "Kolory motywu dołączyły do listy: {anzahl}.",
-  "editor.unbenutzteEntfernen": "Usuń kolory bez ściegów ({anzahl})",
-  "editor.unbenutzteWeg": "Usunięto kolory bez ściegów: {anzahl}",
-  "editor.unbenutzteHinweis":
-    "Motyw z innego wzoru przynosi ze sobą swoje kolory. Gdy go Pani przesunie albo zdejmie, kolory zostają na liście – bez ani jednego ściegu.",
   "editor.farbeErsetzen": "Zastąp ten kolor innym",
   "editor.farbeErsetzenTitel": "Zamiast {garn}",
   "editor.farbeErsetzenText":
